@@ -379,9 +379,7 @@ img {
   font-size: clamp(16px, 2.5vw, 28px);
   font-weight: 700;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
 }
 
 .stat-info p {
@@ -2017,7 +2015,16 @@ img {
 }
 
 .sidebar-user-avatar {
-  font-size: 28px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 24px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .sidebar-user-info {
@@ -2038,6 +2045,19 @@ img {
 .sidebar-user-status {
   font-size: 11px;
   color: var(--accent-green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-user-status::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-green);
 }
 
 .sidebar-user-more {

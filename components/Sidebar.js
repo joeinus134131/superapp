@@ -48,7 +48,7 @@ export default function Sidebar() {
   useEffect(() => {
     setStorageInfo(getStorageSize());
     setCurrentSyncId(getSyncId());
-  }, []);
+  }, [user]); // Update when user changes (e.g. photo upload)
 
   const handleExport = () => {
     exportAllData();

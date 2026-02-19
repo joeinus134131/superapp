@@ -13,7 +13,7 @@ export default function JournalPage() {
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ title: '', content: '', mood: 'good', date: getToday() });
-  const [isEditing, setIsEditing] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [levelUpData, setLevelUpData] = useState(null);
   const [xpToast, setXpToast] = useState(null);
@@ -23,34 +23,43 @@ export default function JournalPage() {
     if (saved) setEntries(saved);
   }, []);
 
-  const save = (e) => { setEntries(e); setData(STORAGE_KEYS.JOURNAL, e); };
+  const save = (e) => { 
+    setEntries(e); 
+    setData(STORAGE_KEYS.JOURNAL, e); 
+  };
 
   const createNew = () => {
     setForm({ title: '', content: '', mood: 'good', date: getToday() });
-    setSelected(null);
-    setIsEditing(true);
+    setShowEditor(true);
   };
 
   const selectEntry = (entry) => {
     setSelected(entry);
-    setForm({ ...entry });
-    setIsEditing(false);
+  };
+
+  const openEdit = () => {
+    if (!selected) return;
+    setForm({ ...selected });
+    setShowEditor(true);
   };
 
   const handleSave = () => {
     if (!form.title.trim() || !form.content.trim()) return;
-    const isNew = !selected;
-    if (selected) {
-      const updated = entries.map(e => e.id === selected.id ? { ...e, ...form, updatedAt: new Date().toISOString() } : e);
+    
+    const existingIndex = entries.findIndex(e => e.id === form.id);
+
+    if (existingIndex !== -1) {
+      const updated = [...entries];
+      updated[existingIndex] = { ...form, updatedAt: new Date().toISOString() };
       save(updated);
-      setSelected({ ...selected, ...form });
+      setSelected(updated[existingIndex]);
     } else {
       const newEntry = { ...form, id: generateId(), createdAt: new Date().toISOString() };
-      save([newEntry, ...entries]);
+      const updated = [newEntry, ...entries];
+      save(updated);
       setSelected(newEntry);
-    }
-    setIsEditing(false);
-    if (isNew) {
+      
+      // XP Rewards for new entry
       playTaskComplete();
       const result = addXP('JOURNAL_WRITE');
       if (result.levelUp) {
@@ -61,13 +70,14 @@ export default function JournalPage() {
       setTimeout(() => setXpToast(null), 2000);
       checkAchievements();
     }
+    setShowEditor(false);
   };
 
   const deleteEntry = (id) => {
-    save(entries.filter(e => e.id !== id));
+    const updated = entries.filter(e => e.id !== id);
+    save(updated);
     if (selected && selected.id === id) {
       setSelected(null);
-      setIsEditing(false);
     }
   };
 
@@ -85,23 +95,23 @@ export default function JournalPage() {
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
       {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
       {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
+      
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
             <h1>📝 Journal & Notes</h1>
-            <p>Tulis pikiran, refleksi, dan catatan harianmu</p>
+            <p>Tulis pikiran dan catatan harianmu</p>
           </div>
           <button className="btn btn-primary" onClick={createNew}>+ Tulis Baru</button>
         </div>
       </div>
 
-      {/* Mood Stats */}
       <div className="stats-grid mb-3">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>📝</div>
           <div className="stat-info">
             <h3>{entries.length}</h3>
-            <p>Total Jurnal</p>
+            <p>Total Catatan</p>
           </div>
         </div>
         {Object.entries(MOOD_EMOJIS).map(([key, emoji]) => (
@@ -115,15 +125,15 @@ export default function JournalPage() {
         ))}
       </div>
 
-      <div className="grid-2" style={{ gridTemplateColumns: '320px 1fr', alignItems: 'start' }}>
+      <div className="grid-2" style={{ gridTemplateColumns: 'minmax(0, 320px) 1fr', alignItems: 'start' }}>
         {/* Entry List */}
-        <div className="card" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="card" style={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
-            <input className="form-input" placeholder="🔍 Cari jurnal..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="form-input" placeholder="🔍 Cari..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           {filtered.length === 0 ? (
             <div className="empty-state" style={{ padding: '32px' }}>
-              <p className="text-muted text-sm">Belum ada jurnal</p>
+              <p className="text-muted text-sm">Belum ada catatan</p>
             </div>
           ) : (
             filtered.map(entry => (
@@ -150,41 +160,55 @@ export default function JournalPage() {
           )}
         </div>
 
-        {/* Editor */}
-        <div className="card card-padding">
-          {!selected && !isEditing ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📝</div>
-              <h3>Pilih atau buat jurnal</h3>
-              <p>Pilih jurnal dari daftar di sebelah kiri, atau buat yang baru.</p>
-              <button className="btn btn-primary mt-2" onClick={createNew}>+ Tulis Baru</button>
+        {/* Entry View (Reader) */}
+        <div className="card card-padding" style={{ minHeight: '400px' }}>
+          {selected ? (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700, wordBreak: 'break-word' }}>{selected.title}</h2>
+                  <div className="flex items-center gap-2 mt-1 text-sm text-muted">
+                    <span>{MOOD_EMOJIS[selected.mood]} {selected.mood}</span>
+                    <span>•</span>
+                    <span>{formatDate(selected.date)}</span>
+                  </div>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={openEdit}>✏️ Edit</button>
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '16px', color: 'var(--text-secondary)' }}>
+                {selected.content}
+              </div>
             </div>
           ) : (
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
-                  {isEditing ? (
-                    <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
-                      placeholder="Judul jurnal..." style={{ fontSize: '18px', fontWeight: '600', background: 'transparent', border: 'none', borderBottom: '2px solid var(--accent-purple)', borderRadius: 0, padding: '4px 0' }} />
-                  ) : (
-                    <h2 style={{ fontSize: '20px' }}>{selected?.title}</h2>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  {isEditing ? (
-                    <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => { setIsEditing(false); if (!selected) setSelected(null); }}>Batal</button>
-                      <button className="btn btn-primary btn-sm" onClick={handleSave}>💾 Simpan</button>
-                    </>
-                  ) : (
-                    <button className="btn btn-secondary btn-sm" onClick={() => setIsEditing(true)}>✏️ Edit</button>
-                  )}
-                </div>
+            <div className="empty-state" style={{ height: '300px' }}>
+              <div className="empty-state-icon">📖</div>
+              <h3>Pilih Catatan</h3>
+              <p>Pilih catatan dari daftar untuk membacanya, atau buat catatan baru.</p>
+              <button className="btn btn-primary mt-2" onClick={createNew}>+ Tulis Baru</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Popup Editor Modal */}
+      {showEditor && (
+        <div className="modal-overlay" onClick={() => setShowEditor(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h2>{form.id ? 'Edit Catatan' : 'Tulis Baru'}</h2>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowEditor(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+              <div className="form-group">
+                <label className="form-label">Judul</label>
+                <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
+                  placeholder="Judul catatan..." style={{ fontSize: '18px', fontWeight: '600' }} autoFocus />
               </div>
 
-              {isEditing && (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-secondary">Mood:</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Mood</label>
                   <div className="mood-selector">
                     {Object.entries(MOOD_EMOJIS).map(([key, emoji]) => (
                       <button key={key} type="button" className={`mood-btn ${form.mood === key ? 'selected' : ''}`} onClick={() => setForm({...form, mood: key})}>
@@ -192,30 +216,28 @@ export default function JournalPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Tanggal</label>
                   <input type="date" className="form-input" value={form.date} onChange={e => setForm({...form, date: e.target.value})} style={{ width: 'auto' }} />
                 </div>
-              )}
+              </div>
 
-              {isEditing ? (
+              <div className="form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <label className="form-label">Isi Catatan</label>
                 <textarea className="form-textarea" value={form.content} onChange={e => setForm({...form, content: e.target.value})}
                   placeholder="Tulis pikiranmu di sini..."
-                  style={{ minHeight: '400px', fontSize: '15px', lineHeight: '1.8' }} />
-              ) : (
-                <div>
-                  <div className="flex items-center gap-2 mb-2 text-sm text-muted">
-                    <span>{MOOD_EMOJIS[selected?.mood]} {selected?.mood}</span>
-                    <span>•</span>
-                    <span>{formatDate(selected?.date)}</span>
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '15px', color: 'var(--text-secondary)' }}>
-                    {selected?.content}
-                  </div>
-                </div>
-              )}
+                  style={{ flex: 1, minHeight: '200px', fontSize: '16px', lineHeight: '1.6', resize: 'none' }} />
+              </div>
             </div>
-          )}
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowEditor(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleSave}>💾 Simpan Catatan</button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
