@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday } from '@/lib/helpers';
+import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday, formatRupiahInput, parseRupiahInput } from '@/lib/helpers';
 
 export default function FinancePage() {
   const [transactions, setTransactions] = useState([]);
@@ -19,11 +19,12 @@ export default function FinancePage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.amount || !form.description.trim()) return;
+    const rawAmount = parseRupiahInput(form.amount);
+    if (!rawAmount || !form.description.trim()) return;
     save([{
       id: generateId(),
       ...form,
-      amount: Number(form.amount),
+      amount: Number(rawAmount),
       createdAt: new Date().toISOString()
     }, ...transactions]);
     setForm({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
@@ -215,7 +216,15 @@ export default function FinancePage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Jumlah (Rp)</label>
-                  <input type="number" className="form-input" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="0" autoFocus />
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    className="form-input" 
+                    value={form.amount} 
+                    onChange={e => setForm({...form, amount: formatRupiahInput(e.target.value)})} 
+                    placeholder="0" 
+                    autoFocus 
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Deskripsi</label>

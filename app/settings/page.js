@@ -9,6 +9,9 @@ export default function SettingsPage() {
   const [avatar, setAvatar] = useState(user?.avatar || '😎');
   const [customPhoto, setCustomPhoto] = useState(user?.customPhoto || null);
   const [usePhoto, setUsePhoto] = useState(!!user?.customPhoto);
+  const [appName, setAppName] = useState(user?.appName || '');
+  const [appTagline, setAppTagline] = useState(user?.appTagline || '');
+  const [appIcon, setAppIcon] = useState(user?.appIcon || '⚡');
   const [saved, setSaved] = useState(false);
   const fileRef = useRef(null);
 
@@ -34,6 +37,9 @@ export default function SettingsPage() {
       name: name.trim(),
       avatar: usePhoto ? avatar : avatar,
       customPhoto: usePhoto ? customPhoto : null,
+      appName: appName.trim(),
+      appTagline: appTagline.trim(),
+      appIcon: appIcon,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -90,6 +96,47 @@ export default function SettingsPage() {
               placeholder="Nama kamu..."
               maxLength={30}
             />
+          </div>
+        </div>
+
+        {/* Branding */}
+        <div className="card card-padding mb-2">
+          <label className="form-label">🏷️ Custom Branding (Sidebar)</label>
+          <div className="grid-2" style={{ gap: '12px', marginBottom: '16px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label text-xs">Nama Aplikasi</label>
+              <input
+                className="form-input"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                placeholder="SuperApp"
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label text-xs">Tagline Aplikasi</label>
+              <input
+                className="form-input"
+                value={appTagline}
+                onChange={(e) => setAppTagline(e.target.value)}
+                placeholder="Personal Management"
+              />
+            </div>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label text-xs">Icon Aplikasi</label>
+            <div className="flex flex-wrap gap-1">
+              {['⚡', '🚀', '🔥', '💎', '🌟', '🎯', '🎨', '🎮', '💡', '🍀', '🌈', '🪐'].map(emoji => (
+                <button 
+                  key={emoji} 
+                  type="button"
+                  className={`btn btn-icon ${appIcon === emoji ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setAppIcon(emoji)}
+                  style={{ fontSize: '18px' }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

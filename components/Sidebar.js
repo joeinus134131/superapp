@@ -48,7 +48,26 @@ export default function Sidebar() {
   useEffect(() => {
     setStorageInfo(getStorageSize());
     setCurrentSyncId(getSyncId());
-  }, [user]); // Update when user changes (e.g. photo upload)
+
+    // Dynamic Title & Favicon
+    if (user) {
+      document.title = user.appName || 'SuperApp';
+      const emoji = user.appIcon || '⚡';
+      const canvas = document.createElement('canvas');
+      canvas.height = 64; canvas.width = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.font = '54px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, 32, 38);
+      
+      let link = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'shortcut icon';
+        document.head.appendChild(link);
+      }
+      link.href = canvas.toDataURL();
+    }
+  }, [user]);
 
   const handleExport = () => {
     exportAllData();
@@ -122,10 +141,10 @@ export default function Sidebar() {
       <div className={`sidebar-overlay ${open ? 'show' : ''}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">⚡</div>
+          <div className="sidebar-brand-icon">{user?.appIcon || '⚡'}</div>
           <div>
-            <h1>SuperApp</h1>
-            <p>Personal Management</p>
+            <h1>{user?.appName || 'SuperApp'}</h1>
+            <p>{user?.appTagline || 'Personal Management'}</p>
           </div>
         </div>
 
