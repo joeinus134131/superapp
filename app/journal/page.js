@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, getToday, MOOD_EMOJIS } from '@/lib/helpers';
+import { addXP, checkAchievements } from '@/lib/gamification';
+import { playTaskComplete } from '@/lib/sounds';
+import Confetti from '@/components/Confetti';
+import LevelUpModal from '@/components/LevelUpModal';
 
 export default function JournalPage() {
   const [entries, setEntries] = useState([]);
@@ -10,6 +14,9 @@ export default function JournalPage() {
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ title: '', content: '', mood: 'good', date: getToday() });
   const [isEditing, setIsEditing] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [xpToast, setXpToast] = useState(null);
 
   useEffect(() => {
     const saved = getData(STORAGE_KEYS.JOURNAL);
@@ -32,6 +39,7 @@ export default function JournalPage() {
 
   const handleSave = () => {
     if (!form.title.trim() || !form.content.trim()) return;
+    const isNew = !selected;
     if (selected) {
       const updated = entries.map(e => e.id === selected.id ? { ...e, ...form, updatedAt: new Date().toISOString() } : e);
       save(updated);
@@ -42,6 +50,17 @@ export default function JournalPage() {
       setSelected(newEntry);
     }
     setIsEditing(false);
+    if (isNew) {
+      playTaskComplete();
+      const result = addXP('JOURNAL_WRITE');
+      if (result.levelUp) {
+        setLevelUpData(result.newLevel);
+        setShowConfetti(true);
+      }
+      setXpToast(`+${result.xpGained} XP`);
+      setTimeout(() => setXpToast(null), 2000);
+      checkAchievements();
+    }
   };
 
   const deleteEntry = (id) => {
@@ -63,6 +82,9 @@ export default function JournalPage() {
 
   return (
     <div>
+      <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
+      {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
+      {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>

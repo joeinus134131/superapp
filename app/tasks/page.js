@@ -3,15 +3,22 @@
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/helpers';
+import { addXP, checkAchievements } from '@/lib/gamification';
+import { playTaskComplete, playXPGain, playError } from '@/lib/sounds';
+import Confetti from '@/components/Confetti';
+import LevelUpModal from '@/components/LevelUpModal';
 
 const CATEGORIES = ['Personal', 'Kerja', 'Proyek', 'Belajar', 'Lainnya'];
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
-  const [view, setView] = useState('kanban'); // kanban | list
+  const [view, setView] = useState('kanban');
   const [showModal, setShowModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [xpToast, setXpToast] = useState(null);
 
   const [form, setForm] = useState({
     title: '', description: '', priority: 'P3', category: 'Personal', deadline: '', status: 'todo'
@@ -43,21 +50,41 @@ export default function TasksPage() {
     e.preventDefault();
     if (!form.title.trim()) return;
     if (editTask) {
+      const wasDone = editTask.status === 'done';
+      const nowDone = form.status === 'done';
       const updated = tasks.map(t => t.id === editTask.id ? { ...t, ...form } : t);
       save(updated);
+      if (!wasDone && nowDone) rewardXP();
     } else {
       const newTask = { ...form, id: generateId(), createdAt: new Date().toISOString() };
       save([newTask, ...tasks]);
+      if (form.status === 'done') rewardXP();
     }
     setShowModal(false);
   };
 
   const deleteTask = (id) => {
     save(tasks.filter(t => t.id !== id));
+    playError();
   };
 
   const moveTask = (id, newStatus) => {
+    const task = tasks.find(t => t.id === id);
+    const wasDone = task?.status === 'done';
     save(tasks.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    if (newStatus === 'done' && !wasDone) rewardXP();
+  };
+
+  const rewardXP = () => {
+    playTaskComplete();
+    const result = addXP('TASK_COMPLETE');
+    if (result.levelUp) {
+      setLevelUpData(result.newLevel);
+      setShowConfetti(true);
+    }
+    setXpToast(`+${result.xpGained} XP`);
+    setTimeout(() => setXpToast(null), 2000);
+    checkAchievements();
   };
 
   const filtered = filter === 'all' ? tasks : tasks.filter(t => t.category === filter);
@@ -105,6 +132,10 @@ export default function TasksPage() {
 
   return (
     <div>
+      <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
+      {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
+      {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
+
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
@@ -163,7 +194,7 @@ export default function TasksPage() {
           ) : (
             filtered.map(task => (
               <div key={task.id} className="list-item" onClick={() => openEdit(task)} style={{ cursor: 'pointer' }}>
-                <div className="checkbox ${task.status === 'done' ? 'checked' : ''}" onClick={(e) => {
+                <div className={`checkbox ${task.status === 'done' ? 'checked' : ''}`} onClick={(e) => {
                   e.stopPropagation();
                   moveTask(task.id, task.status === 'done' ? 'todo' : 'done');
                 }}>

@@ -44,8 +44,8 @@ self.addEventListener('message', (event) => {
     setTimeout(() => {
       self.registration.showNotification(title, {
         body,
-        icon: icon || '/icon-192.png',
-        badge: '/icon-192.png',
+        icon: icon || '/icon-192.svg',
+        badge: '/icon-192.svg',
         tag: tag || id,
         data: { id, url: url || '/' },
         vibrate: [200, 100, 200, 100, 200],
@@ -62,8 +62,8 @@ self.addEventListener('message', (event) => {
     const { title, body, icon, url, tag } = payload;
     self.registration.showNotification(title, {
       body,
-      icon: icon || '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: icon || '/icon-192.svg',
+      badge: '/icon-192.svg',
       tag: tag || 'superapp-' + Date.now(),
       data: { url: url || '/' },
       vibrate: [200, 100, 200, 100, 200],

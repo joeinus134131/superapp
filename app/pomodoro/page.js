@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { getToday } from '@/lib/helpers';
+import { addXP, checkAchievements } from '@/lib/gamification';
+import { playPomodoroDone } from '@/lib/sounds';
+import Confetti from '@/components/Confetti';
+import LevelUpModal from '@/components/LevelUpModal';
 
 export default function PomodoroPage() {
   const [mode, setMode] = useState('focus'); // focus | break | longBreak
@@ -12,6 +16,9 @@ export default function PomodoroPage() {
   const [todaySessions, setTodaySessions] = useState(0);
   const [totalFocusMin, setTotalFocusMin] = useState(0);
   const intervalRef = useRef(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [xpToast, setXpToast] = useState(null);
 
   const MODES = {
     focus: { label: 'Fokus', duration: 25 * 60, color: 'var(--accent-purple)' },
@@ -38,6 +45,17 @@ export default function PomodoroPage() {
       setData(STORAGE_KEYS.POMODORO, { sessions: updated });
       setTodaySessions(prev => prev + 1);
       setTotalFocusMin(prev => prev + 25);
+
+      // XP + Sound
+      playPomodoroDone();
+      const result = addXP('POMODORO_DONE');
+      if (result.levelUp) {
+        setLevelUpData(result.newLevel);
+        setShowConfetti(true);
+      }
+      setXpToast(`+${result.xpGained} XP`);
+      setTimeout(() => setXpToast(null), 2000);
+      checkAchievements();
     }
     // Auto switch
     if (mode === 'focus') {
@@ -115,6 +133,9 @@ export default function PomodoroPage() {
 
   return (
     <div>
+      <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
+      {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
+      {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
       <div className="page-header">
         <h1>⏱️ Pomodoro Timer</h1>
         <p>Fokus mendalam dengan teknik Pomodoro — 25 menit fokus, 5 menit istirahat</p>

@@ -1,13 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getToday } from '@/lib/helpers';
+import { addXP, checkAchievements } from '@/lib/gamification';
+import { playHabitDone, playStreakBreak, playXPGain } from '@/lib/sounds';
+import { getStreakDeathMessage } from '@/lib/roast';
+import StreakDeath from '@/components/StreakDeath';
+import Confetti from '@/components/Confetti';
+import LevelUpModal from '@/components/LevelUpModal';
 
 export default function HabitsPage() {
   const [habits, setHabits] = useState([]);
   const [newHabit, setNewHabit] = useState('');
   const [newEmoji, setNewEmoji] = useState('⭐');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [xpToast, setXpToast] = useState(null);
+  const [streakDeathMsg, setStreakDeathMsg] = useState(null);
   const today = getToday();
 
   useEffect(() => {
@@ -16,6 +26,11 @@ export default function HabitsPage() {
   }, []);
 
   const save = (h) => { setHabits(h); setData(STORAGE_KEYS.HABITS, h); };
+
+  const showXPToast = (text) => {
+    setXpToast(text);
+    setTimeout(() => setXpToast(null), 2000);
+  };
 
   const addHabit = (e) => {
     e.preventDefault();
@@ -26,6 +41,7 @@ export default function HabitsPage() {
       emoji: newEmoji,
       completedDates: [],
       streak: 0,
+      bestStreak: 0,
       createdAt: new Date().toISOString()
     }]);
     setNewHabit('');
@@ -58,7 +74,46 @@ export default function HabitsPage() {
         }
       }
 
-      return { ...h, completedDates: newDates, streak };
+      const oldStreak = h.streak || 0;
+      const bestStreak = Math.max(h.bestStreak || 0, streak);
+
+      // Streak death detection
+      if (!isCompleted && oldStreak >= 3 && streak === 0) {
+        // Was completing, but somehow streak reset — not applicable here
+      }
+
+      // Completing habit
+      if (!isCompleted) {
+        playHabitDone();
+        const result = addXP('HABIT_DONE');
+        if (result.levelUp) {
+          setLevelUpData(result.newLevel);
+          setShowConfetti(true);
+        }
+        showXPToast(`+${result.xpGained} XP`);
+
+        // Streak milestones
+        if (streak === 7) {
+          addXP('STREAK_7');
+          setShowConfetti(true);
+          showXPToast('+50 XP 🔥 7 Day Streak!');
+        }
+        if (streak === 30) {
+          addXP('STREAK_30');
+          setShowConfetti(true);
+          showXPToast('+200 XP 🏔️ 30 Day Streak!');
+        }
+
+        checkAchievements();
+      }
+
+      // Un-completing — check if streak breaks
+      if (isCompleted && oldStreak >= 3 && streak < oldStreak) {
+        playStreakBreak();
+        setStreakDeathMsg(getStreakDeathMessage(oldStreak));
+      }
+
+      return { ...h, completedDates: newDates, streak, bestStreak };
     }));
   };
 
@@ -83,6 +138,11 @@ export default function HabitsPage() {
 
   return (
     <div>
+      <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
+      {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
+      {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
+      <StreakDeath message={streakDeathMsg} onDismiss={() => setStreakDeathMsg(null)} />
+
       <div className="page-header">
         <h1>🔥 Habit Tracker</h1>
         <p>Bangun kebiasaan baik dan raih streak terpanjang!</p>
@@ -115,8 +175,8 @@ export default function HabitsPage() {
       {/* Add Habit */}
       <form onSubmit={addHabit} className="card card-padding mb-3">
         <div className="card-title mb-2">➕ Tambah Kebiasaan Baru</div>
-        <div className="flex gap-1 items-center">
-          <div className="flex gap-1 flex-wrap" style={{ maxWidth: '200px' }}>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-1 flex-wrap" style={{ maxWidth: '100%' }}>
             {HABIT_EMOJIS.map(e => (
               <button key={e} type="button" className={`mood-btn ${newEmoji === e ? 'selected' : ''}`}
                 style={{ width: '32px', height: '32px', fontSize: '16px' }}
@@ -125,9 +185,11 @@ export default function HabitsPage() {
               </button>
             ))}
           </div>
-          <input className="form-input" value={newHabit} onChange={e => setNewHabit(e.target.value)}
-            placeholder="Nama kebiasaan baru..." style={{ flex: 1 }} />
-          <button type="submit" className="btn btn-primary">Tambah</button>
+          <div className="flex gap-1">
+            <input className="form-input" value={newHabit} onChange={e => setNewHabit(e.target.value)}
+              placeholder="Nama kebiasaan baru..." style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-primary">Tambah</button>
+          </div>
         </div>
       </form>
 
@@ -206,7 +268,7 @@ export default function HabitsPage() {
                   {h.name}
                 </div>
                 <div className="text-xs text-muted">
-                  🔥 Streak: {h.streak || 0} hari • Total: {h.completedDates ? h.completedDates.length : 0} hari
+                  🔥 Streak: {h.streak || 0} hari • Best: {h.bestStreak || 0} • Total: {h.completedDates ? h.completedDates.length : 0} hari
                 </div>
               </div>
               <button className="btn btn-danger btn-sm" onClick={() => deleteHabit(h.id)}>🗑</button>

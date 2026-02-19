@@ -100,7 +100,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="grid-2" style={{ gridTemplateColumns: '1fr 360px', alignItems: 'start' }}>
+      <div className="calendar-layout" style={{ alignItems: 'start' }}>
         {/* Calendar */}
         <div className="card card-padding">
           <div className="flex justify-between items-center mb-3">
