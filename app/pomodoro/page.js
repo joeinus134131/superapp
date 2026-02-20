@@ -1,109 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { usePomodoro, MODES, SESSION_NOTIFICATIONS } from '@/lib/pomodoroContext';
 import { getToday } from '@/lib/helpers';
-import { addXP, checkAchievements } from '@/lib/gamification';
-import { playPomodoroDone } from '@/lib/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
 
 export default function PomodoroPage() {
-  const [mode, setMode] = useState('focus'); // focus | break | longBreak
-  const [isRunning, setIsRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [sessions, setSessions] = useState([]);
-  const [todaySessions, setTodaySessions] = useState(0);
-  const [totalFocusMin, setTotalFocusMin] = useState(0);
-  const intervalRef = useRef(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [levelUpData, setLevelUpData] = useState(null);
-  const [xpToast, setXpToast] = useState(null);
-
-  const MODES = {
-    focus: { label: 'Fokus', duration: 25 * 60, color: 'var(--accent-purple)' },
-    break: { label: 'Istirahat', duration: 5 * 60, color: 'var(--accent-green)' },
-    longBreak: { label: 'Istirahat Panjang', duration: 15 * 60, color: 'var(--accent-cyan)' },
-  };
-
-  useEffect(() => {
-    const saved = getData(STORAGE_KEYS.POMODORO) || { sessions: [] };
-    setSessions(saved.sessions || []);
-    const today = getToday();
-    const todayCount = (saved.sessions || []).filter(s => s.date === today).length;
-    const totalMin = (saved.sessions || []).reduce((sum, s) => sum + (s.duration || 25), 0);
-    setTodaySessions(todayCount);
-    setTotalFocusMin(totalMin);
-  }, []);
-
-  const completeSession = useCallback(() => {
-    if (mode === 'focus') {
-      const today = getToday();
-      const newSession = { date: today, completedAt: new Date().toISOString(), duration: 25 };
-      const updated = [...sessions, newSession];
-      setSessions(updated);
-      setData(STORAGE_KEYS.POMODORO, { sessions: updated });
-      setTodaySessions(prev => prev + 1);
-      setTotalFocusMin(prev => prev + 25);
-
-      // XP + Sound
-      playPomodoroDone();
-      const result = addXP('POMODORO_DONE');
-      if (result.levelUp) {
-        setLevelUpData(result.newLevel);
-        setShowConfetti(true);
-      }
-      setXpToast(`+${result.xpGained} XP`);
-      setTimeout(() => setXpToast(null), 2000);
-      checkAchievements();
-    }
-    // Auto switch
-    if (mode === 'focus') {
-      const nextSessions = todaySessions + 1;
-      if (nextSessions % 4 === 0) {
-        setMode('longBreak');
-        setTimeLeft(MODES.longBreak.duration);
-      } else {
-        setMode('break');
-        setTimeLeft(MODES.break.duration);
-      }
-    } else {
-      setMode('focus');
-      setTimeLeft(MODES.focus.duration);
-    }
-    setIsRunning(false);
-  }, [mode, sessions, todaySessions, MODES]);
-
-  useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current);
-            completeSession();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(intervalRef.current);
-    }
-    return () => clearInterval(intervalRef.current);
-  }, [isRunning, completeSession]);
-
-  const toggleTimer = () => setIsRunning(!isRunning);
-
-  const resetTimer = () => {
-    setIsRunning(false);
-    setTimeLeft(MODES[mode].duration);
-  };
-
-  const switchMode = (m) => {
-    setIsRunning(false);
-    setMode(m);
-    setTimeLeft(MODES[m].duration);
-  };
+  const {
+    mode, isRunning, timeLeft, sessions, todaySessions, totalFocusMin,
+    notification, levelUpData, showConfetti, xpToast, wakeLockActive,
+    toggleTimer, resetTimer, switchMode,
+    dismissNotification, setLevelUpData, setShowConfetti,
+  } = usePomodoro();
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
@@ -136,39 +44,86 @@ export default function PomodoroPage() {
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
       {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
       {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
+
+      {/* Session Completion Notification */}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 9999,
+            maxWidth: '360px',
+            borderRadius: '16px',
+            padding: '20px',
+            background: notification.bg,
+            border: `2px solid ${notification.border}`,
+            backdropFilter: 'blur(16px)',
+            boxShadow: `0 8px 32px ${notification.border}, 0 0 0 1px rgba(255,255,255,0.05)`,
+            animation: 'slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <span style={{ fontSize: '40px', lineHeight: 1, flexShrink: 0 }}>{notification.emoji}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: '15px', color: notification.color, letterSpacing: '0.5px', marginBottom: '6px' }}>
+                {notification.title}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: '10px' }}>
+                {notification.message}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', background: notification.color, color: '#fff', fontSize: '11px', fontWeight: 700 }}>
+                  {notification.badge}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{notification.nextHint}</span>
+              </div>
+            </div>
+            <button onClick={dismissNotification} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+          </div>
+          <div style={{ marginTop: '12px', height: '3px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: notification.color, borderRadius: '3px', animation: 'drainBar 6s linear forwards' }} />
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes drainBar { from { width: 100%; } to { width: 0%; } }
+      `}</style>
+
       <div className="page-header">
-        <h1>⏱️ Pomodoro Timer</h1>
-        <p>Fokus mendalam dengan teknik Pomodoro — 25 menit fokus, 5 menit istirahat</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1>⏱️ Pomodoro Timer</h1>
+            <p>Fokus mendalam dengan teknik Pomodoro — 25 menit fokus, 5 menit istirahat</p>
+          </div>
+          {/* Wake Lock indicator */}
+          {wakeLockActive && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', fontSize: '12px', color: 'var(--accent-green)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+              Layar aktif terjaga
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>🎯</div>
-          <div className="stat-info">
-            <h3>{todaySessions}</h3>
-            <p>Sesi Hari Ini</p>
-          </div>
+          <div className="stat-info"><h3>{todaySessions}</h3><p>Sesi Hari Ini</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)' }}>⏰</div>
-          <div className="stat-info">
-            <h3>{todaySessions * 25}<span className="text-sm text-muted"> min</span></h3>
-            <p>Fokus Hari Ini</p>
-          </div>
+          <div className="stat-info"><h3>{todaySessions * 25}<span className="text-sm text-muted">min</span></h3><p>Fokus Hari Ini</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>📊</div>
-          <div className="stat-info">
-            <h3>{totalFocusMin}<span className="text-sm text-muted"> min</span></h3>
-            <p>Total Fokus</p>
-          </div>
+          <div className="stat-info"><h3>{totalFocusMin}<span className="text-sm text-muted">min</span></h3><p>Total Fokus</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>🔥</div>
-          <div className="stat-info">
-            <h3>{sessions.length}</h3>
-            <p>Total Sesi</p>
-          </div>
+          <div className="stat-info"><h3>{sessions.length}</h3><p>Total Sesi</p></div>
         </div>
       </div>
 
@@ -215,12 +170,10 @@ export default function PomodoroPage() {
               <div key={i} className="flex flex-col items-center gap-1 flex-1">
                 <span className="text-xs font-semibold">{s.count}</span>
                 <div style={{
-                  width: '100%',
-                  maxWidth: '40px',
+                  width: '100%', maxWidth: '40px',
                   height: `${Math.max((s.count / maxSessions) * 160, 4)}px`,
                   background: s.date === getToday() ? 'var(--gradient-primary)' : 'rgba(139, 92, 246, 0.3)',
-                  borderRadius: 'var(--radius-sm)',
-                  transition: 'height 0.3s ease',
+                  borderRadius: 'var(--radius-sm)', transition: 'height 0.3s ease',
                 }} />
                 <span className="text-xs text-muted">{s.day}</span>
               </div>

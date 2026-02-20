@@ -7,6 +7,7 @@ import { useUser } from '@/lib/auth';
 import XPBar from './XPBar';
 import { exportAllData, importData, getStorageSize } from '@/lib/backup';
 import { pushToCloud, pullFromCloud, getSyncId } from '@/lib/cloudSync';
+import { usePomodoro, MODES } from '@/lib/pomodoroContext';
 
 const NAV_ITEMS = [
   { section: 'Overview' },
@@ -33,6 +34,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { user, logout } = useUser();
+  const { isRunning, timeLeft, mode, toggleTimer } = usePomodoro();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [storageInfo, setStorageInfo] = useState(null);
   const [importMsg, setImportMsg] = useState(null);
@@ -152,6 +154,44 @@ export default function Sidebar() {
         <div style={{ padding: '0 12px', marginBottom: '8px' }}>
           <XPBar />
         </div>
+
+        {/* Mini Pomodoro Timer Pill — visible from any page */}
+        {isRunning && (
+          <Link
+            href="/pomodoro"
+            style={{ textDecoration: 'none' }}
+            onClick={() => setOpen(false)}
+          >
+            <div style={{
+              margin: '0 12px 8px',
+              padding: '8px 12px',
+              borderRadius: '12px',
+              background: mode === 'focus'
+                ? 'rgba(139,92,246,0.15)'
+                : mode === 'break'
+                  ? 'rgba(16,185,129,0.15)'
+                  : 'rgba(6,182,212,0.15)',
+              border: `1px solid ${mode === 'focus' ? 'rgba(139,92,246,0.4)' : mode === 'break' ? 'rgba(16,185,129,0.4)' : 'rgba(6,182,212,0.4)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+            }}>
+              <span style={{
+                width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                background: mode === 'focus' ? 'var(--accent-purple)' : mode === 'break' ? 'var(--accent-green)' : 'var(--accent-cyan)',
+                animation: 'pulse 1.5s infinite',
+              }} />
+              <span style={{ fontSize: '14px' }}>{mode === 'focus' ? '🔥' : mode === 'break' ? '☕' : '🌴'}</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', flex: 1 }}>
+                {String(Math.floor(timeLeft / 60)).padStart(2,'0')}:{String(timeLeft % 60).padStart(2,'0')}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                {mode === 'focus' ? 'Fokus' : mode === 'break' ? 'Istirahat' : 'Long Break'}
+              </span>
+            </div>
+          </Link>
+        )}
 
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item, i) => {

@@ -406,7 +406,7 @@ img {
 
 .grid-auto {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
 }
 
@@ -2756,7 +2756,22 @@ img {
   }
 }
 
-/* ===== XP TOAST ===== */
+/* Reading List Card Specifics */
+.book-card {
+  min-width: 0;
+}
+
+.book-card .flex.items-center.gap-1 {
+  flex-wrap: wrap;
+}
+
+.star-rating {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 2px !important;
+}
+
+/* ===== DIALOG / TOAST ===== */
 .xp-toast {
   position: fixed;
   top: 20px;
