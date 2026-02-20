@@ -12,6 +12,8 @@ export default function JournalPage() {
   const [entries, setEntries] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
+  const [listPage, setListPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [form, setForm] = useState({ title: '', content: '', mood: 'good', date: getToday() });
   const [showEditor, setShowEditor] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -129,34 +131,45 @@ export default function JournalPage() {
         {/* Entry List */}
         <div className="card" style={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
-            <input className="form-input" placeholder="🔍 Cari..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="form-input" placeholder="🔍 Cari..." value={search} onChange={e => { setSearch(e.target.value); setListPage(1); }} />
           </div>
           {filtered.length === 0 ? (
             <div className="empty-state" style={{ padding: '32px' }}>
               <p className="text-muted text-sm">Belum ada catatan</p>
             </div>
           ) : (
-            filtered.map(entry => (
-              <div key={entry.id}
-                className="list-item"
-                style={{
-                  cursor: 'pointer',
-                  background: selected?.id === entry.id ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
-                  borderLeft: selected?.id === entry.id ? '3px solid var(--accent-purple)' : '3px solid transparent',
-                  margin: '0',
-                  borderRadius: '0',
-                }}
-                onClick={() => selectEntry(entry)}>
-                <div className="flex-1" style={{ minWidth: 0 }}>
-                  <div className="flex items-center gap-1">
-                    <span>{MOOD_EMOJIS[entry.mood] || '🙂'}</span>
-                    <span className="font-semibold truncate" style={{ fontSize: '14px' }}>{entry.title}</span>
+            <>
+                {filtered.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(entry => (
+                  <div key={entry.id}
+                    className="list-item"
+                    style={{
+                      cursor: 'pointer',
+                      background: selected?.id === entry.id ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                      borderLeft: selected?.id === entry.id ? '3px solid var(--accent-purple)' : '3px solid transparent',
+                      margin: '0',
+                      borderRadius: '0',
+                    }}
+                    onClick={() => selectEntry(entry)}>
+                    <div className="flex-1" style={{ minWidth: 0 }}>
+                      <div className="flex items-center gap-1">
+                        <span>{MOOD_EMOJIS[entry.mood] || '🙂'}</span>
+                        <span className="font-semibold truncate" style={{ fontSize: '14px' }}>{entry.title}</span>
+                      </div>
+                      <div className="text-xs text-muted mt-1">{formatDate(entry.date)}</div>
+                    </div>
+                    <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}>🗑</button>
                   </div>
-                  <div className="text-xs text-muted mt-1">{formatDate(entry.date)}</div>
-                </div>
-                <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}>🗑</button>
-              </div>
-            ))
+                ))}
+                {filtered.length > ITEMS_PER_PAGE && (
+                    <div className="flex justify-between items-center p-3 border-t border-color" style={{ background: 'var(--bg-card)' }}>
+                        <span className="text-xs text-secondary">Hal {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}</span>
+                        <div className="flex gap-2">
+                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Prev</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>Next</button>
+                        </div>
+                    </div>
+                )}
+            </>
           )}
         </div>
 

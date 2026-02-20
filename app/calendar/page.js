@@ -21,6 +21,9 @@ export default function CalendarPage() {
   const [showModal, setShowModal] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', date: getToday(), time: '09:00', colorId: 'purple' });
+  const [listPage, setListPage] = useState(1);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -40,6 +43,7 @@ export default function CalendarPage() {
   const goToday = () => {
     setCurrentDate(new Date());
     setSelectedDate(getToday());
+    setListPage(1);
   };
 
   const openAdd = (date) => {
@@ -140,7 +144,7 @@ export default function CalendarPage() {
               return (
                 <div key={day}
                   className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedDate(dateStr)}>
+                  onClick={() => { setSelectedDate(dateStr); setListPage(1); }}>
                   {day}
                   {dayEvents.length > 0 && (
                     <div className="flex gap-1" style={{ position: 'absolute', bottom: '4px' }}>
@@ -176,20 +180,33 @@ export default function CalendarPage() {
                 Tidak ada event
               </div>
             ) : (
-              selectedEvents.map(event => {
-                const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
-                return (
-                  <div key={event.id} className="list-item" style={{ cursor: 'pointer' }} onClick={() => openEdit(event)}>
-                    <div style={{ width: '4px', borderRadius: '2px', alignSelf: 'stretch', background: colorInfo?.color || '#8b5cf6' }} />
-                    <div className="flex-1">
-                      <div className="font-semibold" style={{ fontSize: '14px' }}>{event.title}</div>
-                      <div className="text-xs text-muted">{event.time} • {colorInfo?.label || 'Default'}</div>
-                      {event.description && <div className="text-xs text-secondary mt-1">{event.description}</div>}
+              <>
+                {selectedEvents.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(event => {
+                  const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
+                  return (
+                    <div key={event.id} className="list-item" style={{ cursor: 'pointer' }} onClick={() => openEdit(event)}>
+                      <div style={{ width: '4px', borderRadius: '2px', alignSelf: 'stretch', background: colorInfo?.color || '#8b5cf6' }} />
+                      <div className="flex-1">
+                        <div className="font-semibold" style={{ fontSize: '14px' }}>{event.title}</div>
+                        <div className="text-xs text-muted">{event.time} • {colorInfo?.label || 'Default'}</div>
+                        {event.description && <div className="text-xs text-secondary mt-1">{event.description}</div>}
+                      </div>
+                      <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEvent(event.id); }}>🗑</button>
                     </div>
-                    <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEvent(event.id); }}>🗑</button>
-                  </div>
-                );
-              })
+                  );
+                })}
+                {selectedEvents.length > ITEMS_PER_PAGE && (
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
+                        <span className="text-xs text-secondary">
+                            Hal {listPage} dari {Math.ceil(selectedEvents.length / ITEMS_PER_PAGE)}
+                        </span>
+                        <div className="flex gap-1">
+                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Prev</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= selectedEvents.length} onClick={() => setListPage(p => p + 1)}>Next</button>
+                        </div>
+                    </div>
+                )}
+              </>
             )}
           </div>
 
@@ -199,18 +216,31 @@ export default function CalendarPage() {
             {upcoming.length === 0 ? (
               <div className="text-center text-muted text-sm" style={{ padding: '16px' }}>Tidak ada event mendatang</div>
             ) : (
-              upcoming.slice(0, 8).map((event, i) => {
-                const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
-                return (
-                  <div key={i} className="activity-item">
-                    <div className="activity-icon" style={{ background: `${colorInfo?.color || '#8b5cf6'}22`, color: colorInfo?.color }}>📅</div>
-                    <div>
-                      <div className="text-sm font-semibold">{event.title}</div>
-                      <div className="activity-time">{formatDate(event.dateStr)} • {event.time}</div>
+              <>
+                {upcoming.slice((upcomingPage - 1) * ITEMS_PER_PAGE, upcomingPage * ITEMS_PER_PAGE).map((event, i) => {
+                  const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
+                  return (
+                    <div key={i} className="activity-item">
+                      <div className="activity-icon" style={{ background: `${colorInfo?.color || '#8b5cf6'}22`, color: colorInfo?.color }}>📅</div>
+                      <div>
+                        <div className="text-sm font-semibold">{event.title}</div>
+                        <div className="activity-time">{formatDate(event.dateStr)} • {event.time}</div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+                {upcoming.length > ITEMS_PER_PAGE && (
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
+                        <span className="text-xs text-secondary">
+                            Hal {upcomingPage} dari {Math.ceil(upcoming.length / ITEMS_PER_PAGE)}
+                        </span>
+                        <div className="flex gap-1">
+                            <button className="btn btn-sm btn-secondary" disabled={upcomingPage === 1} onClick={() => setUpcomingPage(p => p - 1)}>Prev</button>
+                            <button className="btn btn-sm btn-secondary" disabled={upcomingPage * ITEMS_PER_PAGE >= upcoming.length} onClick={() => setUpcomingPage(p => p + 1)}>Next</button>
+                        </div>
+                    </div>
+                )}
+              </>
             )}
           </div>
         </div>

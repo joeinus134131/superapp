@@ -24,6 +24,12 @@ export default function TasksPage() {
     title: '', description: '', priority: 'P3', category: 'Personal', deadline: '', status: 'todo'
   });
 
+  const [todoPage, setTodoPage] = useState(1);
+  const [inProgressPage, setInProgressPage] = useState(1);
+  const [donePage, setDonePage] = useState(1);
+  const [listPage, setListPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   useEffect(() => {
     const saved = getData(STORAGE_KEYS.TASKS);
     if (saved) setTasks(saved);
@@ -165,22 +171,43 @@ export default function TasksPage() {
             <div className="kanban-column-header">
               <span className="kanban-column-title">📋 To Do <span className="kanban-count">{todo.length}</span></span>
             </div>
-            {todo.map(t => <TaskCard key={t.id} task={t} />)}
+            {todo.slice((todoPage - 1) * ITEMS_PER_PAGE, todoPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {todo.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
+            {todo.length > ITEMS_PER_PAGE && (
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
+                    <button className="btn btn-sm btn-secondary" disabled={todoPage === 1} onClick={() => setTodoPage(p => p - 1)}>{'<'}</button>
+                    <span className="text-xs text-secondary">{todoPage}/{Math.ceil(todo.length / ITEMS_PER_PAGE)}</span>
+                    <button className="btn btn-sm btn-secondary" disabled={todoPage * ITEMS_PER_PAGE >= todo.length} onClick={() => setTodoPage(p => p + 1)}>{'>'}</button>
+                </div>
+            )}
           </div>
           <div className="kanban-column">
             <div className="kanban-column-header">
               <span className="kanban-column-title">🔄 In Progress <span className="kanban-count">{inProgress.length}</span></span>
             </div>
-            {inProgress.map(t => <TaskCard key={t.id} task={t} />)}
+            {inProgress.slice((inProgressPage - 1) * ITEMS_PER_PAGE, inProgressPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {inProgress.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
+            {inProgress.length > ITEMS_PER_PAGE && (
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
+                    <button className="btn btn-sm btn-secondary" disabled={inProgressPage === 1} onClick={() => setInProgressPage(p => p - 1)}>{'<'}</button>
+                    <span className="text-xs text-secondary">{inProgressPage}/{Math.ceil(inProgress.length / ITEMS_PER_PAGE)}</span>
+                    <button className="btn btn-sm btn-secondary" disabled={inProgressPage * ITEMS_PER_PAGE >= inProgress.length} onClick={() => setInProgressPage(p => p + 1)}>{'>'}</button>
+                </div>
+            )}
           </div>
           <div className="kanban-column">
             <div className="kanban-column-header">
               <span className="kanban-column-title">✅ Done <span className="kanban-count">{done.length}</span></span>
             </div>
-            {done.map(t => <TaskCard key={t.id} task={t} />)}
+            {done.slice((donePage - 1) * ITEMS_PER_PAGE, donePage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {done.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
+            {done.length > ITEMS_PER_PAGE && (
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
+                    <button className="btn btn-sm btn-secondary" disabled={donePage === 1} onClick={() => setDonePage(p => p - 1)}>{'<'}</button>
+                    <span className="text-xs text-secondary">{donePage}/{Math.ceil(done.length / ITEMS_PER_PAGE)}</span>
+                    <button className="btn btn-sm btn-secondary" disabled={donePage * ITEMS_PER_PAGE >= done.length} onClick={() => setDonePage(p => p + 1)}>{'>'}</button>
+                </div>
+            )}
           </div>
         </div>
       ) : (
@@ -192,24 +219,35 @@ export default function TasksPage() {
               <p>Mulai tambahkan task pertamamu!</p>
             </div>
           ) : (
-            filtered.map(task => (
-              <div key={task.id} className="list-item" onClick={() => openEdit(task)} style={{ cursor: 'pointer' }}>
-                <div className={`checkbox ${task.status === 'done' ? 'checked' : ''}`} onClick={(e) => {
-                  e.stopPropagation();
-                  moveTask(task.id, task.status === 'done' ? 'todo' : 'done');
-                }}>
-                  {task.status === 'done' ? '✓' : ''}
-                </div>
-                <div className="flex-1">
-                  <div style={{ textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.6 : 1 }}>
-                    {task.title}
+            <>
+                {filtered.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(task => (
+                  <div key={task.id} className="list-item" onClick={() => openEdit(task)} style={{ cursor: 'pointer' }}>
+                    <div className={`checkbox ${task.status === 'done' ? 'checked' : ''}`} onClick={(e) => {
+                      e.stopPropagation();
+                      moveTask(task.id, task.status === 'done' ? 'todo' : 'done');
+                    }}>
+                      {task.status === 'done' ? '✓' : ''}
+                    </div>
+                    <div className="flex-1">
+                      <div style={{ textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.6 : 1 }}>
+                        {task.title}
+                      </div>
+                      <div className="text-xs text-muted">{task.category} • {task.priority}</div>
+                    </div>
+                    {task.deadline && <span className="badge badge-blue">{formatDate(task.deadline)}</span>}
+                    <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}>🗑</button>
                   </div>
-                  <div className="text-xs text-muted">{task.category} • {task.priority}</div>
-                </div>
-                {task.deadline && <span className="badge badge-blue">{formatDate(task.deadline)}</span>}
-                <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}>🗑</button>
-              </div>
-            ))
+                ))}
+                {filtered.length > ITEMS_PER_PAGE && (
+                    <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
+                        <span className="text-sm text-secondary">Halaman {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}</span>
+                        <div className="flex gap-2">
+                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Sebelumnya</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>Selanjutnya</button>
+                        </div>
+                    </div>
+                )}
+            </>
           )}
         </div>
       )}

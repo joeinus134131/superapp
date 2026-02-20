@@ -10,6 +10,9 @@ export default function HealthPage() {
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [workoutForm, setWorkoutForm] = useState({ exercise: '', sets: '', reps: '', duration: '', type: 'strength' });
   const [weightForm, setWeightForm] = useState({ weight: '', date: getToday() });
+  const [listPage, setListPage] = useState(1);
+  const [todayPage, setTodayPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const today = getToday();
 
   useEffect(() => {
@@ -195,7 +198,7 @@ export default function HealthPage() {
         {todayWorkouts.length > 0 && (
           <div className="mb-2">
             <p className="text-sm text-secondary mb-1">Hari Ini</p>
-            {todayWorkouts.map(w => (
+            {todayWorkouts.slice((todayPage - 1) * ITEMS_PER_PAGE, todayPage * ITEMS_PER_PAGE).map(w => (
               <div key={w.id} className="workout-item">
                 <span style={{ fontSize: '20px' }}>{w.type === 'strength' ? '🏋️' : w.type === 'cardio' ? '🏃' : '🧘'}</span>
                 <span className="workout-name">{w.exercise}</span>
@@ -209,29 +212,56 @@ export default function HealthPage() {
                 <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)}>🗑</button>
               </div>
             ))}
+            {todayWorkouts.length > ITEMS_PER_PAGE && (
+                <div className="flex justify-between items-center mt-3 pt-3 border-t border-color mb-3">
+                    <span className="text-sm text-secondary">
+                        Halaman {todayPage} dari {Math.ceil(todayWorkouts.length / ITEMS_PER_PAGE)}
+                    </span>
+                    <div className="flex gap-2">
+                        <button className="btn btn-sm btn-secondary" disabled={todayPage === 1} onClick={() => setTodayPage(p => p - 1)}>Sebelumnya</button>
+                        <button className="btn btn-sm btn-secondary" disabled={todayPage * ITEMS_PER_PAGE >= todayWorkouts.length} onClick={() => setTodayPage(p => p + 1)}>Selanjutnya</button>
+                    </div>
+                </div>
+            )}
           </div>
         )}
 
-        {(health.workouts || []).filter(w => w.date !== today).length > 0 && (
-          <div>
-            <p className="text-sm text-secondary mb-1">Sebelumnya</p>
-            {(health.workouts || []).filter(w => w.date !== today).slice(0, 10).map(w => (
-              <div key={w.id} className="workout-item" style={{ opacity: 0.7 }}>
-                <span style={{ fontSize: '20px' }}>{w.type === 'strength' ? '🏋️' : w.type === 'cardio' ? '🏃' : '🧘'}</span>
-                <span className="workout-name">{w.exercise}</span>
-                <div className="workout-detail">
-                  {w.type === 'strength' ? (
-                    <><span>{w.sets} set</span><span>{w.reps} rep</span></>
-                  ) : (
-                    <span>{w.duration} menit</span>
-                  )}
-                  <span className="text-muted">{formatDate(w.date)}</span>
+        {(() => {
+          const pastWorkouts = (health.workouts || []).filter(w => w.date !== today);
+          if (pastWorkouts.length === 0) return null;
+          
+          return (
+            <div>
+              <p className="text-sm text-secondary mb-1">Sebelumnya</p>
+              {pastWorkouts.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(w => (
+                <div key={w.id} className="workout-item" style={{ opacity: 0.7 }}>
+                  <span style={{ fontSize: '20px' }}>{w.type === 'strength' ? '🏋️' : w.type === 'cardio' ? '🏃' : '🧘'}</span>
+                  <span className="workout-name">{w.exercise}</span>
+                  <div className="workout-detail">
+                    {w.type === 'strength' ? (
+                      <><span>{w.sets} set</span><span>{w.reps} rep</span></>
+                    ) : (
+                      <span>{w.duration} menit</span>
+                    )}
+                    <span className="text-muted">{formatDate(w.date)}</span>
+                  </div>
+                  <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)}>🗑</button>
                 </div>
-                <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)}>🗑</button>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+              {pastWorkouts.length > ITEMS_PER_PAGE && (
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-color">
+                      <span className="text-sm text-secondary">
+                          Halaman {listPage} dari {Math.ceil(pastWorkouts.length / ITEMS_PER_PAGE)}
+                      </span>
+                      <div className="flex gap-2">
+                          <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Sebelumnya</button>
+                          <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= pastWorkouts.length} onClick={() => setListPage(p => p + 1)}>Selanjutnya</button>
+                      </div>
+                  </div>
+              )}
+            </div>
+          );
+        })()}
 
         {(!health.workouts || health.workouts.length === 0) && (
           <div className="empty-state">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getToday } from '@/lib/helpers';
 import { addXP, checkAchievements } from '@/lib/gamification';
@@ -18,6 +18,10 @@ export default function HabitsPage() {
   const [levelUpData, setLevelUpData] = useState(null);
   const [xpToast, setXpToast] = useState(null);
   const [streakDeathMsg, setStreakDeathMsg] = useState(null);
+  const [dateOffset, setDateOffset] = useState(0); // Offset in days
+  const [historyPage, setHistoryPage] = useState(1);
+  const [listPage, setListPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const today = getToday();
 
   useEffect(() => {
@@ -119,17 +123,24 @@ export default function HabitsPage() {
 
   const deleteHabit = (id) => save(habits.filter(h => h.id !== id));
 
-  const getLast7Days = () => {
+  const getVisibleDays = () => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d.toISOString().split('T')[0]);
+      d.setDate(d.getDate() - i - dateOffset);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      days.push(`${year}-${month}-${day}`);
     }
     return days;
   };
 
-  const last7 = getLast7Days();
+  const visibleDays = getVisibleDays();
+
+  const handlePrevDays = () => setDateOffset(prev => prev + 7);
+  const handleNextDays = () => setDateOffset(prev => Math.max(0, prev - 7));
+
   const todayCompleted = habits.filter(h => h.completedDates && h.completedDates.includes(today)).length;
   const completionRate = habits.length > 0 ? Math.round((todayCompleted / habits.length) * 100) : 0;
   const maxStreak = habits.reduce((max, h) => Math.max(max, h.streak || 0), 0);
@@ -193,15 +204,21 @@ export default function HabitsPage() {
         </div>
       </form>
 
-      {/* 7-Day Grid */}
+      {/* History Grid */}
       <div className="card card-padding mb-3">
-        <div className="card-title mb-2">📅 7 Hari Terakhir</div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="flex justify-between items-center mb-2">
+            <div className="card-title">📅 Riwayat Kebiasaan</div>
+            <div className="flex gap-2">
+                <button onClick={handlePrevDays} className="btn btn-secondary btn-sm">{'<'} Sblmnya</button>
+                <button onClick={handleNextDays} className="btn btn-secondary btn-sm" disabled={dateOffset === 0}>Selanjutnya {'>'}</button>
+            </div>
+        </div>
+        <div style={{ overflowX: 'auto', paddingBottom: '8px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>Habit</th>
-                {last7.map(d => (
+                {visibleDays.map(d => (
                   <th key={d} style={{ textAlign: 'center', padding: '8px', fontSize: '11px', color: d === today ? 'var(--accent-purple)' : 'var(--text-muted)', fontWeight: d === today ? '700' : '500' }}>
                     {new Date(d).toLocaleDateString('id-ID', { weekday: 'short' })}
                     <br />{new Date(d).getDate()}
@@ -211,12 +228,12 @@ export default function HabitsPage() {
               </tr>
             </thead>
             <tbody>
-              {habits.map(h => (
+              {habits.slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE).map(h => (
                 <tr key={h.id} style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '8px', fontSize: '14px' }}>
+                  <td style={{ padding: '8px', fontSize: '14px', whiteSpace: 'nowrap' }}>
                     <span style={{ marginRight: '6px' }}>{h.emoji}</span>{h.name}
                   </td>
-                  {last7.map(d => {
+                  {visibleDays.map(d => {
                     const done = h.completedDates && h.completedDates.includes(d);
                     const isToday = d === today;
                     return (
@@ -235,7 +252,7 @@ export default function HabitsPage() {
                       </td>
                     );
                   })}
-                  <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--accent-yellow)' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--accent-yellow)', padding: '8px' }}>
                     {h.streak || 0}
                   </td>
                 </tr>
@@ -243,6 +260,17 @@ export default function HabitsPage() {
             </tbody>
           </table>
         </div>
+        {habits.length > ITEMS_PER_PAGE && (
+            <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
+                <span className="text-sm text-secondary">
+                    Menampilkan {(historyPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(historyPage * ITEMS_PER_PAGE, habits.length)} dari {habits.length} kebiasaan
+                </span>
+                <div className="flex gap-2">
+                    <button onClick={() => setHistoryPage(p => Math.max(1, p - 1))} disabled={historyPage === 1} className="btn btn-secondary btn-sm">Sebelumnya</button>
+                    <button onClick={() => setHistoryPage(p => p + 1)} disabled={historyPage * ITEMS_PER_PAGE >= habits.length} className="btn btn-secondary btn-sm">Selanjutnya</button>
+                </div>
+            </div>
+        )}
         {habits.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">🔥</div>
@@ -255,7 +283,7 @@ export default function HabitsPage() {
       {/* Habits List */}
       <div className="card card-padding">
         <div className="card-title mb-2">📋 Daftar Kebiasaan</div>
-        {habits.map(h => {
+        {habits.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(h => {
           const todayDone = h.completedDates && h.completedDates.includes(today);
           return (
             <div key={h.id} className="list-item">
@@ -275,6 +303,18 @@ export default function HabitsPage() {
             </div>
           );
         })}
+        
+        {habits.length > ITEMS_PER_PAGE && (
+            <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
+                <span className="text-sm text-secondary">
+                    Halaman {listPage} dari {Math.ceil(habits.length / ITEMS_PER_PAGE)}
+                </span>
+                <div className="flex gap-2">
+                    <button onClick={() => setListPage(p => Math.max(1, p - 1))} disabled={listPage === 1} className="btn btn-secondary btn-sm">Sebelumnya</button>
+                    <button onClick={() => setListPage(p => p + 1)} disabled={listPage * ITEMS_PER_PAGE >= habits.length} className="btn btn-secondary btn-sm">Selanjutnya</button>
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );

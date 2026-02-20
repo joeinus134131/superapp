@@ -212,16 +212,16 @@ export default function PremiumStore() {
                         }}>
                             <div style={{ fontSize: '28px' }}>{feat.icon}</div>
                             <div style={{ flex: 1 }}>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center mb-1">
                                     <h4 style={{ margin: 0 }}>{feat.name}</h4>
                                     {unlocked ? (
-                                        <span className="text-xs text-green font-semibold bg-green-900 bg-opacity-20 px-2 py-1 rounded">Unlocked</span>
+                                        <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)' }}>Unlocked</span>
                                     ) : feat.type === 'free_premium' ? (
-                                        <span className="text-xs text-secondary font-semibold bg-gray-800 px-2 py-1 rounded">Premium Only</span>
+                                        <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>Premium Only</span>
                                     ) : feat.type === 'auto' ? (
-                                        <span className="text-xs text-secondary font-semibold bg-gray-800 px-2 py-1 rounded">Auto</span>
+                                        <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>Auto</span>
                                     ) : (
-                                        <span className="text-xs text-accent font-semibold bg-purple-900 bg-opacity-20 px-2 py-1 rounded">{feat.cost} Token</span>
+                                        <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(139, 92, 246, 0.2)', color: 'var(--accent-purple)' }}>{feat.cost} Token</span>
                                     )}
                                 </div>
                                 <p className="text-xs text-secondary mt-1">{feat.desc}</p>
@@ -246,7 +246,7 @@ export default function PremiumStore() {
                                         <div className="text-sm font-semibold">{item.type === 'in' ? (item.price === 0 ? '🎁 Klaim Harian' : `🛒 Beli ${item.packageName}`) : `🔓 Buka ${item.label}`}</div>
                                         <div className="text-xs text-secondary">{new Date(item.date).toLocaleString('id-ID')}</div>
                                     </div>
-                                    <div className={`font-bold ${item.type === 'in' ? 'text-green' : 'text-red'}`}>
+                                    <div className={`font-bold ${item.type === 'in' ? 'text-green' : 'text-red'}`} style={{ color: item.type === 'in' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                                         {item.type === 'in' ? '+' : '-'}{item.type === 'in' ? item.tokens : item.amount} Token
                                     </div>
                                 </div>

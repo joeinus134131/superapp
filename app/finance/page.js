@@ -72,6 +72,8 @@ export default function FinancePage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [exportMonth, setExportMonth] = useState('');
+  const [listPage, setListPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [form, setForm] = useState({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
 
   useEffect(() => {
@@ -251,9 +253,9 @@ export default function FinancePage() {
         <div className="card-header">
           <div className="card-title">📝 Riwayat Transaksi</div>
           <div className="tabs" style={{ marginBottom: 0 }}>
-            <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>Semua</button>
-            <button className={`tab ${activeTab === 'income' ? 'active' : ''}`} onClick={() => setActiveTab('income')}>Masuk</button>
-            <button className={`tab ${activeTab === 'expense' ? 'active' : ''}`} onClick={() => setActiveTab('expense')}>Keluar</button>
+            <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => { setActiveTab('all'); setListPage(1); }}>Semua</button>
+            <button className={`tab ${activeTab === 'income' ? 'active' : ''}`} onClick={() => { setActiveTab('income'); setListPage(1); }}>Masuk</button>
+            <button className={`tab ${activeTab === 'expense' ? 'active' : ''}`} onClick={() => { setActiveTab('expense'); setListPage(1); }}>Keluar</button>
           </div>
         </div>
         {filtered.length === 0 ? (
@@ -262,24 +264,37 @@ export default function FinancePage() {
             <h3>Belum ada transaksi</h3>
             <p>Mulai catat keuanganmu!</p>
           </div>
-        ) : (
-          filtered.map(t => {
-            const info = getCategoryInfo(t.category, t.type);
-            return (
-              <div key={t.id} className="transaction-item">
-                <div className="transaction-icon" style={{ background: `${info.color}22` }}>{info.emoji}</div>
-                <div className="transaction-info">
-                  <h4>{t.description}</h4>
-                  <p>{info.label} • {formatDate(t.date)}</p>
-                </div>
-                <span className={`transaction-amount ${t.type}`}>
-                  {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                </span>
-                <button className="btn btn-danger btn-icon sm" onClick={() => deleteTransaction(t.id)}>🗑</button>
-              </div>
-            );
-          })
-        )}
+          ) : (
+            <>
+              {filtered.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(t => {
+                const info = getCategoryInfo(t.category, t.type);
+                return (
+                  <div key={t.id} className="transaction-item">
+                    <div className="transaction-icon" style={{ background: `${info.color}22` }}>{info.emoji}</div>
+                    <div className="transaction-info">
+                      <h4>{t.description}</h4>
+                      <p>{info.label} • {formatDate(t.date)}</p>
+                    </div>
+                    <span className={`transaction-amount ${t.type}`}>
+                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                    </span>
+                    <button className="btn btn-danger btn-icon sm" onClick={() => deleteTransaction(t.id)}>🗑</button>
+                  </div>
+                );
+              })}
+              {filtered.length > ITEMS_PER_PAGE && (
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-color">
+                      <span className="text-sm text-secondary">
+                          Halaman {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                      </span>
+                      <div className="flex gap-2">
+                          <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Sebelumnya</button>
+                          <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>Selanjutnya</button>
+                      </div>
+                  </div>
+              )}
+            </>
+          )}
       </div>
 
       {/* Add Transaction Modal */}
