@@ -1,6 +1,8 @@
 import midtransClient from 'midtrans-client';
 import { NextResponse } from 'next/server';
 
+import { TOKEN_PACKAGES } from '@/lib/tokenSystem';
+
 // Initialize Snap client
 // Use Sandbox mode for development
 const snap = new midtransClient.Snap({
@@ -12,11 +14,20 @@ const snap = new midtransClient.Snap({
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { packageId, packageName, price, userId, userName } = body;
+        const { packageId, userId, userName } = body;
 
-        if (!packageId || !price || !userId) {
+        if (!packageId || !userId) {
             return NextResponse.json(
                 { error: 'Missing required parameters' },
+                { status: 400 }
+            );
+        }
+
+        // [SECURITY PATCH] Find actual package in server-side configuration
+        const actualPackage = TOKEN_PACKAGES.find(pkg => pkg.id === packageId);
+        if (!actualPackage) {
+            return NextResponse.json(
+                { error: 'Invalid package selection' },
                 { status: 400 }
             );
         }
@@ -25,14 +36,14 @@ export async function POST(request) {
         const parameter = {
             transaction_details: {
                 order_id: `SUPERAPP-${userId}-${packageId}-${Date.now()}`,
-                gross_amount: price,
+                gross_amount: actualPackage.price,
             },
             item_details: [
                 {
-                    id: packageId,
-                    price: price,
+                    id: actualPackage.id,
+                    price: actualPackage.price,
                     quantity: 1,
-                    name: packageName || 'Premium Token Package',
+                    name: actualPackage.name || 'Premium Token Package',
                     brand: 'SuperApp',
                     category: 'Digital Goods'
                 }
