@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import { useUser } from '@/lib/auth';
+import { pullFromCloud } from '@/lib/cloudSync';
 
 export default function AuthGuard({ children }) {
-  const { user, loading, login, getAllUsers, switchUser, AVATAR_OPTIONS } = useUser();
+  const { user, loading, login, loginByCode, getAllUsers, switchUser, AVATAR_OPTIONS } = useUser();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('😎');
-  const [showExisting, setShowExisting] = useState(false);
+  const [loginMode, setLoginMode] = useState('new'); // 'new' | 'existing' | 'code'
+  const [uniqueCode, setUniqueCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [codeLoading, setCodeLoading] = useState(false);
 
   if (loading) {
     return (
@@ -34,6 +38,35 @@ export default function AuthGuard({ children }) {
     switchUser(userId);
   };
 
+  const handleCodeLogin = async () => {
+    if (!uniqueCode.trim()) return;
+    setCodeError('');
+    setCodeLoading(true);
+
+    // First try local user lookup
+    const localResult = loginByCode(uniqueCode);
+    if (localResult.success) {
+      setCodeLoading(false);
+      return;
+    }
+
+    // If not found locally, try pulling from cloud
+    try {
+      const syncId = uniqueCode.trim();
+      await pullFromCloud(syncId);
+      // After pull, try login again
+      const retryResult = loginByCode(uniqueCode);
+      if (retryResult.success) {
+        setCodeLoading(false);
+        return;
+      }
+      setCodeError('Data berhasil di-download tapi user tidak ditemukan. Coba refresh halaman.');
+    } catch {
+      setCodeError('Kode tidak ditemukan. Pastikan kode unik atau Sync ID benar.');
+    }
+    setCodeLoading(false);
+  };
+
   return (
     <div className="login-page">
       <div className="login-container">
@@ -44,7 +77,7 @@ export default function AuthGuard({ children }) {
           <p className="login-subtitle">Personal Management Platform</p>
         </div>
 
-        {!showExisting ? (
+        {loginMode === 'new' && (
           <>
             {/* Login Form */}
             <form className="login-form" onSubmit={handleLogin}>
@@ -83,13 +116,20 @@ export default function AuthGuard({ children }) {
               </button>
             </form>
 
-            {existingUsers.length > 0 && (
-              <button className="login-switch-btn" onClick={() => setShowExisting(true)}>
-                Atau masuk sebagai user lain ({existingUsers.length} tersimpan)
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              {existingUsers.length > 0 && (
+                <button className="login-switch-btn" onClick={() => setLoginMode('existing')}>
+                  👤 Masuk sebagai user lain ({existingUsers.length} tersimpan)
+                </button>
+              )}
+              <button className="login-switch-btn" onClick={() => setLoginMode('code')}>
+                🔑 Masuk dengan Kode Unik
               </button>
-            )}
+            </div>
           </>
-        ) : (
+        )}
+
+        {loginMode === 'existing' && (
           <>
             {/* Existing Users */}
             <div className="login-section">
@@ -114,7 +154,44 @@ export default function AuthGuard({ children }) {
               </div>
             </div>
 
-            <button className="login-switch-btn" onClick={() => setShowExisting(false)}>
+            <button className="login-switch-btn" onClick={() => setLoginMode('new')}>
+              ← Buat profil baru
+            </button>
+          </>
+        )}
+
+        {loginMode === 'code' && (
+          <>
+            {/* Code Login */}
+            <div className="login-section" style={{ padding: '0 24px' }}>
+              <label className="login-label">🔑 Masuk dengan Kode Unik</label>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                Masukkan kode unik (SA-XXXXXXXX) atau Sync ID dari device lain untuk sinkronisasi data kamu.
+              </p>
+              <input
+                type="text"
+                className="login-input"
+                placeholder="SA-XXXXXXXX atau Sync ID..."
+                value={uniqueCode}
+                onChange={(e) => { setUniqueCode(e.target.value.toUpperCase()); setCodeError(''); }}
+                autoFocus
+                style={{ textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '2px', textAlign: 'center' }}
+              />
+              {codeError && (
+                <p style={{ fontSize: '13px', color: 'var(--accent-red, #ef4444)', marginTop: '8px' }}>{codeError}</p>
+              )}
+              <button
+                className="login-submit"
+                onClick={handleCodeLogin}
+                disabled={!uniqueCode.trim() || codeLoading}
+                style={{ marginTop: '16px' }}
+              >
+                <span>{codeLoading ? '⏳ Mencari...' : '🔓 Masuk'}</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            <button className="login-switch-btn" onClick={() => setLoginMode('new')}>
               ← Buat profil baru
             </button>
           </>

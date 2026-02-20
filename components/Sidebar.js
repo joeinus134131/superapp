@@ -8,6 +8,7 @@ import XPBar from './XPBar';
 import { exportAllData, importData, getStorageSize } from '@/lib/backup';
 import { pushToCloud, pullFromCloud, getSyncId } from '@/lib/cloudSync';
 import { usePomodoro, MODES } from '@/lib/pomodoroContext';
+import { usePremium } from '@/lib/premium';
 
 const NAV_ITEMS = [
   { section: 'Overview' },
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: '/reading', icon: '📚', label: 'Reading List' },
   { href: '/calendar', icon: '📅', label: 'Calendar' },
   { section: 'System' },
+  { href: '/premium', icon: '💎', label: 'Premium Store' },
   { href: '/notifications', icon: '🔔', label: 'Notifikasi' },
   { href: '/settings', icon: '⚙️', label: 'Settings' },
 ];
@@ -39,6 +41,9 @@ export default function Sidebar() {
   const [storageInfo, setStorageInfo] = useState(null);
   const [importMsg, setImportMsg] = useState(null);
   const fileRef = useRef(null);
+
+  // Premium data
+  const { balance, storageLimitMB, isPremium } = usePremium();
 
   // Cloud sync state
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -60,7 +65,7 @@ export default function Sidebar() {
       const ctx = canvas.getContext('2d');
       ctx.font = '54px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(emoji, 32, 38);
-      
+
       let link = document.querySelector("link[rel*='icon']");
       if (!link) {
         link = document.createElement('link');
@@ -184,7 +189,7 @@ export default function Sidebar() {
               }} />
               <span style={{ fontSize: '14px' }}>{mode === 'focus' ? '🔥' : mode === 'break' ? '☕' : '🌴'}</span>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', flex: 1 }}>
-                {String(Math.floor(timeLeft / 60)).padStart(2,'0')}:{String(timeLeft % 60).padStart(2,'0')}
+                {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}
               </span>
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                 {mode === 'focus' ? 'Fokus' : mode === 'break' ? 'Istirahat' : 'Long Break'}
@@ -223,14 +228,21 @@ export default function Sidebar() {
             </button>
             {showUserMenu && (
               <div className="sidebar-user-menu">
+                {/* Premium Info */}
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="text-xs font-semibold">{isPremium ? '🌟 Premium' : 'Standard'}</span>
+                  <span className="text-xs font-bold" style={{ color: 'var(--accent-purple)' }}>{balance} Token</span>
+                </div>
+
                 {/* Storage Info */}
                 {storageInfo && (
                   <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)' }}>
-                    <div className="text-xs text-muted" style={{ marginBottom: '4px' }}>
-                      💾 Storage: {storageInfo.usedMB} MB / 5 MB ({storageInfo.percent}%)
+                    <div className="text-xs text-muted" style={{ marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>💾 {storageInfo.usedMB} MB / {storageLimitMB} MB</span>
+                      <span>{Math.round((storageInfo.used / (storageLimitMB * 1024 * 1024)) * 100)}%</span>
                     </div>
                     <div className="storage-bar">
-                      <div className="storage-bar-fill" style={{ width: `${storageInfo.percent}%` }} />
+                      <div className="storage-bar-fill" style={{ width: `${Math.round((storageInfo.used / (storageLimitMB * 1024 * 1024)) * 100)}%`, background: isPremium ? 'var(--accent-purple)' : 'var(--accent-cyan)' }} />
                     </div>
                   </div>
                 )}
@@ -268,7 +280,8 @@ export default function Sidebar() {
             </div>
             <div className="modal-body">
               <p className="text-sm text-secondary mb-2">
-                Sync data ke cloud gratis via jsonblob.com. Simpan Sync ID untuk akses dari device lain.
+                Sync data kamu secara aman. Simpan Sync ID untuk akses dari device lain.
+                {isPremium && <span style={{ marginLeft: '8px', background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>🛡️ Secured by Supabase</span>}
               </p>
 
               {/* Push Section */}

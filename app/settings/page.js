@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [appTagline, setAppTagline] = useState(user?.appTagline || '');
   const [appIcon, setAppIcon] = useState(user?.appIcon || '⚡');
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileRef = useRef(null);
 
   const handlePhotoUpload = (e) => {
@@ -85,6 +86,47 @@ export default function SettingsPage() {
           </p>
         </div>
 
+        {/* Unique ID Card */}
+        <div className="card card-padding mb-2" style={{ background: 'var(--gradient-card)', border: '1px solid var(--accent-purple)' }}>
+          <div className="flex justify-between items-center mb-1">
+            <label className="form-label" style={{ marginBottom: 0 }}>🔑 Kode Unik Login</label>
+            <span className="text-xs text-secondary" style={{ background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '12px' }}>
+              Simpan & Rahasiakan
+            </span>
+          </div>
+          <p className="text-sm text-secondary mb-2">
+            Gunakan kode ini untuk login dari device lain. Kode ini otomatis terhubung dengan data Cloud Sync kamu.
+          </p>
+          <div className="flex gap-1">
+            <div style={{
+              flex: 1,
+              background: 'var(--bg-glass)',
+              padding: '12px',
+              borderRadius: 'var(--radius-md)',
+              fontFamily: 'monospace',
+              fontSize: '18px',
+              letterSpacing: '2px',
+              textAlign: 'center',
+              fontWeight: 700,
+              color: 'var(--accent-purple)',
+              border: '1px dashed var(--accent-purple)'
+            }}>
+              {user.uniqueCode || 'SA-XXXXXXXX'}
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                navigator.clipboard.writeText(user.uniqueCode);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              style={{ width: '100px' }}
+            >
+              {copied ? '✅ Copied' : '📋 Copy'}
+            </button>
+          </div>
+        </div>
+
         {/* Name */}
         <div className="card card-padding mb-2">
           <div className="form-group">
@@ -126,8 +168,8 @@ export default function SettingsPage() {
             <label className="form-label text-xs">Icon Aplikasi</label>
             <div className="flex flex-wrap gap-1">
               {['⚡', '🚀', '🔥', '💎', '🌟', '🎯', '🎨', '🎮', '💡', '🍀', '🌈', '🪐'].map(emoji => (
-                <button 
-                  key={emoji} 
+                <button
+                  key={emoji}
                   type="button"
                   className={`btn btn-icon ${appIcon === emoji ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setAppIcon(emoji)}
