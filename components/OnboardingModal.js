@@ -46,7 +46,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handleNext = () => {
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < STEPS_DATA.length - 1) {
       setCurrentStep(curr => curr + 1);
     } else {
       onClose();
