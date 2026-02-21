@@ -11,8 +11,10 @@ import {
   NotebookPen, Plus, Notebook, Trash2, Edit3,
   BookOpen, X, Save
 } from 'lucide-react';
+import { useLanguage } from '@/lib/language';
 
 export default function JournalPage() {
+  const { t } = useLanguage();
   const [entries, setEntries] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
@@ -105,10 +107,10 @@ export default function JournalPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><NotebookPen size={32} color="var(--accent-purple)" /> Journal & Notes</h1>
-            <p>Tulis pikiran dan catatan harianmu</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><NotebookPen size={32} color="var(--accent-purple)" /> {t('journal.title')}</h1>
+            <p>{t('journal.desc')}</p>
           </div>
-          <button className="btn btn-primary" onClick={createNew} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tulis Baru</button>
+          <button className="btn btn-primary" onClick={createNew} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('journal.write_new')}</button>
         </div>
       </div>
 
@@ -117,7 +119,7 @@ export default function JournalPage() {
           <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Notebook size={28} /></div>
           <div className="stat-info">
             <h3>{entries.length}</h3>
-            <p>Total Catatan</p>
+            <p>{t('journal.total_notes')}</p>
           </div>
         </div>
         {Object.entries(MOOD_EMOJIS).map(([key, emoji]) => (
@@ -135,11 +137,11 @@ export default function JournalPage() {
         {/* Entry List */}
         <div className="card" style={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
-            <input className="form-input" placeholder="🔍 Cari..." value={search} onChange={e => { setSearch(e.target.value); setListPage(1); }} />
+            <input className="form-input" placeholder={t('journal.search_placeholder')} value={search} onChange={e => { setSearch(e.target.value); setListPage(1); }} />
           </div>
           {filtered.length === 0 ? (
             <div className="empty-state" style={{ padding: '32px' }}>
-              <p className="text-muted text-sm">Belum ada catatan</p>
+              <p className="text-muted text-sm">{t('journal.no_notes_yet')}</p>
             </div>
           ) : (
             <>
@@ -166,10 +168,10 @@ export default function JournalPage() {
                 ))}
                 {filtered.length > ITEMS_PER_PAGE && (
                     <div className="flex justify-between items-center p-3 border-t border-color" style={{ background: 'var(--bg-card)' }}>
-                        <span className="text-xs text-secondary">Hal {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}</span>
+                        <span className="text-xs text-secondary">{t('journal.page')} {listPage} {t('journal.of')} {Math.ceil(filtered.length / ITEMS_PER_PAGE)}</span>
                         <div className="flex gap-2">
-                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Prev</button>
-                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>Next</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>{t('journal.prev_short')}</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>{t('journal.next_short')}</button>
                         </div>
                     </div>
                 )}
@@ -185,12 +187,12 @@ export default function JournalPage() {
                 <div style={{ minWidth: 0 }}>
                   <h2 style={{ fontSize: '24px', fontWeight: 700, wordBreak: 'break-word' }}>{selected.title}</h2>
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted">
-                    <span>{MOOD_EMOJIS[selected.mood]} {selected.mood}</span>
+                    <span style={{ textTransform: 'capitalize' }}>{MOOD_EMOJIS[selected.mood]} {selected.mood}</span>
                     <span>•</span>
                     <span>{formatDate(selected.date)}</span>
                   </div>
                 </div>
-                <button className="btn btn-secondary btn-sm" onClick={openEdit} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Edit3 size={14} /> Edit</button>
+                <button className="btn btn-secondary btn-sm" onClick={openEdit} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Edit3 size={14} /> {t('journal.edit')}</button>
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '16px', color: 'var(--text-secondary)' }}>
                 {selected.content}
@@ -199,9 +201,9 @@ export default function JournalPage() {
           ) : (
             <div className="empty-state" style={{ height: '300px' }}>
               <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><BookOpen size={48} color="var(--accent-purple)" /></div>
-              <h3>Pilih Catatan</h3>
-              <p>Pilih catatan dari daftar untuk membacanya, atau buat catatan baru.</p>
-              <button className="btn btn-primary mt-2" onClick={createNew} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tulis Baru</button>
+              <h3>{t('journal.select_note')}</h3>
+              <p>{t('journal.select_note_desc')}</p>
+              <button className="btn btn-primary mt-2" onClick={createNew} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('journal.write_new')}</button>
             </div>
           )}
         </div>
@@ -212,20 +214,20 @@ export default function JournalPage() {
         <div className="modal-overlay" onClick={() => setShowEditor(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
-              <h2>{form.id ? 'Edit Catatan' : 'Tulis Baru'}</h2>
+              <h2>{form.id ? t('journal.edit_note') : t('journal.write_new')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowEditor(false)}><X size={16} /></button>
             </div>
             
             <div className="modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
               <div className="form-group">
-                <label className="form-label">Judul</label>
+                <label className="form-label">{t('journal.note_title')}</label>
                 <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
-                  placeholder="Judul catatan..." style={{ fontSize: '18px', fontWeight: '600' }} autoFocus />
+                  placeholder={t('journal.title_placeholder')} style={{ fontSize: '18px', fontWeight: '600' }} autoFocus />
               </div>
 
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Mood</label>
+                  <label className="form-label">{t('journal.mood')}</label>
                   <div className="mood-selector">
                     {Object.entries(MOOD_EMOJIS).map(([key, emoji]) => (
                       <button key={key} type="button" className={`mood-btn ${form.mood === key ? 'selected' : ''}`} onClick={() => setForm({...form, mood: key})}>
@@ -235,22 +237,22 @@ export default function JournalPage() {
                   </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Tanggal</label>
+                  <label className="form-label">{t('journal.date')}</label>
                   <input type="date" className="form-input" value={form.date} onChange={e => setForm({...form, date: e.target.value})} style={{ width: 'auto' }} />
                 </div>
               </div>
 
               <div className="form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <label className="form-label">Isi Catatan</label>
+                <label className="form-label">{t('journal.note_content')}</label>
                 <textarea className="form-textarea" value={form.content} onChange={e => setForm({...form, content: e.target.value})}
-                  placeholder="Tulis pikiranmu di sini..."
+                  placeholder={t('journal.content_placeholder')}
                   style={{ flex: 1, minHeight: '200px', fontSize: '16px', lineHeight: '1.6', resize: 'none' }} />
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowEditor(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={16} /> Simpan Catatan</button>
+              <button className="btn btn-secondary" onClick={() => setShowEditor(false)}>{t('journal.cancel')}</button>
+              <button className="btn btn-primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={16} /> {t('journal.save_note')}</button>
             </div>
           </div>
         </div>

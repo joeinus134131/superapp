@@ -7,6 +7,7 @@ import { addXP, checkAchievements } from '@/lib/gamification';
 import { playTaskComplete, playXPGain, playError } from '@/lib/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import { useLanguage } from '@/lib/language';
 import {
   CalendarDays, ArrowLeft, RefreshCw, Check, Trash2,
   CheckSquare, LayoutDashboard, List as ListIcon, ListTodo,
@@ -17,6 +18,7 @@ const CATEGORIES = ['Personal', 'Kerja', 'Proyek', 'Belajar', 'Lainnya'];
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
+  const { t } = useLanguage();
   const [view, setView] = useState('kanban');
   const [showModal, setShowModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -150,21 +152,21 @@ export default function TasksPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckSquare size={32} color="var(--accent-purple)" /> Task Manager</h1>
-            <p>Kelola semua tugas kamu dengan prioritas dan deadline</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckSquare size={32} color="var(--accent-purple)" /> {t('tasks.title')}</h1>
+            <p>{t('tasks.desc')}</p>
           </div>
-          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Task</button>
+          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('tasks.add_task')}</button>
         </div>
       </div>
 
       <div className="flex justify-between items-center mb-2">
         <div className="tabs">
-          <button className={`tab ${view === 'kanban' ? 'active' : ''}`} onClick={() => setView('kanban')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><LayoutDashboard size={16} /> Kanban</button>
-          <button className={`tab ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListIcon size={16} /> List</button>
+          <button className={`tab ${view === 'kanban' ? 'active' : ''}`} onClick={() => setView('kanban')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><LayoutDashboard size={16} /> {t('tasks.kanban')}</button>
+          <button className={`tab ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListIcon size={16} /> {t('tasks.list')}</button>
         </div>
         <div className="flex gap-1">
           <select className="form-select" value={filter} onChange={e => setFilter(e.target.value)} style={{ width: 'auto' }}>
-            <option value="all">Semua Kategori</option>
+            <option value="all">{t('tasks.all_categories')}</option>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
@@ -177,7 +179,7 @@ export default function TasksPage() {
               <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListTodo size={18} /> To Do <span className="kanban-count">{todo.length}</span></span>
             </div>
             {todo.slice((todoPage - 1) * ITEMS_PER_PAGE, todoPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
-            {todo.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
+            {todo.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>{t('tasks.no_task')}</div>}
             {todo.length > ITEMS_PER_PAGE && (
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
                     <button className="btn btn-sm btn-secondary" disabled={todoPage === 1} onClick={() => setTodoPage(p => p - 1)}>{'<'}</button>
@@ -191,7 +193,7 @@ export default function TasksPage() {
               <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><RefreshCw size={18} /> In Progress <span className="kanban-count">{inProgress.length}</span></span>
             </div>
             {inProgress.slice((inProgressPage - 1) * ITEMS_PER_PAGE, inProgressPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
-            {inProgress.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
+            {inProgress.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>{t('tasks.no_task')}</div>}
             {inProgress.length > ITEMS_PER_PAGE && (
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
                     <button className="btn btn-sm btn-secondary" disabled={inProgressPage === 1} onClick={() => setInProgressPage(p => p - 1)}>{'<'}</button>
@@ -205,7 +207,7 @@ export default function TasksPage() {
               <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={18} /> Done <span className="kanban-count">{done.length}</span></span>
             </div>
             {done.slice((donePage - 1) * ITEMS_PER_PAGE, donePage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
-            {done.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
+            {done.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>{t('tasks.no_task')}</div>}
             {done.length > ITEMS_PER_PAGE && (
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
                     <button className="btn btn-sm btn-secondary" disabled={donePage === 1} onClick={() => setDonePage(p => p - 1)}>{'<'}</button>
@@ -220,8 +222,8 @@ export default function TasksPage() {
           {filtered.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><CheckSquare size={48} color="var(--accent-purple)" /></div>
-              <h3>Belum ada task</h3>
-              <p>Mulai tambahkan task pertamamu!</p>
+              <h3>{t('tasks.no_task_yet')}</h3>
+              <p>{t('tasks.start_adding')}</p>
             </div>
           ) : (
             <>
@@ -245,10 +247,10 @@ export default function TasksPage() {
                 ))}
                 {filtered.length > ITEMS_PER_PAGE && (
                     <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
-                        <span className="text-sm text-secondary">Halaman {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}</span>
+                        <span className="text-sm text-secondary">{t('tasks.page')} {listPage} {t('tasks.of')} {Math.ceil(filtered.length / ITEMS_PER_PAGE)}</span>
                         <div className="flex gap-2">
-                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Sebelumnya</button>
-                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>Selanjutnya</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>{t('tasks.prev')}</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>{t('tasks.next')}</button>
                         </div>
                     </div>
                 )}
@@ -261,22 +263,22 @@ export default function TasksPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editTask ? 'Edit Task' : 'Tambah Task Baru'}</h2>
+              <h2>{editTask ? t('tasks.modal_edit') : t('tasks.modal_add')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Judul Task</label>
-                  <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Apa yang perlu dikerjakan?" autoFocus />
+                  <label className="form-label">{t('tasks.task_title')}</label>
+                  <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder={t('tasks.task_title_placeholder')} autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Deskripsi</label>
-                  <textarea className="form-textarea" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Detail tambahan..." />
+                  <label className="form-label">{t('tasks.description')}</label>
+                  <textarea className="form-textarea" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder={t('tasks.description_placeholder')} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Prioritas</label>
+                    <label className="form-label">{t('tasks.priority')}</label>
                     <select className="form-select" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
                       <option value="P1">🔴 P1 — Urgent</option>
                       <option value="P2">🟡 P2 — High</option>
@@ -285,7 +287,7 @@ export default function TasksPage() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Kategori</label>
+                    <label className="form-label">{t('tasks.category')}</label>
                     <select className="form-select" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -293,11 +295,11 @@ export default function TasksPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Deadline</label>
+                    <label className="form-label">{t('tasks.deadline')}</label>
                     <input type="date" className="form-input" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Status</label>
+                    <label className="form-label">{t('tasks.status')}</label>
                     <select className="form-select" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
                       <option value="todo">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -307,8 +309,8 @@ export default function TasksPage() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">{editTask ? 'Simpan' : 'Tambah Task'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>{t('tasks.cancel')}</button>
+                <button type="submit" className="btn btn-primary">{editTask ? t('tasks.save') : t('tasks.add_btn')}</button>
               </div>
             </form>
           </div>

@@ -4,12 +4,14 @@ import { usePomodoro, MODES, SESSION_NOTIFICATIONS } from '@/lib/pomodoroContext
 import { getToday } from '@/lib/helpers';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import { useLanguage } from '@/lib/language';
 import {
   Timer, Target, Clock, BarChart2, Flame, Coffee,
   TreePalm, Play, Pause, RefreshCw, Lightbulb, Zap, X
 } from 'lucide-react';
 
 export default function PomodoroPage() {
+  const { t } = useLanguage();
   const {
     mode, isRunning, timeLeft, sessions, todaySessions, totalFocusMin,
     notification, levelUpData, showConfetti, xpToast, wakeLockActive,
@@ -99,14 +101,14 @@ export default function PomodoroPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Timer size={32} color="var(--accent-purple)" /> Pomodoro Timer</h1>
-            <p>Fokus mendalam dengan teknik Pomodoro — 25 menit fokus, 5 menit istirahat</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Timer size={32} color="var(--accent-purple)" /> {t('pomodoro.title')}</h1>
+            <p>{t('pomodoro.desc')}</p>
           </div>
           {/* Wake Lock indicator */}
           {wakeLockActive && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', fontSize: '12px', color: 'var(--accent-green)' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              Layar aktif terjaga
+              {t('pomodoro.wake_lock')}
             </div>
           )}
         </div>
@@ -115,19 +117,19 @@ export default function PomodoroPage() {
       <div className="stats-grid mb-3">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Target size={28} /></div>
-          <div className="stat-info"><h3>{todaySessions}</h3><p>Sesi Hari Ini</p></div>
+          <div className="stat-info"><h3>{todaySessions}</h3><p>{t('pomodoro.sessions_today')}</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}><Clock size={28} /></div>
-          <div className="stat-info"><h3>{todaySessions * 25}<span className="text-sm text-muted">min</span></h3><p>Fokus Hari Ini</p></div>
+          <div className="stat-info"><h3>{todaySessions * 25}<span className="text-sm text-muted">min</span></h3><p>{t('pomodoro.focus_today')}</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><BarChart2 size={28} /></div>
-          <div className="stat-info"><h3>{totalFocusMin}<span className="text-sm text-muted">min</span></h3><p>Total Fokus</p></div>
+          <div className="stat-info"><h3>{totalFocusMin}<span className="text-sm text-muted">min</span></h3><p>{t('pomodoro.total_focus')}</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><Flame size={28} /></div>
-          <div className="stat-info"><h3>{sessions.length}</h3><p>Total Sesi</p></div>
+          <div className="stat-info"><h3>{sessions.length}</h3><p>{t('pomodoro.total_sessions')}</p></div>
         </div>
       </div>
 
@@ -135,9 +137,9 @@ export default function PomodoroPage() {
         {/* Timer */}
         <div className="card card-padding text-center">
           <div className="tabs" style={{ justifyContent: 'center', display: 'inline-flex', margin: '0 auto 24px' }}>
-            <button className={`tab ${mode === 'focus' ? 'active' : ''}`} onClick={() => switchMode('focus')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={16} /> Fokus</button>
-            <button className={`tab ${mode === 'break' ? 'active' : ''}`} onClick={() => switchMode('break')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Coffee size={16} /> Istirahat</button>
-            <button className={`tab ${mode === 'longBreak' ? 'active' : ''}`} onClick={() => switchMode('longBreak')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TreePalm size={16} /> Long Break</button>
+            <button className={`tab ${mode === 'focus' ? 'active' : ''}`} onClick={() => switchMode('focus')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={16} /> {t('pomodoro.focus_tab')}</button>
+            <button className={`tab ${mode === 'break' ? 'active' : ''}`} onClick={() => switchMode('break')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Coffee size={16} /> {t('pomodoro.break_tab')}</button>
+            <button className={`tab ${mode === 'longBreak' ? 'active' : ''}`} onClick={() => switchMode('longBreak')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TreePalm size={16} /> {t('pomodoro.long_break_tab')}</button>
           </div>
 
           <div className={`timer-circle ${isRunning ? (mode === 'focus' ? 'active' : 'break-time') : ''}`}>
@@ -156,19 +158,19 @@ export default function PomodoroPage() {
 
           <div className="timer-controls">
             <button className="btn btn-lg btn-primary" onClick={toggleTimer} style={{ minWidth: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              {isRunning ? <><Pause size={18} /> Pause</> : <><Play size={18} /> Start</>}
+              {isRunning ? <><Pause size={18} /> {t('pomodoro.pause')}</> : <><Play size={18} /> {t('pomodoro.start')}</>}
             </button>
-            <button className="btn btn-lg btn-secondary" onClick={resetTimer} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCw size={18} /> Reset</button>
+            <button className="btn btn-lg btn-secondary" onClick={resetTimer} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCw size={18} /> {t('pomodoro.reset')}</button>
           </div>
 
           <div className="text-sm text-muted mt-2">
-            Sesi ke-{todaySessions + 1} • {todaySessions % 4 === 3 && mode === 'focus' ? 'Istirahat panjang setelah ini!' : `${4 - (todaySessions % 4)} sesi lagi untuk istirahat panjang`}
+            {t('pomodoro.session_prefix')}{todaySessions + 1} • {todaySessions % 4 === 3 && mode === 'focus' ? t('pomodoro.long_break_after') : `${4 - (todaySessions % 4)} ${t('pomodoro.sessions_until_long')}`}
           </div>
         </div>
 
         {/* Weekly Chart */}
         <div className="card card-padding">
-          <div className="card-title mb-3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={20} /> Statistik Mingguan</div>
+          <div className="card-title mb-3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={20} /> {t('pomodoro.weekly_stats')}</div>
           <div className="flex items-end gap-2 justify-between" style={{ height: '200px', padding: '0 8px' }}>
             {weekStats.map((s, i) => (
               <div key={i} className="flex flex-col items-center gap-1 flex-1">
@@ -185,13 +187,13 @@ export default function PomodoroPage() {
           </div>
 
           <div className="mt-3" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-            <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lightbulb size={20} color="var(--accent-yellow)" /> Tips Pomodoro</div>
+            <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lightbulb size={20} color="var(--accent-yellow)" /> {t('pomodoro.tips_title')}</div>
             <ul style={{ fontSize: '13px', color: 'var(--text-secondary)', paddingLeft: '20px', lineHeight: '1.8' }}>
-              <li>Fokus pada satu tugas per sesi</li>
-              <li>Hindari gangguan selama timer berjalan</li>
-              <li>Gunakan istirahat untuk stretching</li>
-              <li>Setelah 4 sesi, ambil istirahat panjang</li>
-              <li>Konsistensi lebih penting dari jumlah sesi</li>
+              <li>{t('pomodoro.tip_1')}</li>
+              <li>{t('pomodoro.tip_2')}</li>
+              <li>{t('pomodoro.tip_3')}</li>
+              <li>{t('pomodoro.tip_4')}</li>
+              <li>{t('pomodoro.tip_5')}</li>
             </ul>
           </div>
         </div>

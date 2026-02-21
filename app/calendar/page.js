@@ -4,18 +4,20 @@ import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getDaysInMonth, getFirstDayOfMonth, getToday, formatDate } from '@/lib/helpers';
 import { CalendarDays, Plus, ChevronLeft, ChevronRight, Trash2, Pin, X } from 'lucide-react';
-
-const EVENT_COLORS = [
-  { id: 'purple', label: 'Default', color: '#8b5cf6' },
-  { id: 'blue', label: 'Kerja', color: '#3b82f6' },
-  { id: 'green', label: 'Personal', color: '#10b981' },
-  { id: 'red', label: 'Penting', color: '#ef4444' },
-  { id: 'yellow', label: 'Reminder', color: '#f59e0b' },
-  { id: 'pink', label: 'Sosial', color: '#ec4899' },
-  { id: 'cyan', label: 'Kesehatan', color: '#06b6d4' },
-];
+import { useLanguage } from '@/lib/language';
 
 export default function CalendarPage() {
+  const { t } = useLanguage();
+
+  const EVENT_COLORS = [
+    { id: 'purple', label: t('calendar.cat_default'), color: '#8b5cf6' },
+    { id: 'blue', label: t('calendar.cat_work'), color: '#3b82f6' },
+    { id: 'green', label: t('calendar.cat_personal'), color: '#10b981' },
+    { id: 'red', label: t('calendar.cat_important'), color: '#ef4444' },
+    { id: 'yellow', label: t('calendar.cat_reminder'), color: '#f59e0b' },
+    { id: 'pink', label: t('calendar.cat_social'), color: '#ec4899' },
+    { id: 'cyan', label: t('calendar.cat_health'), color: '#06b6d4' },
+  ];
   const [events, setEvents] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(getToday());
@@ -75,8 +77,8 @@ export default function CalendarPage() {
   const getEventsForDate = (dateStr) => events.filter(e => e.date === dateStr);
   const selectedEvents = getEventsForDate(selectedDate).sort((a, b) => a.time.localeCompare(b.time));
 
-  const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-  const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const DAY_NAMES = t('calendar.day_names');
+  const MONTH_NAMES = t('calendar.month_names');
 
   // Previous month days to fill
   const prevMonthDays = getDaysInMonth(year, month - 1);
@@ -98,10 +100,10 @@ export default function CalendarPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={32} color="var(--accent-purple)" /> Calendar</h1>
-            <p>Kelola jadwal dan event kamu</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={32} color="var(--accent-purple)" /> {t('calendar.title')}</h1>
+            <p>{t('calendar.desc')}</p>
           </div>
-          <button className="btn btn-primary" onClick={() => openAdd()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Event</button>
+          <button className="btn btn-primary" onClick={() => openAdd()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('calendar.add_event')}</button>
         </div>
       </div>
 
@@ -109,13 +111,13 @@ export default function CalendarPage() {
         {/* Calendar */}
         <div className="card card-padding">
           <div className="flex justify-between items-center mb-3">
-            <button className="btn btn-secondary btn-sm" onClick={prevMonth} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ChevronLeft size={16} /> Prev</button>
+            <button className="btn btn-secondary btn-sm" onClick={prevMonth} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ChevronLeft size={16} /> {t('calendar.prev_month')}</button>
             <div className="text-center">
               <h2 className="font-bold">{MONTH_NAMES[month]} {year}</h2>
             </div>
             <div className="flex gap-1">
-              <button className="btn btn-secondary btn-sm" onClick={goToday}>Hari Ini</button>
-              <button className="btn btn-secondary btn-sm" onClick={nextMonth} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Next <ChevronRight size={16} /></button>
+              <button className="btn btn-secondary btn-sm" onClick={goToday}>{t('calendar.today')}</button>
+              <button className="btn btn-secondary btn-sm" onClick={nextMonth} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>{t('calendar.next_month')} <ChevronRight size={16} /></button>
             </div>
           </div>
 
@@ -178,7 +180,7 @@ export default function CalendarPage() {
             </div>
             {selectedEvents.length === 0 ? (
               <div className="text-center text-muted text-sm" style={{ padding: '24px' }}>
-                Tidak ada event
+                {t('calendar.no_events')}
               </div>
             ) : (
               <>
@@ -189,7 +191,7 @@ export default function CalendarPage() {
                       <div style={{ width: '4px', borderRadius: '2px', alignSelf: 'stretch', background: colorInfo?.color || '#8b5cf6' }} />
                       <div className="flex-1">
                         <div className="font-semibold" style={{ fontSize: '14px' }}>{event.title}</div>
-                        <div className="text-xs text-muted">{event.time} • {colorInfo?.label || 'Default'}</div>
+                        <div className="text-xs text-muted">{event.time} • {colorInfo?.label || t('calendar.cat_default')}</div>
                         {event.description && <div className="text-xs text-secondary mt-1">{event.description}</div>}
                       </div>
                       <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEvent(event.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
@@ -199,11 +201,11 @@ export default function CalendarPage() {
                 {selectedEvents.length > ITEMS_PER_PAGE && (
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
                         <span className="text-xs text-secondary">
-                            Hal {listPage} dari {Math.ceil(selectedEvents.length / ITEMS_PER_PAGE)}
+                            {t('calendar.page')} {listPage} {t('calendar.of')} {Math.ceil(selectedEvents.length / ITEMS_PER_PAGE)}
                         </span>
                         <div className="flex gap-1">
-                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Prev</button>
-                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= selectedEvents.length} onClick={() => setListPage(p => p + 1)}>Next</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>{t('calendar.prev_short')}</button>
+                            <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= selectedEvents.length} onClick={() => setListPage(p => p + 1)}>{t('calendar.next_short')}</button>
                         </div>
                     </div>
                 )}
@@ -213,9 +215,9 @@ export default function CalendarPage() {
 
           {/* Upcoming Events */}
           <div className="card card-padding">
-            <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Pin size={20} /> Mendatang (7 hari)</div>
+            <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Pin size={20} /> {t('calendar.upcoming_7_days')}</div>
             {upcoming.length === 0 ? (
-              <div className="text-center text-muted text-sm" style={{ padding: '16px' }}>Tidak ada event mendatang</div>
+              <div className="text-center text-muted text-sm" style={{ padding: '16px' }}>{t('calendar.no_upcoming_events')}</div>
             ) : (
               <>
                 {upcoming.slice((upcomingPage - 1) * ITEMS_PER_PAGE, upcomingPage * ITEMS_PER_PAGE).map((event, i) => {
@@ -233,11 +235,11 @@ export default function CalendarPage() {
                 {upcoming.length > ITEMS_PER_PAGE && (
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-color">
                         <span className="text-xs text-secondary">
-                            Hal {upcomingPage} dari {Math.ceil(upcoming.length / ITEMS_PER_PAGE)}
+                            {t('calendar.page')} {upcomingPage} {t('calendar.of')} {Math.ceil(upcoming.length / ITEMS_PER_PAGE)}
                         </span>
                         <div className="flex gap-1">
-                            <button className="btn btn-sm btn-secondary" disabled={upcomingPage === 1} onClick={() => setUpcomingPage(p => p - 1)}>Prev</button>
-                            <button className="btn btn-sm btn-secondary" disabled={upcomingPage * ITEMS_PER_PAGE >= upcoming.length} onClick={() => setUpcomingPage(p => p + 1)}>Next</button>
+                            <button className="btn btn-sm btn-secondary" disabled={upcomingPage === 1} onClick={() => setUpcomingPage(p => p - 1)}>{t('calendar.prev_short')}</button>
+                            <button className="btn btn-sm btn-secondary" disabled={upcomingPage * ITEMS_PER_PAGE >= upcoming.length} onClick={() => setUpcomingPage(p => p + 1)}>{t('calendar.next_short')}</button>
                         </div>
                     </div>
                 )}
@@ -251,31 +253,31 @@ export default function CalendarPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editEvent ? 'Edit Event' : 'Tambah Event'}</h2>
+              <h2>{editEvent ? t('calendar.edit_event') : t('calendar.add_event')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Judul Event</label>
-                  <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Nama event..." autoFocus />
+                  <label className="form-label">{t('calendar.event_title')}</label>
+                  <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder={t('calendar.title_placeholder')} autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Deskripsi</label>
-                  <textarea className="form-textarea" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Detail event..." style={{ minHeight: '60px' }} />
+                  <label className="form-label">{t('calendar.description')}</label>
+                  <textarea className="form-textarea" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder={t('calendar.desc_placeholder')} style={{ minHeight: '60px' }} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Tanggal</label>
+                    <label className="form-label">{t('calendar.date')}</label>
                     <input type="date" className="form-input" value={form.date} onChange={e => setForm({...form, date: e.target.value})} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Waktu</label>
+                    <label className="form-label">{t('calendar.time')}</label>
                     <input type="time" className="form-input" value={form.time} onChange={e => setForm({...form, time: e.target.value})} />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Warna / Kategori</label>
+                  <label className="form-label">{t('calendar.color_category')}</label>
                   <div className="flex gap-1 flex-wrap">
                     {EVENT_COLORS.map(c => (
                       <button key={c.id} type="button"
@@ -293,8 +295,8 @@ export default function CalendarPage() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">{editEvent ? 'Simpan' : 'Tambah'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>{t('calendar.cancel')}</button>
+                <button type="submit" className="btn btn-primary">{editEvent ? t('calendar.save') : t('calendar.add')}</button>
               </div>
             </form>
           </div>

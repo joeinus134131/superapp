@@ -4,11 +4,13 @@ import { useState, useRef } from 'react';
 import { useUser, AVATAR_OPTIONS } from '@/lib/auth';
 import {
   Settings, CheckCircle2, Key, Check, Copy, User, Tag,
-  Camera, Upload, Trash2, Smile, Save
+  Camera, Upload, Trash2, Smile, Save, Globe
 } from 'lucide-react';
+import { useLanguage } from '@/lib/language';
 
 export default function SettingsPage() {
   const { user, updateProfile } = useUser();
+  const { language, changeLanguage, t } = useLanguage();
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '😎');
   const [customPhoto, setCustomPhoto] = useState(user?.customPhoto || null);
@@ -60,11 +62,11 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={32} color="var(--accent-purple)" /> Pengaturan Profil</h1>
-        <p>Personalisasi profilmu — nama, avatar, dan foto</p>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={32} color="var(--accent-purple)" /> {t('settings.page_title')}</h1>
+        <p>{t('settings.page_desc')}</p>
       </div>
 
-      {saved && <div className="xp-toast" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} color="var(--accent-green)" /> Profil disimpan!</div>}
+      {saved && <div className="xp-toast" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} color="var(--accent-green)" /> {t('settings.saved_toast')}</div>}
 
       <div style={{ maxWidth: '600px' }}>
         {/* Profile Preview */}
@@ -86,20 +88,44 @@ export default function SettingsPage() {
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>{name || user.name}</h2>
           <p className="text-secondary text-sm">
-            Member sejak {new Date(user.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+            {t('settings.member_since')} {new Date(user.createdAt).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
+        </div>
+
+        {/* Language Preferences */}
+        <div className="card card-padding mb-2">
+          <div className="flex justify-between items-center mb-1">
+            <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px' }}><Globe size={16} /> {t('settings.language')}</label>
+          </div>
+          <p className="text-sm text-secondary mb-3">
+            {t('settings.language_desc')}
+          </p>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <select
+              className="form-input"
+              value={language}
+              onChange={(e) => {
+                changeLanguage(e.target.value);
+                updateProfile({ language: e.target.value });
+              }}
+              style={{ cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239CA3AF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '12px auto' }}
+            >
+              <option value="id">🇮🇩 Indonesia (ID)</option>
+              <option value="en">🇬🇧 English (EN)</option>
+            </select>
+          </div>
         </div>
 
         {/* Unique ID Card */}
         <div className="card card-padding mb-2" style={{ background: 'var(--gradient-card)', border: '1px solid var(--accent-purple)' }}>
           <div className="flex justify-between items-center mb-1">
-            <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px' }}><Key size={16} /> Kode Unik Login</label>
+            <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px' }}><Key size={16} /> {t('settings.unique_id')}</label>
             <span className="text-xs text-secondary" style={{ background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '12px' }}>
-              Simpan & Rahasiakan
+              {t('settings.unique_id_badge')}
             </span>
           </div>
           <p className="text-sm text-secondary mb-2">
-            Gunakan kode ini untuk login dari device lain. Kode ini otomatis terhubung dengan data Cloud Sync kamu.
+            {t('settings.unique_id_desc')}
           </p>
           <div className="flex gap-1">
             <div style={{
@@ -126,7 +152,7 @@ export default function SettingsPage() {
               }}
               style={{ width: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
-              {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
+              {copied ? <><Check size={16} /> {t('settings.copied')}</> : <><Copy size={16} /> {t('settings.copy')}</>}
             </button>
           </div>
         </div>
@@ -134,12 +160,12 @@ export default function SettingsPage() {
         {/* Name */}
         <div className="card card-padding mb-2">
           <div className="form-group">
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><User size={16} /> Nama</label>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><User size={16} /> {t('settings.name')}</label>
             <input
               className="form-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nama kamu..."
+              placeholder={t('settings.name_placeholder')}
               maxLength={30}
             />
           </div>
@@ -147,10 +173,10 @@ export default function SettingsPage() {
 
         {/* Branding */}
         <div className="card card-padding mb-2">
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={16} /> Custom Branding (Sidebar)</label>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={16} /> {t('settings.branding')}</label>
           <div className="grid-2" style={{ gap: '12px', marginBottom: '16px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label text-xs">Nama Aplikasi</label>
+              <label className="form-label text-xs">{t('settings.app_name')}</label>
               <input
                 className="form-input"
                 value={appName}
@@ -159,7 +185,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label text-xs">Tagline Aplikasi</label>
+              <label className="form-label text-xs">{t('settings.app_tagline')}</label>
               <input
                 className="form-input"
                 value={appTagline}
@@ -169,7 +195,7 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label text-xs">Icon Aplikasi</label>
+            <label className="form-label text-xs">{t('settings.app_icon')}</label>
             <div className="flex flex-wrap gap-1">
               {['⚡', '🚀', '🔥', '💎', '🌟', '🎯', '🎨', '🎮', '💡', '🍀', '🌈', '🪐'].map(emoji => (
                 <button
@@ -188,11 +214,11 @@ export default function SettingsPage() {
 
         {/* Photo Upload */}
         <div className="card card-padding mb-2">
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Camera size={16} /> Foto Profil</label>
-          <p className="text-sm text-secondary mb-2">Upload foto kamu (max 150 KB, disimpan di browser)</p>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Camera size={16} /> {t('settings.photo')}</label>
+          <p className="text-sm text-secondary mb-2">{t('settings.photo_desc')}</p>
           <div className="flex gap-1 items-center">
             <button className="btn btn-secondary" onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Upload size={16} /> Upload Foto
+              <Upload size={16} /> {t('settings.upload_photo')}
             </button>
             {customPhoto && (
               <>
@@ -200,13 +226,13 @@ export default function SettingsPage() {
                   className={`btn ${usePhoto ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setUsePhoto(true)}
                 >
-                  Pakai Foto
+                  {t('settings.use_photo')}
                 </button>
                 <button
                   className={`btn ${!usePhoto ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setUsePhoto(false)}
                 >
-                  Pakai Emoji
+                  {t('settings.use_emoji')}
                 </button>
                 <button className="btn btn-danger btn-sm" onClick={handleRemovePhoto} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
               </>
@@ -229,7 +255,7 @@ export default function SettingsPage() {
 
         {/* Emoji Avatar Picker */}
         <div className="card card-padding mb-2">
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Smile size={16} /> Emoji Avatar {usePhoto && <span className="text-sm text-secondary">(fallback saat foto tidak aktif)</span>}</label>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Smile size={16} /> {t('settings.emoji_avatar')} {usePhoto && <span className="text-sm text-secondary">{t('settings.emoji_fallback')}</span>}</label>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(8, 1fr)',
@@ -259,7 +285,7 @@ export default function SettingsPage() {
 
         {/* Save Button */}
         <button className="btn btn-primary btn-lg w-full" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          <Save size={18} /> Simpan Profil
+          <Save size={18} /> {t('settings.save_profile')}
         </button>
       </div>
     </div>

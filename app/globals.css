@@ -1831,6 +1831,41 @@ img {
   font-size: 15px;
 }
 
+.login-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: var(--bg-glass);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.login-tab {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: transparent;
+  text-align: center;
+}
+
+.login-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-glass-hover);
+}
+
+.login-tab.active {
+  background: var(--accent-purple);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
 .login-form {
   background: var(--bg-card);
   border: 1px solid var(--border-color);

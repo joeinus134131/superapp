@@ -9,12 +9,14 @@ import { getStreakDeathMessage } from '@/lib/roast';
 import StreakDeath from '@/components/StreakDeath';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import { useLanguage } from '@/lib/language';
 import {
   Flame, CheckSquare, TrendingUp, Plus, CalendarDays,
   ListTodo, Trash2
 } from 'lucide-react';
 
 export default function HabitsPage() {
+  const { t } = useLanguage();
   const [habits, setHabits] = useState([]);
   const [newHabit, setNewHabit] = useState('');
   const [newEmoji, setNewEmoji] = useState('⭐');
@@ -159,8 +161,8 @@ export default function HabitsPage() {
       <StreakDeath message={streakDeathMsg} onDismiss={() => setStreakDeathMsg(null)} />
 
       <div className="page-header">
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Flame size={32} color="var(--accent-red)" /> Habit Tracker</h1>
-        <p>Bangun kebiasaan baik dan raih streak terpanjang!</p>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Flame size={32} color="var(--accent-red)" /> {t('habits.title')}</h1>
+        <p>{t('habits.desc')}</p>
       </div>
 
       <div className="stats-grid">
@@ -168,28 +170,28 @@ export default function HabitsPage() {
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><CheckSquare size={28} /></div>
           <div className="stat-info">
             <h3>{todayCompleted}<span className="text-sm text-muted">/{habits.length}</span></h3>
-            <p>Selesai Hari Ini</p>
+            <p>{t('habits.completed_today')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><TrendingUp size={28} /></div>
           <div className="stat-info">
             <h3>{completionRate}%</h3>
-            <p>Completion Rate</p>
+            <p>{t('habits.completion_rate')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><Flame size={28} /></div>
           <div className="stat-info">
             <h3>{maxStreak}</h3>
-            <p>Streak Terpanjang</p>
+            <p>{t('habits.longest_streak')}</p>
           </div>
         </div>
       </div>
 
       {/* Add Habit */}
       <form onSubmit={addHabit} className="card card-padding mb-3">
-        <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Plus size={20} /> Tambah Kebiasaan Baru</div>
+        <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Plus size={20} /> {t('habits.add_habit')}</div>
         <div className="flex flex-col gap-2">
           <div className="flex gap-1 flex-wrap" style={{ maxWidth: '100%' }}>
             {HABIT_EMOJIS.map(e => (
@@ -202,8 +204,8 @@ export default function HabitsPage() {
           </div>
           <div className="flex gap-1">
             <input className="form-input" value={newHabit} onChange={e => setNewHabit(e.target.value)}
-              placeholder="Nama kebiasaan baru..." style={{ flex: 1 }} />
-            <button type="submit" className="btn btn-primary">Tambah</button>
+              placeholder={t('habits.habit_name_placeholder')} style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-primary">{t('habits.add_btn')}</button>
           </div>
         </div>
       </form>
@@ -211,17 +213,17 @@ export default function HabitsPage() {
       {/* History Grid */}
       <div className="card card-padding mb-3">
         <div className="flex justify-between items-center mb-2">
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={20} /> Riwayat Kebiasaan</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={20} /> {t('habits.history')}</div>
             <div className="flex gap-2">
-                <button onClick={handlePrevDays} className="btn btn-secondary btn-sm">{'<'} Sblmnya</button>
-                <button onClick={handleNextDays} className="btn btn-secondary btn-sm" disabled={dateOffset === 0}>Selanjutnya {'>'}</button>
+                <button onClick={handlePrevDays} className="btn btn-secondary btn-sm">{t('habits.prev_short')}</button>
+                <button onClick={handleNextDays} className="btn btn-secondary btn-sm" disabled={dateOffset === 0}>{t('habits.next_short')}</button>
             </div>
         </div>
         <div style={{ overflowX: 'auto', paddingBottom: '8px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>Habit</th>
+                <th style={{ textAlign: 'left', padding: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>{t('habits.habit_th')}</th>
                 {visibleDays.map(d => (
                   <th key={d} style={{ textAlign: 'center', padding: '8px', fontSize: '11px', color: d === today ? 'var(--accent-purple)' : 'var(--text-muted)', fontWeight: d === today ? '700' : '500' }}>
                     {new Date(d).toLocaleDateString('id-ID', { weekday: 'short' })}
@@ -267,26 +269,26 @@ export default function HabitsPage() {
         {habits.length > ITEMS_PER_PAGE && (
             <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
                 <span className="text-sm text-secondary">
-                    Menampilkan {(historyPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(historyPage * ITEMS_PER_PAGE, habits.length)} dari {habits.length} kebiasaan
+                    {t('habits.showing')} {(historyPage - 1) * ITEMS_PER_PAGE + 1} {t('habits.to')} {Math.min(historyPage * ITEMS_PER_PAGE, habits.length)} {t('habits.of_habits')} {habits.length} {t('habits.habits_word')}
                 </span>
                 <div className="flex gap-2">
-                    <button onClick={() => setHistoryPage(p => Math.max(1, p - 1))} disabled={historyPage === 1} className="btn btn-secondary btn-sm">Sebelumnya</button>
-                    <button onClick={() => setHistoryPage(p => p + 1)} disabled={historyPage * ITEMS_PER_PAGE >= habits.length} className="btn btn-secondary btn-sm">Selanjutnya</button>
+                    <button onClick={() => setHistoryPage(p => Math.max(1, p - 1))} disabled={historyPage === 1} className="btn btn-secondary btn-sm">{t('habits.prev')}</button>
+                    <button onClick={() => setHistoryPage(p => p + 1)} disabled={historyPage * ITEMS_PER_PAGE >= habits.length} className="btn btn-secondary btn-sm">{t('habits.next')}</button>
                 </div>
             </div>
         )}
         {habits.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Flame size={48} color="var(--accent-red)" /></div>
-            <h3>Belum ada habit</h3>
-            <p>Mulai tambahkan kebiasaan baik pertamamu!</p>
+            <h3>{t('habits.no_habits_yet')}</h3>
+            <p>{t('habits.start_adding')}</p>
           </div>
         )}
       </div>
 
       {/* Habits List */}
       <div className="card card-padding">
-        <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ListTodo size={20} /> Daftar Kebiasaan</div>
+        <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ListTodo size={20} /> {t('habits.habit_list')}</div>
         {habits.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(h => {
           const todayDone = h.completedDates && h.completedDates.includes(today);
           return (
@@ -300,7 +302,7 @@ export default function HabitsPage() {
                   {h.name}
                 </div>
                 <div className="text-xs text-muted">
-                  <Flame size={12} style={{ display: 'inline', color: 'var(--accent-red)' }} /> Streak: {h.streak || 0} hari • Best: {h.bestStreak || 0} • Total: {h.completedDates ? h.completedDates.length : 0} hari
+                  <Flame size={12} style={{ display: 'inline', color: 'var(--accent-red)' }} /> {t('habits.streak')}: {h.streak || 0} {t('habits.days')} • {t('habits.best')}: {h.bestStreak || 0} • {t('habits.total')}: {h.completedDates ? h.completedDates.length : 0} {t('habits.days')}
                 </div>
               </div>
               <button className="btn btn-danger btn-sm" onClick={() => deleteHabit(h.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
@@ -311,11 +313,11 @@ export default function HabitsPage() {
         {habits.length > ITEMS_PER_PAGE && (
             <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
                 <span className="text-sm text-secondary">
-                    Halaman {listPage} dari {Math.ceil(habits.length / ITEMS_PER_PAGE)}
+                    {t('habits.page')} {listPage} {t('habits.of')} {Math.ceil(habits.length / ITEMS_PER_PAGE)}
                 </span>
                 <div className="flex gap-2">
-                    <button onClick={() => setListPage(p => Math.max(1, p - 1))} disabled={listPage === 1} className="btn btn-secondary btn-sm">Sebelumnya</button>
-                    <button onClick={() => setListPage(p => p + 1)} disabled={listPage * ITEMS_PER_PAGE >= habits.length} className="btn btn-secondary btn-sm">Selanjutnya</button>
+                    <button onClick={() => setListPage(p => Math.max(1, p - 1))} disabled={listPage === 1} className="btn btn-secondary btn-sm">{t('habits.prev')}</button>
+                    <button onClick={() => setListPage(p => p + 1)} disabled={listPage * ITEMS_PER_PAGE >= habits.length} className="btn btn-secondary btn-sm">{t('habits.next')}</button>
                 </div>
             </div>
         )}

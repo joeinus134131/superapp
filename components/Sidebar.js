@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@/lib/auth';
@@ -9,39 +9,44 @@ import { exportAllData, importData, getStorageSize } from '@/lib/backup';
 import { pushToCloud, pullFromCloud, getSyncId } from '@/lib/cloudSync';
 import { usePomodoro, MODES } from '@/lib/pomodoroContext';
 import { usePremium } from '@/lib/premium';
+import { useLanguage } from '@/lib/language';
 import {
   LayoutDashboard, Trophy, CheckSquare, Flame, Timer, Target,
   Wallet, Dumbbell, NotebookPen, BookMarked, CalendarDays,
   Gem, Bell, Settings, DownloadCloud, UploadCloud, Cloud, LogOut,
-  Menu, X, Coffee, TreePalm, Database, Copy
+  Menu, X, Coffee, TreePalm, Database, Copy, HelpCircle, MessageSquare
 } from 'lucide-react';
+import OnboardingModal from '@/components/OnboardingModal';
+import FeedbackModal from '@/components/FeedbackModal';
 
 const NAV_ITEMS = [
-  { section: 'Overview' },
-  { href: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-  { href: '/achievements', icon: <Trophy size={18} />, label: 'Achievements' },
-  { section: 'Productivity' },
-  { href: '/tasks', icon: <CheckSquare size={18} />, label: 'Task Manager' },
-  { href: '/habits', icon: <Flame size={18} />, label: 'Habit Tracker' },
-  { href: '/pomodoro', icon: <Timer size={18} />, label: 'Pomodoro Timer' },
-  { href: '/goals', icon: <Target size={18} />, label: 'Goal Setting' },
-  { section: 'Life' },
-  { href: '/finance', icon: <Wallet size={18} />, label: 'Finance Tracker' },
-  { href: '/health', icon: <Dumbbell size={18} />, label: 'Health & Fitness' },
-  { href: '/journal', icon: <NotebookPen size={18} />, label: 'Journal & Notes' },
-  { section: 'Growth' },
-  { href: '/reading', icon: <BookMarked size={18} />, label: 'Reading List' },
-  { href: '/calendar', icon: <CalendarDays size={18} />, label: 'Calendar' },
-  { section: 'System' },
-  { href: '/premium', icon: <Gem size={18} />, label: 'Premium Store' },
-  { href: '/notifications', icon: <Bell size={18} />, label: 'Notifikasi' },
-  { href: '/settings', icon: <Settings size={18} />, label: 'Settings' },
+  { section: 'overview' },
+  { href: '/', icon: <LayoutDashboard size={18} />, label: 'dashboard' },
+  { href: '/achievements', icon: <Trophy size={18} />, label: 'achievements' },
+  { section: 'productivity' },
+  { href: '/tasks', icon: <CheckSquare size={18} />, label: 'tasks' },
+  { href: '/habits', icon: <Flame size={18} />, label: 'habits' },
+  { href: '/pomodoro', icon: <Timer size={18} />, label: 'pomodoro' },
+  { href: '/goals', icon: <Target size={18} />, label: 'goals' },
+  { section: 'life' },
+  { href: '/finance', icon: <Wallet size={18} />, label: 'finance' },
+  { href: '/health', icon: <Dumbbell size={18} />, label: 'health' },
+  { href: '/journal', icon: <NotebookPen size={18} />, label: 'journal' },
+  { section: 'growth' },
+  { href: '/reading', icon: <BookMarked size={18} />, label: 'reading' },
+  { href: '/calendar', icon: <CalendarDays size={18} />, label: 'calendar' },
+  { section: 'system' },
+  { href: '/premium', icon: <Gem size={18} />, label: 'premium' },
+  { href: '/notifications', icon: <Bell size={18} />, label: 'notifications' },
+  { href: '/settings', icon: <Settings size={18} />, label: 'settings' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const { user, logout } = useUser();
+  const { t } = useLanguage();
   const { isRunning, timeLeft, mode, toggleTimer } = usePomodoro();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [storageInfo, setStorageInfo] = useState(null);
@@ -57,6 +62,9 @@ export default function Sidebar() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [pullId, setPullId] = useState('');
   const [currentSyncId, setCurrentSyncId] = useState(null);
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => {
     setStorageInfo(getStorageSize());
@@ -209,7 +217,7 @@ export default function Sidebar() {
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item, i) => {
             if (item.section) {
-              return <div key={i} className="sidebar-section-label">{item.section}</div>;
+              return <div key={i} className="sidebar-section-label">{t(`sidebar.${item.section}`)}</div>;
             }
             const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
             return (
@@ -217,7 +225,7 @@ export default function Sidebar() {
                 className={`sidebar-link ${isActive ? 'active' : ''}`}
                 onClick={() => setOpen(false)}>
                 <span className="sidebar-link-icon">{item.icon}</span>
-                <span className="sidebar-link-label">{item.label}</span>
+                <span className="sidebar-link-label">{t(`sidebar.${item.label}`)}</span>
               </Link>
             );
           })}
@@ -255,10 +263,10 @@ export default function Sidebar() {
                   </div>
                 )}
                 <button className="sidebar-user-menu-item" onClick={handleExport}>
-                  <span><DownloadCloud size={16} /></span><span>Backup Data (Export)</span>
+                  <span><DownloadCloud size={16} /></span><span>{t('sidebar.menu_backup')}</span>
                 </button>
                 <button className="sidebar-user-menu-item" onClick={() => fileRef.current?.click()}>
-                  <span><UploadCloud size={16} /></span><span>Restore Data (Import)</span>
+                  <span><UploadCloud size={16} /></span><span>{t('sidebar.menu_restore')}</span>
                 </button>
                 <input ref={fileRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
                 {importMsg && (
@@ -266,11 +274,17 @@ export default function Sidebar() {
                     {importMsg}
                   </div>
                 )}
-                <button className="sidebar-user-menu-item" onClick={() => { setShowSyncModal(true); setShowUserMenu(false); }}>
-                  <span><Cloud size={16} /></span><span>Cloud Sync</span>
+                <button className="sidebar-user-menu-item" onClick={() => { setShowFeedback(true); setShowUserMenu(false); }}>
+                  <span><MessageSquare size={16} /></span><span>{t('sidebar.menu_feedback')}</span>
                 </button>
-                <button className="sidebar-user-menu-item" onClick={logout}>
-                  <span><LogOut size={16} /></span><span>Keluar / Ganti User</span>
+                <button className="sidebar-user-menu-item" onClick={() => { setShowOnboarding(true); setShowUserMenu(false); }}>
+                  <span><HelpCircle size={16} /></span><span>{t('sidebar.menu_guide')}</span>
+                </button>
+                <button className="sidebar-user-menu-item" onClick={() => { setShowSyncModal(true); setShowUserMenu(false); }}>
+                  <span><Cloud size={16} /></span><span>{t('sidebar.menu_sync')}</span>
+                </button>
+                <button className="sidebar-user-menu-item" onClick={() => { setShowUserMenu(false); logout(); router.push('/'); }}>
+                  <span><LogOut size={16} /></span><span>{t('sidebar.menu_logout')}</span>
                 </button>
               </div>
             )}
@@ -283,24 +297,24 @@ export default function Sidebar() {
         <div className="modal-overlay" onClick={() => setShowSyncModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
             <div className="modal-header">
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Cloud size={20} /> Cloud Sync</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Cloud size={20} /> {t('sync.title')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowSyncModal(false)}><X size={16} /></button>
             </div>
             <div className="modal-body">
               <p className="text-sm text-secondary mb-2">
-                Sync data kamu secara aman. Simpan Sync ID untuk akses dari device lain.
+                {t('sync.info_key')}
                 {isPremium && <span style={{ marginLeft: '8px', background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>🛡️ Secured by Supabase</span>}
               </p>
 
               {/* Push Section */}
               <div className="card card-padding mb-2" style={{ background: 'var(--bg-glass)' }}>
-                <h4 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><UploadCloud size={16} /> Upload ke Cloud</h4>
+                <h4 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><UploadCloud size={16} /> {t('sync.btn_upload')}</h4>
                 <button className="btn btn-primary w-full" onClick={handlePush} disabled={syncLoading} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
-                  {syncLoading ? '⏳ Uploading...' : <><Cloud size={16} /> Sync Sekarang</>}
+                  {syncLoading ? '⏳ Uploading...' : <><Cloud size={16} /> Sync</>}
                 </button>
                 {currentSyncId && (
                   <div style={{ marginTop: '8px' }}>
-                    <div className="text-xs text-secondary">Sync ID kamu:</div>
+                    <div className="text-xs text-secondary">{t('sync.secure_key')}</div>
                     <div className="flex items-center gap-1" style={{ marginTop: '4px' }}>
                       <code style={{
                         flex: 1, padding: '6px 10px', background: 'var(--bg-card)',
@@ -317,9 +331,8 @@ export default function Sidebar() {
 
               {/* Pull Section */}
               <div className="card card-padding" style={{ background: 'var(--bg-glass)' }}>
-                <h4 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><DownloadCloud size={16} /> Download dari Cloud</h4>
-                <p className="text-xs text-secondary mb-1">Masukkan Sync ID dari device lain:</p>
-                <div className="flex gap-1">
+                <h4 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><DownloadCloud size={16} /> {t('sync.btn_download')}</h4>
+                <div className="flex gap-1" style={{ marginTop: '12px' }}>
                   <input
                     className="form-input"
                     value={pullId}
@@ -347,6 +360,12 @@ export default function Sidebar() {
           </div>
         </div>
       )}
+
+      {/* Manual Onboarding Trigger */}
+      <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
+
+      {/* Feedback Trigger */}
+      <FeedbackModal isOpen={showFeedback} onClose={() => setShowFeedback(false)} />
     </>
   );
 }

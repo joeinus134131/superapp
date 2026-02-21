@@ -5,8 +5,10 @@ import { getXP, getCurrentLevel, getXPProgress, LEVELS, ACHIEVEMENTS, checkAchie
 import { getData, STORAGE_KEYS } from '@/lib/storage';
 import { formatCurrency, getToday } from '@/lib/helpers';
 import Confetti from '@/components/Confetti';
+import { useLanguage } from '@/lib/language';
 
 export default function AchievementsPage() {
+  const { t } = useLanguage();
   const [gamData, setGamData] = useState({ totalXP: 0, unlockedAchievements: [], xpHistory: [] });
   const [activeTab, setActiveTab] = useState('achievements');
   const [achievementStatus, setAchievementStatus] = useState({ total: 0, all: 0 });
@@ -85,8 +87,8 @@ export default function AchievementsPage() {
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
 
       <div className="page-header">
-        <h1>🏆 Pencapaian & Level</h1>
-        <p>Lihat progres, achievements, dan weekly report card-mu!</p>
+        <h1>{t('achievements.title')}</h1>
+        <p>{t('achievements.desc')}</p>
       </div>
 
       {/* Level Card */}
@@ -97,21 +99,21 @@ export default function AchievementsPage() {
           </div>
           <div>
             <h2 style={{ fontSize: '22px', color: level.color }}>{level.title}</h2>
-            <p className="text-sm text-secondary">{gamData.totalXP} Total XP</p>
+            <p className="text-sm text-secondary">{gamData.totalXP} {t('achievements.total_xp')}</p>
           </div>
         </div>
         <div className="xp-bar-track" style={{ height: '12px' }}>
           <div className="xp-bar-fill" style={{ width: `${progress.percent}%`, background: `linear-gradient(90deg, ${level.color}, ${level.color}88)` }} />
         </div>
         <div className="flex justify-between text-xs text-muted mt-1">
-          <span>{progress.current} / {progress.needed} XP to next</span>
+          <span>{progress.current} / {progress.needed} {t('achievements.to_next')}</span>
           <span>{progress.percent}%</span>
         </div>
       </div>
 
       {/* Level Progression */}
       <div className="card card-padding mb-3">
-        <div className="card-title mb-2">📊 Level Progression</div>
+        <div className="card-title mb-2">{t('achievements.level_progression')}</div>
         <div className="level-grid">
           {LEVELS.map(l => (
             <div key={l.level} className={`level-item ${l.level <= level.level ? 'unlocked' : 'locked'}`}>
@@ -130,13 +132,13 @@ export default function AchievementsPage() {
       {/* Tabs */}
       <div className="tabs mb-2">
         <button className={`tab ${activeTab === 'achievements' ? 'active' : ''}`} onClick={() => setActiveTab('achievements')}>
-          🏆 Achievements ({achievementStatus.total}/{achievementStatus.all})
+          {t('achievements.tab_achievements')} ({achievementStatus.total}/{achievementStatus.all})
         </button>
         <button className={`tab ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>
-          📊 Weekly Report
+          {t('achievements.tab_report')}
         </button>
         <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
-          📜 XP History
+          {t('achievements.tab_history')}
         </button>
       </div>
 
@@ -150,7 +152,7 @@ export default function AchievementsPage() {
                 <div className="achievement-icon">{ach.icon}</div>
                 <h4>{ach.title}</h4>
                 <p>{ach.desc}</p>
-                {unlocked && <div className="achievement-badge">✓ Unlocked</div>}
+                {unlocked && <div className="achievement-badge">{t('achievements.unlocked_badge')}</div>}
               </div>
             );
           })}
@@ -165,19 +167,19 @@ export default function AchievementsPage() {
               {weeklyReport.overallGrade}
             </div>
             <div>
-              <h3>Grade Mingguan: {gradeEmojis[weeklyReport.overallGrade]}</h3>
-              <p className="text-sm text-secondary">Berdasarkan aktivitas 7 hari terakhir</p>
+              <h3>{t('achievements.weekly_grade')} {gradeEmojis[weeklyReport.overallGrade]}</h3>
+              <p className="text-sm text-secondary">{t('achievements.based_on_7_days')}</p>
             </div>
           </div>
 
           <div className="grid-auto">
             {[
-              { label: '✅ Produktivitas', value: `${weeklyReport.weekTasks} task`, grade: weeklyReport.grades.productivity },
-              { label: '🔥 Konsistensi', value: `${weeklyReport.weekHabitDays} habit days`, grade: weeklyReport.grades.consistency },
-              { label: '⏱️ Fokus', value: `${weeklyReport.weekSessions} sesi`, grade: weeklyReport.grades.focus },
-              { label: '📝 Refleksi', value: `${weeklyReport.weekJournals} jurnal`, grade: weeklyReport.grades.reflection },
-              { label: '💪 Kesehatan', value: `${weeklyReport.weekWorkouts} workout`, grade: weeklyReport.grades.health },
-              { label: '💰 Keuangan', value: formatCurrency(weeklyReport.income - weeklyReport.expense), grade: weeklyReport.grades.finance },
+              { label: t('achievements.prod_label'), value: `${weeklyReport.weekTasks} ${t('achievements.prod_unit')}`, grade: weeklyReport.grades.productivity },
+              { label: t('achievements.cons_label'), value: `${weeklyReport.weekHabitDays} ${t('achievements.cons_unit')}`, grade: weeklyReport.grades.consistency },
+              { label: t('achievements.focus_label'), value: `${weeklyReport.weekSessions} ${t('achievements.focus_unit')}`, grade: weeklyReport.grades.focus },
+              { label: t('achievements.ref_label'), value: `${weeklyReport.weekJournals} ${t('achievements.ref_unit')}`, grade: weeklyReport.grades.reflection },
+              { label: t('achievements.health_label'), value: `${weeklyReport.weekWorkouts} ${t('achievements.health_unit')}`, grade: weeklyReport.grades.health },
+              { label: t('achievements.fin_label'), value: formatCurrency(weeklyReport.income - weeklyReport.expense), grade: weeklyReport.grades.finance },
             ].map((item, i) => (
               <div key={i} className="card card-padding">
                 <div className="flex justify-between items-center mb-1">
@@ -199,8 +201,8 @@ export default function AchievementsPage() {
           {(gamData.xpHistory || []).length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">📜</div>
-              <h3>Belum ada XP History</h3>
-              <p>Mulai selesaikan task dan habit untuk mendapatkan XP!</p>
+              <h3>{t('achievements.no_history')}</h3>
+              <p>{t('achievements.start_earning')}</p>
             </div>
           ) : (
             [...(gamData.xpHistory || [])].reverse().slice(0, 30).map((h, i) => (

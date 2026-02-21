@@ -7,6 +7,7 @@ import {
   Library, BookOpen, CheckCircle2, Bookmark,
   Star, Book, Trash2, X, Plus
 } from 'lucide-react';
+import { useLanguage } from '@/lib/language';
 
 const BOOK_COLORS = [
   'linear-gradient(135deg, #8b5cf6, #6d28d9)',
@@ -20,6 +21,7 @@ const BOOK_COLORS = [
 ];
 
 export default function ReadingPage() {
+  const { t } = useLanguage();
   const [books, setBooks] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editBook, setEditBook] = useState(null);
@@ -82,9 +84,9 @@ export default function ReadingPage() {
   );
 
   const STATUS_LABELS = {
-    reading: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><BookOpen size={12} /> Sedang Dibaca</span>,
-    completed: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} /> Selesai</span>,
-    wishlist: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Bookmark size={12} /> Wishlist</span>
+    reading: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><BookOpen size={12} /> {t('reading.status_reading')}</span>,
+    completed: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} /> {t('reading.status_completed')}</span>,
+    wishlist: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Bookmark size={12} /> {t('reading.status_wishlist')}</span>
   };
 
   return (
@@ -92,10 +94,10 @@ export default function ReadingPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Library size={32} color="var(--accent-purple)" /> Reading List</h1>
-            <p>Track buku yang kamu baca dan ingin baca</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Library size={32} color="var(--accent-purple)" /> {t('reading.title')}</h1>
+            <p>{t('reading.desc')}</p>
           </div>
-          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Buku</button>
+          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('reading.add_book')}</button>
         </div>
       </div>
 
@@ -104,46 +106,46 @@ export default function ReadingPage() {
           <div className="stat-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent-blue)' }}><BookOpen size={28} /></div>
           <div className="stat-info">
             <h3>{reading}</h3>
-            <p>Sedang Dibaca</p>
+            <p>{t('reading.status_reading')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><CheckCircle2 size={28} /></div>
           <div className="stat-info">
             <h3>{completed}</h3>
-            <p>Selesai</p>
+            <p>{t('reading.status_completed')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><Bookmark size={28} /></div>
           <div className="stat-info">
             <h3>{wishlist}</h3>
-            <p>Wishlist</p>
+            <p>{t('reading.status_wishlist')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Star size={28} fill="currentColor" /></div>
           <div className="stat-info">
             <h3>{avgRating}</h3>
-            <p>Rating Rata-rata</p>
+            <p>{t('reading.avg_rating')}</p>
           </div>
         </div>
       </div>
 
       <div className="tabs mb-2">
-        <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Library size={16} /> Semua ({books.length})</button>
-        <button className={`tab ${activeTab === 'reading' ? 'active' : ''}`} onClick={() => setActiveTab('reading')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> Dibaca ({reading})</button>
-        <button className={`tab ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab('completed')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} /> Selesai ({completed})</button>
-        <button className={`tab ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Bookmark size={16} /> Wishlist ({wishlist})</button>
+        <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Library size={16} /> {t('reading.tab_all')} ({books.length})</button>
+        <button className={`tab ${activeTab === 'reading' ? 'active' : ''}`} onClick={() => setActiveTab('reading')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> {t('reading.tab_reading')} ({reading})</button>
+        <button className={`tab ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab('completed')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} /> {t('reading.status_completed')} ({completed})</button>
+        <button className={`tab ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Bookmark size={16} /> {t('reading.status_wishlist')} ({wishlist})</button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="card card-padding">
           <div className="empty-state">
             <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Library size={48} color="var(--accent-purple)" /></div>
-            <h3>Belum ada buku</h3>
-            <p>Mulai tambahkan buku ke daftar bacaanmu!</p>
-            <button className="btn btn-primary mt-2" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Buku</button>
+            <h3>{t('reading.no_books_yet')}</h3>
+            <p>{t('reading.start_adding')}</p>
+            <button className="btn btn-primary mt-2" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('reading.add_book')}</button>
           </div>
         </div>
       ) : (
@@ -168,7 +170,7 @@ export default function ReadingPage() {
                     <div className="progress-bar" style={{ height: '4px' }}>
                       <div className="progress-fill" style={{ width: `${(book.pagesRead / book.totalPages) * 100}%` }} />
                     </div>
-                    <span className="text-xs text-muted">{book.pagesRead}/{book.totalPages} halaman</span>
+                    <span className="text-xs text-muted">{book.pagesRead}/{book.totalPages} {t('reading.pages')}</span>
                   </div>
                 )}
                 {book.rating > 0 && <StarRating rating={book.rating} size={14} />}
@@ -183,53 +185,53 @@ export default function ReadingPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editBook ? 'Edit Buku' : 'Tambah Buku'}</h2>
+              <h2>{editBook ? t('reading.edit_book') : t('reading.add_book')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Judul Buku</label>
-                  <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Judul buku..." autoFocus />
+                  <label className="form-label">{t('reading.book_title')}</label>
+                  <input className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder={t('reading.title_placeholder')} autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Penulis</label>
-                  <input className="form-input" value={form.author} onChange={e => setForm({...form, author: e.target.value})} placeholder="Nama penulis..." />
+                  <label className="form-label">{t('reading.author')}</label>
+                  <input className="form-input" value={form.author} onChange={e => setForm({...form, author: e.target.value})} placeholder={t('reading.author_placeholder')} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Status</label>
+                    <label className="form-label">{t('reading.status')}</label>
                     <select className="form-select" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
-                      <option value="wishlist">🔖 Wishlist</option>
-                      <option value="reading">📖 Sedang Dibaca</option>
-                      <option value="completed">✅ Selesai</option>
+                      <option value="wishlist">🔖 {t('reading.status_wishlist')}</option>
+                      <option value="reading">📖 {t('reading.status_reading')}</option>
+                      <option value="completed">✅ {t('reading.status_completed')}</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Rating</label>
+                    <label className="form-label">{t('reading.rating')}</label>
                     <StarRating rating={form.rating} onRate={(r) => setForm({...form, rating: r})} />
                   </div>
                 </div>
                 {form.status === 'reading' && (
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">Halaman Dibaca</label>
+                      <label className="form-label">{t('reading.pages_read')}</label>
                       <input type="number" className="form-input" value={form.pagesRead} onChange={e => setForm({...form, pagesRead: Number(e.target.value)})} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Total Halaman</label>
+                      <label className="form-label">{t('reading.total_pages')}</label>
                       <input type="number" className="form-input" value={form.totalPages} onChange={e => setForm({...form, totalPages: Number(e.target.value)})} />
                     </div>
                   </div>
                 )}
                 <div className="form-group">
-                  <label className="form-label">Catatan</label>
-                  <textarea className="form-textarea" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Catatan tentang buku ini..." style={{ minHeight: '60px' }} />
+                  <label className="form-label">{t('reading.notes')}</label>
+                  <textarea className="form-textarea" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder={t('reading.notes_placeholder')} style={{ minHeight: '60px' }} />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">{editBook ? 'Simpan' : 'Tambah'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>{t('reading.cancel')}</button>
+                <button type="submit" className="btn btn-primary">{editBook ? t('reading.save') : t('reading.add')}</button>
               </div>
             </form>
           </div>

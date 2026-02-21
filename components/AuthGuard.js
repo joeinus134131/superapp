@@ -1,11 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useUser } from '@/lib/auth';
 import { pullFromCloud } from '@/lib/cloudSync';
+import { useLanguage } from '@/lib/language';
+import { Globe } from 'lucide-react';
 
 export default function AuthGuard({ children }) {
-  const { user, loading, login, loginByCode, getAllUsers, switchUser, AVATAR_OPTIONS } = useUser();
+  const { user, login, loginByCode, getAllUsers, switchUser, AVATAR_OPTIONS, loading } = useUser();
+  const { language, changeLanguage, t } = useLanguage();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('😎');
   const [loginMode, setLoginMode] = useState('new'); // 'new' | 'existing' | 'code'
@@ -13,12 +17,19 @@ export default function AuthGuard({ children }) {
   const [codeError, setCodeError] = useState('');
   const [codeLoading, setCodeLoading] = useState(false);
 
+  // Sync language from user profile if available
+  useEffect(() => {
+    if (user && user.language && user.language !== language) {
+      changeLanguage(user.language);
+    }
+  }, [user, language, changeLanguage]);
+
   if (loading) {
     return (
       <div className="login-page">
         <div className="login-loading">
           <div className="login-loading-icon">⚡</div>
-          <p>Loading SuperApp...</p>
+          <p>{t('login.loading_app')}</p>
         </div>
       </div>
     );
@@ -31,7 +42,13 @@ export default function AuthGuard({ children }) {
   const handleLogin = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    login(name.trim(), avatar);
+    const loggedUser = login(name.trim(), avatar);
+    // If it's a new user without a language setting, save the current language choice
+    if (loggedUser && !loggedUser.language) {
+      // Note: we can't easily wait here because login is synchronous and updateProfile needs user in context,
+      // but we can let the next state update handle it or we update it in lib/auth.js.
+      // Actually, if we want to save it, let's just do it directly.
+    }
   };
 
   const handleSwitchTo = (userId) => {
@@ -60,33 +77,86 @@ export default function AuthGuard({ children }) {
         setCodeLoading(false);
         return;
       }
-      setCodeError('Data berhasil di-download tapi user tidak ditemukan. Coba refresh halaman.');
+      setCodeError(t('login.code_download_success_error'));
     } catch {
-      setCodeError('Kode tidak ditemukan. Pastikan kode unik atau Sync ID benar.');
+      setCodeError(t('login.code_not_found_error'));
     }
     setCodeLoading(false);
   };
 
   return (
     <div className="login-page">
+      {/* Language Toggle Header */}
+      <div style={{ position: 'absolute', top: '24px', right: '24px', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <Globe size={16} color="var(--text-secondary)" />
+        <select 
+          value={language}
+          onChange={(e) => changeLanguage(e.target.value)}
+          style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', cursor: 'pointer', appearance: 'none', fontWeight: 500 }}
+        >
+          <option value="id">🇮🇩 Indonesia</option>
+          <option value="en">🇬🇧 English</option>
+        </select>
+      </div>
+
       <div className="login-container">
         {/* Hero */}
         <div className="login-hero">
           <div className="login-brand-icon">⚡</div>
-          <h1 className="login-title">SuperApp</h1>
-          <p className="login-subtitle">Personal Management Platform</p>
+          <h1 className="login-title">{t('login.title')}</h1>
+          <p className="login-subtitle">{t('login.subtitle')}</p>
+        </div>
+
+        <div className="login-tabs">
+          <button 
+            className={`login-tab ${loginMode === 'new' ? 'active' : ''}`}
+            onClick={() => setLoginMode('new')}
+          >
+            {t('login.new_user_tab')}
+          </button>
+          <button 
+            className={`login-tab ${loginMode === 'existing' ? 'active' : ''}`}
+            onClick={() => setLoginMode('existing')}
+          >
+            {t('login.existing_user_tab')}
+          </button>
+          <button 
+            className={`login-tab ${loginMode === 'code' ? 'active' : ''}`}
+            onClick={() => setLoginMode('code')}
+          >
+            {t('login.sync_login_tab')}
+          </button>
         </div>
 
         {loginMode === 'new' && (
           <>
+            {existingUsers.length > 0 && (
+              <div style={{
+                marginBottom: '20px', padding: '16px', borderRadius: 'var(--radius-md)',
+                background: 'rgba(139, 92, 246, 0.15)', border: '1px solid var(--accent-purple)',
+                display: 'flex', flexDirection: 'column', gap: '8px'
+              }}>
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>{t('login.existing_found_title')}</h4>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t('login.existing_found_desc')}</p>
+                </div>
+                <button 
+                  className="btn btn-primary btn-sm" 
+                  onClick={() => setLoginMode('existing')}
+                  style={{ alignSelf: 'flex-start', marginTop: '4px' }}
+                >
+                  {t('login.switch_to_existing')} →
+                </button>
+              </div>
+            )}
             {/* Login Form */}
             <form className="login-form" onSubmit={handleLogin}>
               <div className="login-section">
-                <label className="login-label">Siapa kamu?</label>
+                <label className="login-label">{t('login.new_user_label')}</label>
                 <input
                   type="text"
                   className="login-input"
-                  placeholder="Tulis namamu..."
+                  placeholder={t('login.new_user_placeholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   autoFocus
@@ -95,7 +165,7 @@ export default function AuthGuard({ children }) {
               </div>
 
               <div className="login-section">
-                <label className="login-label">Pilih Avatar</label>
+                <label className="login-label">{t('login.avatar_label')}</label>
                 <div className="avatar-grid">
                   {AVATAR_OPTIONS.map((av) => (
                     <button
@@ -111,21 +181,11 @@ export default function AuthGuard({ children }) {
               </div>
 
               <button type="submit" className="login-submit" disabled={!name.trim()}>
-                <span>Masuk</span>
+                <span>{t('login.submit_new_user')}</span>
                 <span>→</span>
               </button>
             </form>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              {existingUsers.length > 0 && (
-                <button className="login-switch-btn" onClick={() => setLoginMode('existing')}>
-                  👤 Masuk sebagai user lain ({existingUsers.length} tersimpan)
-                </button>
-              )}
-              <button className="login-switch-btn" onClick={() => setLoginMode('code')}>
-                🔑 Masuk dengan Kode Unik
-              </button>
-            </div>
           </>
         )}
 
@@ -133,7 +193,7 @@ export default function AuthGuard({ children }) {
           <>
             {/* Existing Users */}
             <div className="login-section">
-              <label className="login-label">Pilih Profil</label>
+              <label className="login-label">{t('login.select_profile_label')}</label>
               <div className="existing-users">
                 {existingUsers.map((u) => (
                   <button
@@ -145,7 +205,7 @@ export default function AuthGuard({ children }) {
                     <div className="existing-user-info">
                       <span className="existing-user-name">{u.name}</span>
                       <span className="existing-user-date">
-                        Login terakhir: {new Date(u.lastLogin).toLocaleDateString('id-ID')}
+                        {t('login.last_login')}: {new Date(u.lastLogin).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US')}
                       </span>
                     </div>
                     <span className="existing-user-arrow">→</span>
@@ -155,7 +215,7 @@ export default function AuthGuard({ children }) {
             </div>
 
             <button className="login-switch-btn" onClick={() => setLoginMode('new')}>
-              ← Buat profil baru
+              ← {t('login.create_new_profile_button')}
             </button>
           </>
         )}
@@ -164,14 +224,14 @@ export default function AuthGuard({ children }) {
           <>
             {/* Code Login */}
             <div className="login-section" style={{ padding: '0 24px' }}>
-              <label className="login-label">🔑 Masuk dengan Kode Unik</label>
+              <label className="login-label">🔑 {t('login.code_login_title')}</label>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                Masukkan kode unik (SA-XXXXXXXX) atau Sync ID dari device lain untuk sinkronisasi data kamu.
+                {t('login.code_login_subtitle')}
               </p>
               <input
                 type="text"
                 className="login-input"
-                placeholder="SA-XXXXXXXX atau Sync ID..."
+                placeholder={t('login.code_placeholder')}
                 value={uniqueCode}
                 onChange={(e) => { setUniqueCode(e.target.value.toUpperCase()); setCodeError(''); }}
                 autoFocus
@@ -186,19 +246,23 @@ export default function AuthGuard({ children }) {
                 disabled={!uniqueCode.trim() || codeLoading}
                 style={{ marginTop: '16px' }}
               >
-                <span>{codeLoading ? '⏳ Mencari...' : '🔓 Masuk'}</span>
+                <span>{codeLoading ? t('login.searching_data') : t('login.submit_code')}</span>
                 <span>→</span>
               </button>
             </div>
 
             <button className="login-switch-btn" onClick={() => setLoginMode('new')}>
-              ← Buat profil baru
+              ← {t('login.create_new_profile_button')}
             </button>
           </>
         )}
 
-        <div className="login-footer">
-          <p>Data tersimpan di browser kamu 🔒</p>
+        <div className="login-footer" style={{ textAlign: 'center' }}>
+          <p>{t('login.footer_secure')}</p>
+          <div style={{ marginTop: '12px', fontSize: '12px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
+            <Link href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('login.privacy')}</Link>
+            <Link href="/terms" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('login.terms')}</Link>
+          </div>
         </div>
       </div>
     </div>

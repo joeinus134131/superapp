@@ -7,6 +7,7 @@ import {
   Wallet, Download, Plus, TrendingUp, TrendingDown,
   PieChart as PieChartIcon, List, History, Trash2, X
 } from 'lucide-react';
+import { useLanguage } from '@/lib/language';
 
 // ─── Export helpers ────────────────────────────────────────────────────────────
 
@@ -21,39 +22,39 @@ function getMonthLabel(monthKey) {
   return new Date(year, month - 1, 1).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
 }
 
-function exportToCSV(transactions, monthFilter) {
+function exportToCSV(transactions, monthFilter, t) {
   const filtered = monthFilter
     ? transactions.filter(t => getMonthKey(t.date) === monthFilter)
     : transactions;
 
   // Monthly summary block
-  const months = [...new Set(filtered.map(t => getMonthKey(t.date)))].sort();
+  const months = [...new Set(filtered.map(tx => getMonthKey(tx.date)))].sort();
   const summaryRows = months.map(m => {
-    const mTx = filtered.filter(t => getMonthKey(t.date) === m);
-    const income = mTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = mTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const mTx = filtered.filter(tx => getMonthKey(tx.date) === m);
+    const income = mTx.filter(tx => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+    const expense = mTx.filter(tx => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
     return [getMonthLabel(m), income, expense, income - expense];
   });
 
-  const summaryHeader = ['Bulan', 'Pemasukan (Rp)', 'Pengeluaran (Rp)', 'Saldo (Rp)'];
-  const transHeader = ['No', 'Tanggal', 'Tipe', 'Kategori', 'Deskripsi', 'Jumlah (Rp)'];
+  const summaryHeader = [t('finance.month'), t('finance.income_rp'), t('finance.expense_rp'), t('finance.balance_rp')];
+  const transHeader = [t('finance.no'), t('finance.date_header'), t('finance.type_header'), t('finance.category_header'), t('finance.desc_header'), t('finance.amount_rp')];
   const transRows = filtered
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((t, i) => {
-      const catList = t.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-      const cat = catList.find(c => c.id === t.category)?.label || t.category;
-      return [i + 1, t.date, t.type === 'income' ? 'Pemasukan' : 'Pengeluaran', cat, t.description, t.amount];
+    .map((tx, i) => {
+      const catList = tx.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+      const cat = catList.find(c => c.id === tx.category)?.label || tx.category;
+      return [i + 1, tx.date, tx.type === 'income' ? t('finance.income') : t('finance.expense'), cat, tx.description, tx.amount];
     });
 
   const rows = [
-    ['LAPORAN KEUANGAN - ' + (monthFilter ? getMonthLabel(monthFilter) : 'Semua Periode')],
-    ['Dibuat:', new Date().toLocaleString('id-ID')],
+    [`${t('finance.report_title')} ${monthFilter ? getMonthLabel(monthFilter) : t('finance.all_periods_text')}`],
+    [t('finance.created_at'), new Date().toLocaleString('id-ID')],
     [],
-    ['=== RINGKASAN BULANAN ==='],
+    [t('finance.monthly_summary')],
     summaryHeader,
     ...summaryRows,
     [],
-    ['=== DETAIL TRANSAKSI ==='],
+    [t('finance.transaction_details')],
     transHeader,
     ...transRows,
   ];
@@ -71,6 +72,7 @@ function exportToCSV(transactions, monthFilter) {
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function FinancePage() {
+  const { t } = useLanguage();
   const [transactions, setTransactions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -141,7 +143,7 @@ export default function FinancePage() {
   // Simple SVG pie chart
   const PieChart = () => {
     const entries = Object.entries(categoryTotals);
-    if (entries.length === 0) return <div className="text-center text-muted" style={{ padding: '40px' }}>Belum ada pengeluaran</div>;
+    if (entries.length === 0) return <div className="text-center text-muted" style={{ padding: '40px' }}>{t('finance.no_expenses_yet')}</div>;
 
     const total = entries.reduce((s, [, v]) => s + v, 0);
     let cumulative = 0;
@@ -194,12 +196,12 @@ export default function FinancePage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={32} color="var(--accent-green)" /> Finance Tracker</h1>
-            <p>Kelola pemasukan dan pengeluaran kamu</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={32} color="var(--accent-green)" /> {t('finance.title')}</h1>
+            <p>{t('finance.desc')}</p>
           </div>
           <div className="flex gap-1">
-            <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Download size={16} /> Export</button>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Transaksi</button>
+            <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Download size={16} /> {t('finance.export')}</button>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('finance.add_transaction')}</button>
           </div>
         </div>
       </div>
@@ -209,32 +211,32 @@ export default function FinancePage() {
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><TrendingUp size={28} /></div>
           <div className="stat-info">
             <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalIncome)}</h3>
-            <p>Total Pemasukan</p>
+            <p>{t('finance.total_income')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><TrendingDown size={28} /></div>
           <div className="stat-info">
             <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalExpense)}</h3>
-            <p>Total Pengeluaran</p>
+            <p>{t('finance.total_expense')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: balance >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}><Wallet size={28} /></div>
           <div className="stat-info">
             <h3 style={{ fontSize: '20px', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatCurrency(balance)}</h3>
-            <p>Saldo</p>
+            <p>{t('finance.balance')}</p>
           </div>
         </div>
       </div>
 
       <div className="grid-2 mb-3">
         <div className="card card-padding">
-          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon size={20} /> Pengeluaran per Kategori</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon size={20} /> {t('finance.expense_by_category')}</div>
           <PieChart />
         </div>
         <div className="card card-padding">
-          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><List size={20} /> Budget Overview</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><List size={20} /> {t('finance.budget_overview')}</div>
           {EXPENSE_CATEGORIES.map(cat => {
             const spent = categoryTotals[cat.id] || 0;
             const pct = totalExpense > 0 ? (spent / totalExpense) * 100 : 0;
@@ -255,18 +257,18 @@ export default function FinancePage() {
 
       <div className="card card-padding">
         <div className="card-header">
-          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><History size={20} /> Riwayat Transaksi</div>
+          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><History size={20} /> {t('finance.transaction_history')}</div>
           <div className="tabs" style={{ marginBottom: 0 }}>
-            <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => { setActiveTab('all'); setListPage(1); }}>Semua</button>
-            <button className={`tab ${activeTab === 'income' ? 'active' : ''}`} onClick={() => { setActiveTab('income'); setListPage(1); }}>Masuk</button>
-            <button className={`tab ${activeTab === 'expense' ? 'active' : ''}`} onClick={() => { setActiveTab('expense'); setListPage(1); }}>Keluar</button>
+            <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => { setActiveTab('all'); setListPage(1); }}>{t('finance.all')}</button>
+            <button className={`tab ${activeTab === 'income' ? 'active' : ''}`} onClick={() => { setActiveTab('income'); setListPage(1); }}>{t('finance.income_tab')}</button>
+            <button className={`tab ${activeTab === 'expense' ? 'active' : ''}`} onClick={() => { setActiveTab('expense'); setListPage(1); }}>{t('finance.expense_tab')}</button>
           </div>
         </div>
         {filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Wallet size={48} color="var(--accent-green)" /></div>
-            <h3>Belum ada transaksi</h3>
-            <p>Mulai catat keuanganmu!</p>
+            <h3>{t('finance.no_transactions_yet')}</h3>
+            <p>{t('finance.start_tracking')}</p>
           </div>
           ) : (
             <>
@@ -289,11 +291,11 @@ export default function FinancePage() {
               {filtered.length > ITEMS_PER_PAGE && (
                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-color">
                       <span className="text-sm text-secondary">
-                          Halaman {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                          {t('finance.page')} {listPage} {t('finance.of')} {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
                       </span>
                       <div className="flex gap-2">
-                          <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>Sebelumnya</button>
-                          <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>Selanjutnya</button>
+                          <button className="btn btn-sm btn-secondary" disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>{t('finance.prev')}</button>
+                          <button className="btn btn-sm btn-secondary" disabled={listPage * ITEMS_PER_PAGE >= filtered.length} onClick={() => setListPage(p => p + 1)}>{t('finance.next')}</button>
                       </div>
                   </div>
               )}
@@ -306,20 +308,20 @@ export default function FinancePage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Tambah Transaksi</h2>
+              <h2>{t('finance.add_transaction')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Tipe</label>
+                  <label className="form-label">{t('finance.type')}</label>
                   <div className="tabs" style={{ marginBottom: 0 }}>
-                    <button type="button" className={`tab ${form.type === 'expense' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'expense', category: 'food'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TrendingDown size={16} /> Pengeluaran</button>
-                    <button type="button" className={`tab ${form.type === 'income' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'income', category: 'salary'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TrendingUp size={16} /> Pemasukan</button>
+                    <button type="button" className={`tab ${form.type === 'expense' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'expense', category: 'food'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TrendingDown size={16} /> {t('finance.expense')}</button>
+                    <button type="button" className={`tab ${form.type === 'income' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'income', category: 'salary'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TrendingUp size={16} /> {t('finance.income')}</button>
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Jumlah (Rp)</label>
+                  <label className="form-label">{t('finance.amount')}</label>
                   <input 
                     type="text" 
                     inputMode="numeric"
@@ -331,12 +333,12 @@ export default function FinancePage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Deskripsi</label>
-                  <input className="form-input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Untuk apa?" />
+                  <label className="form-label">{t('finance.description')}</label>
+                  <input className="form-input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder={t('finance.description_placeholder')} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Kategori</label>
+                    <label className="form-label">{t('finance.category')}</label>
                     <select className="form-select" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
                       {(form.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(c => (
                         <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
@@ -344,14 +346,14 @@ export default function FinancePage() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Tanggal</label>
+                    <label className="form-label">{t('finance.date')}</label>
                     <input type="date" className="form-input" value={form.date} onChange={e => setForm({...form, date: e.target.value})} />
                   </div>
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Simpan</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>{t('finance.cancel')}</button>
+                <button type="submit" className="btn btn-primary">{t('finance.save')}</button>
               </div>
             </form>
           </div>
@@ -363,27 +365,27 @@ export default function FinancePage() {
         <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Download size={20} /> Export Laporan</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Download size={20} /> {t('finance.export_report')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowExportModal(false)}><X size={16} /></button>
             </div>
             <div className="modal-body">
               {transactions.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><PieChartIcon size={48} color="var(--accent-cyan)" /></div>
-                  <h3>Belum ada data transaksi</h3>
-                  <p>Tambah transaksi terlebih dahulu.</p>
+                  <h3>{t('finance.no_data')}</h3>
+                  <p>{t('finance.add_first')}</p>
                 </div>
               ) : (
                 <>
                   {/* Month picker */}
                   <div className="form-group mb-2">
-                    <label className="form-label">Pilih Periode</label>
+                    <label className="form-label">{t('finance.select_period')}</label>
                     <select
                       className="form-select"
                       value={exportMonth}
                       onChange={e => setExportMonth(e.target.value)}
                     >
-                      <option value="">📅 Semua Periode</option>
+                      <option value="">{t('finance.all_periods')}</option>
                       {availableMonths.map(m => (
                         <option key={m} value={m}>{getMonthLabel(m)}</option>
                       ))}
@@ -393,19 +395,19 @@ export default function FinancePage() {
                   {/* Preview summary */}
                   <div className="card" style={{ background: 'var(--bg-glass)', padding: '16px', borderRadius: 'var(--radius-lg)', marginBottom: '16px' }}>
                     <div className="card-title mb-2" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <List size={14} /> Preview: {exportMonth ? getMonthLabel(exportMonth) : 'Semua Periode'}
+                      <List size={14} /> {t('finance.preview')} {exportMonth ? getMonthLabel(exportMonth) : t('finance.all_periods_text')}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Pemasukan</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('finance.income')}</div>
                         <div style={{ fontWeight: 700, color: 'var(--accent-green)', fontSize: '14px' }}>{formatCurrency(previewIncome)}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Pengeluaran</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('finance.expense')}</div>
                         <div style={{ fontWeight: 700, color: 'var(--accent-red)', fontSize: '14px' }}>{formatCurrency(previewExpense)}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Saldo</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('finance.balance')}</div>
                         <div style={{ fontWeight: 700, color: previewBalance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontSize: '14px' }}>{formatCurrency(previewBalance)}</div>
                       </div>
                     </div>
@@ -413,7 +415,7 @@ export default function FinancePage() {
                     {/* Top categories */}
                     {Object.keys(previewCategoryTotals).length > 0 && (
                       <div style={{ marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Top Pengeluaran</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>{t('finance.top_expenses')}</div>
                         {Object.entries(previewCategoryTotals)
                           .sort(([,a],[,b]) => b - a)
                           .slice(0, 3)
@@ -430,25 +432,25 @@ export default function FinancePage() {
                     )}
 
                     <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {selectedMonthTxs.length} transaksi akan diekspor
+                      {selectedMonthTxs.length} {t('finance.will_be_exported')}
                     </div>
                   </div>
 
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    💡 File CSV bisa dibuka di Excel, Google Sheets, atau Numbers.
+                    {t('finance.csv_tip')}
                   </div>
                 </>
               )}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowExportModal(false)}>Batal</button>
+              <button className="btn btn-secondary" onClick={() => setShowExportModal(false)}>{t('finance.cancel')}</button>
               {transactions.length > 0 && (
                 <button
                   className="btn btn-primary"
-                  onClick={() => { exportToCSV(transactions, exportMonth); setShowExportModal(false); }}
+                  onClick={() => { exportToCSV(transactions, exportMonth, t); setShowExportModal(false); }}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Download size={16} /> Download CSV
+                  <Download size={16} /> {t('finance.download_csv')}
                 </button>
               )}
             </div>
