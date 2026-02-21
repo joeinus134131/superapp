@@ -9,27 +9,33 @@ import { exportAllData, importData, getStorageSize } from '@/lib/backup';
 import { pushToCloud, pullFromCloud, getSyncId } from '@/lib/cloudSync';
 import { usePomodoro, MODES } from '@/lib/pomodoroContext';
 import { usePremium } from '@/lib/premium';
+import {
+  LayoutDashboard, Trophy, CheckSquare, Flame, Timer, Target,
+  Wallet, Dumbbell, NotebookPen, BookMarked, CalendarDays,
+  Gem, Bell, Settings, DownloadCloud, UploadCloud, Cloud, LogOut,
+  Menu, X, Coffee, TreePalm, Database, Copy
+} from 'lucide-react';
 
 const NAV_ITEMS = [
   { section: 'Overview' },
-  { href: '/', icon: '📊', label: 'Dashboard' },
-  { href: '/achievements', icon: '🏆', label: 'Achievements' },
+  { href: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { href: '/achievements', icon: <Trophy size={18} />, label: 'Achievements' },
   { section: 'Productivity' },
-  { href: '/tasks', icon: '✅', label: 'Task Manager' },
-  { href: '/habits', icon: '🔥', label: 'Habit Tracker' },
-  { href: '/pomodoro', icon: '⏱️', label: 'Pomodoro Timer' },
-  { href: '/goals', icon: '🎯', label: 'Goal Setting' },
+  { href: '/tasks', icon: <CheckSquare size={18} />, label: 'Task Manager' },
+  { href: '/habits', icon: <Flame size={18} />, label: 'Habit Tracker' },
+  { href: '/pomodoro', icon: <Timer size={18} />, label: 'Pomodoro Timer' },
+  { href: '/goals', icon: <Target size={18} />, label: 'Goal Setting' },
   { section: 'Life' },
-  { href: '/finance', icon: '💰', label: 'Finance Tracker' },
-  { href: '/health', icon: '💪', label: 'Health & Fitness' },
-  { href: '/journal', icon: '📝', label: 'Journal & Notes' },
+  { href: '/finance', icon: <Wallet size={18} />, label: 'Finance Tracker' },
+  { href: '/health', icon: <Dumbbell size={18} />, label: 'Health & Fitness' },
+  { href: '/journal', icon: <NotebookPen size={18} />, label: 'Journal & Notes' },
   { section: 'Growth' },
-  { href: '/reading', icon: '📚', label: 'Reading List' },
-  { href: '/calendar', icon: '📅', label: 'Calendar' },
+  { href: '/reading', icon: <BookMarked size={18} />, label: 'Reading List' },
+  { href: '/calendar', icon: <CalendarDays size={18} />, label: 'Calendar' },
   { section: 'System' },
-  { href: '/premium', icon: '💎', label: 'Premium Store' },
-  { href: '/notifications', icon: '🔔', label: 'Notifikasi' },
-  { href: '/settings', icon: '⚙️', label: 'Settings' },
+  { href: '/premium', icon: <Gem size={18} />, label: 'Premium Store' },
+  { href: '/notifications', icon: <Bell size={18} />, label: 'Notifikasi' },
+  { href: '/settings', icon: <Settings size={18} />, label: 'Settings' },
 ];
 
 export default function Sidebar() {
@@ -143,7 +149,7 @@ export default function Sidebar() {
   return (
     <>
       <button className="mobile-toggle" onClick={() => setOpen(!open)}>
-        {open ? '✕' : '☰'}
+        {open ? <X size={24} /> : <Menu size={24} />}
       </button>
       <div className={`sidebar-overlay ${open ? 'show' : ''}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
@@ -187,7 +193,9 @@ export default function Sidebar() {
                 background: mode === 'focus' ? 'var(--accent-purple)' : mode === 'break' ? 'var(--accent-green)' : 'var(--accent-cyan)',
                 animation: 'pulse 1.5s infinite',
               }} />
-              <span style={{ fontSize: '14px' }}>{mode === 'focus' ? '🔥' : mode === 'break' ? '☕' : '🌴'}</span>
+              <span style={{ fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {mode === 'focus' ? <Flame size={14} /> : mode === 'break' ? <Coffee size={14} /> : <TreePalm size={14} />}
+              </span>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', flex: 1 }}>
                 {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}
               </span>
@@ -237,8 +245,8 @@ export default function Sidebar() {
                 {/* Storage Info */}
                 {storageInfo && (
                   <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)' }}>
-                    <div className="text-xs text-muted" style={{ marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>💾 {storageInfo.usedMB} MB / {storageLimitMB} MB</span>
+                    <div className="text-xs text-muted" style={{ marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Database size={12} /> {storageInfo.usedMB} MB / {storageLimitMB} MB</span>
                       <span>{Math.round((storageInfo.used / (storageLimitMB * 1024 * 1024)) * 100)}%</span>
                     </div>
                     <div className="storage-bar">
@@ -247,10 +255,10 @@ export default function Sidebar() {
                   </div>
                 )}
                 <button className="sidebar-user-menu-item" onClick={handleExport}>
-                  <span>📥</span><span>Backup Data (Export)</span>
+                  <span><DownloadCloud size={16} /></span><span>Backup Data (Export)</span>
                 </button>
                 <button className="sidebar-user-menu-item" onClick={() => fileRef.current?.click()}>
-                  <span>📤</span><span>Restore Data (Import)</span>
+                  <span><UploadCloud size={16} /></span><span>Restore Data (Import)</span>
                 </button>
                 <input ref={fileRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
                 {importMsg && (
@@ -259,10 +267,10 @@ export default function Sidebar() {
                   </div>
                 )}
                 <button className="sidebar-user-menu-item" onClick={() => { setShowSyncModal(true); setShowUserMenu(false); }}>
-                  <span>☁️</span><span>Cloud Sync</span>
+                  <span><Cloud size={16} /></span><span>Cloud Sync</span>
                 </button>
                 <button className="sidebar-user-menu-item" onClick={logout}>
-                  <span>🚪</span><span>Keluar / Ganti User</span>
+                  <span><LogOut size={16} /></span><span>Keluar / Ganti User</span>
                 </button>
               </div>
             )}
@@ -275,8 +283,8 @@ export default function Sidebar() {
         <div className="modal-overlay" onClick={() => setShowSyncModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
             <div className="modal-header">
-              <h2>☁️ Cloud Sync</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowSyncModal(false)}>✕</button>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Cloud size={20} /> Cloud Sync</h2>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowSyncModal(false)}><X size={16} /></button>
             </div>
             <div className="modal-body">
               <p className="text-sm text-secondary mb-2">
@@ -286,9 +294,9 @@ export default function Sidebar() {
 
               {/* Push Section */}
               <div className="card card-padding mb-2" style={{ background: 'var(--bg-glass)' }}>
-                <h4 style={{ marginBottom: '8px' }}>📤 Upload ke Cloud</h4>
-                <button className="btn btn-primary w-full" onClick={handlePush} disabled={syncLoading}>
-                  {syncLoading ? '⏳ Uploading...' : '🚀 Sync Sekarang'}
+                <h4 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><UploadCloud size={16} /> Upload ke Cloud</h4>
+                <button className="btn btn-primary w-full" onClick={handlePush} disabled={syncLoading} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
+                  {syncLoading ? '⏳ Uploading...' : <><Cloud size={16} /> Sync Sekarang</>}
                 </button>
                 {currentSyncId && (
                   <div style={{ marginTop: '8px' }}>
@@ -301,7 +309,7 @@ export default function Sidebar() {
                       }}>
                         {currentSyncId}
                       </code>
-                      <button className="btn btn-secondary btn-sm" onClick={copySyncId}>📋</button>
+                      <button className="btn btn-secondary btn-sm" onClick={copySyncId} title="Copy" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Copy size={14} /></button>
                     </div>
                   </div>
                 )}
@@ -309,7 +317,7 @@ export default function Sidebar() {
 
               {/* Pull Section */}
               <div className="card card-padding" style={{ background: 'var(--bg-glass)' }}>
-                <h4 style={{ marginBottom: '8px' }}>📥 Download dari Cloud</h4>
+                <h4 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><DownloadCloud size={16} /> Download dari Cloud</h4>
                 <p className="text-xs text-secondary mb-1">Masukkan Sync ID dari device lain:</p>
                 <div className="flex gap-1">
                   <input
@@ -319,8 +327,8 @@ export default function Sidebar() {
                     placeholder="Paste Sync ID..."
                     style={{ flex: 1, fontSize: '13px' }}
                   />
-                  <button className="btn btn-primary" onClick={handlePull} disabled={syncLoading || !pullId.trim()}>
-                    {syncLoading ? '⏳' : '📥'}
+                  <button className="btn btn-primary" onClick={handlePull} disabled={syncLoading || !pullId.trim()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {syncLoading ? '⏳' : <DownloadCloud size={16} />}
                   </button>
                 </div>
               </div>

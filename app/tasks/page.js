@@ -7,6 +7,11 @@ import { addXP, checkAchievements } from '@/lib/gamification';
 import { playTaskComplete, playXPGain, playError } from '@/lib/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import {
+  CalendarDays, ArrowLeft, RefreshCw, Check, Trash2,
+  CheckSquare, LayoutDashboard, List as ListIcon, ListTodo,
+  CheckCircle2, X, Plus
+} from 'lucide-react';
 
 const CATEGORIES = ['Personal', 'Kerja', 'Proyek', 'Belajar', 'Lainnya'];
 
@@ -111,26 +116,26 @@ export default function TasksPage() {
       <div className="kanban-card-title">{task.title}</div>
       <div className="kanban-card-meta">
         <span>{task.category}</span>
-        {task.deadline && <span>📅 {formatDate(task.deadline)}</span>}
+        {task.deadline && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarDays size={12} /> {formatDate(task.deadline)}</span>}
       </div>
       <div className="flex gap-1 mt-1">
         {task.status !== 'todo' && (
-          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'todo'); }}>
-            ← Todo
+          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'todo'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <ArrowLeft size={14} /> Todo
           </button>
         )}
         {task.status !== 'in-progress' && (
-          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'in-progress'); }}>
-            🔄 Progress
+          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'in-progress'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <RefreshCw size={14} /> Progress
           </button>
         )}
         {task.status !== 'done' && (
-          <button className="btn btn-success btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'done'); }}>
-            ✓ Done
+          <button className="btn btn-success btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'done'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Check size={14} /> Done
           </button>
         )}
-        <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}>
-          🗑
+        <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Trash2 size={16} />
         </button>
       </div>
     </div>
@@ -145,17 +150,17 @@ export default function TasksPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1>✅ Task Manager</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckSquare size={32} color="var(--accent-purple)" /> Task Manager</h1>
             <p>Kelola semua tugas kamu dengan prioritas dan deadline</p>
           </div>
-          <button className="btn btn-primary" onClick={openAdd}>+ Tambah Task</button>
+          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Task</button>
         </div>
       </div>
 
       <div className="flex justify-between items-center mb-2">
         <div className="tabs">
-          <button className={`tab ${view === 'kanban' ? 'active' : ''}`} onClick={() => setView('kanban')}>📋 Kanban</button>
-          <button className={`tab ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')}>📝 List</button>
+          <button className={`tab ${view === 'kanban' ? 'active' : ''}`} onClick={() => setView('kanban')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><LayoutDashboard size={16} /> Kanban</button>
+          <button className={`tab ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListIcon size={16} /> List</button>
         </div>
         <div className="flex gap-1">
           <select className="form-select" value={filter} onChange={e => setFilter(e.target.value)} style={{ width: 'auto' }}>
@@ -169,7 +174,7 @@ export default function TasksPage() {
         <div className="kanban-board">
           <div className="kanban-column">
             <div className="kanban-column-header">
-              <span className="kanban-column-title">📋 To Do <span className="kanban-count">{todo.length}</span></span>
+              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListTodo size={18} /> To Do <span className="kanban-count">{todo.length}</span></span>
             </div>
             {todo.slice((todoPage - 1) * ITEMS_PER_PAGE, todoPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {todo.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
@@ -183,7 +188,7 @@ export default function TasksPage() {
           </div>
           <div className="kanban-column">
             <div className="kanban-column-header">
-              <span className="kanban-column-title">🔄 In Progress <span className="kanban-count">{inProgress.length}</span></span>
+              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><RefreshCw size={18} /> In Progress <span className="kanban-count">{inProgress.length}</span></span>
             </div>
             {inProgress.slice((inProgressPage - 1) * ITEMS_PER_PAGE, inProgressPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {inProgress.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
@@ -197,7 +202,7 @@ export default function TasksPage() {
           </div>
           <div className="kanban-column">
             <div className="kanban-column-header">
-              <span className="kanban-column-title">✅ Done <span className="kanban-count">{done.length}</span></span>
+              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={18} /> Done <span className="kanban-count">{done.length}</span></span>
             </div>
             {done.slice((donePage - 1) * ITEMS_PER_PAGE, donePage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {done.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>Tidak ada task</div>}
@@ -214,7 +219,7 @@ export default function TasksPage() {
         <div className="card card-padding">
           {filtered.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">✅</div>
+              <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><CheckSquare size={48} color="var(--accent-purple)" /></div>
               <h3>Belum ada task</h3>
               <p>Mulai tambahkan task pertamamu!</p>
             </div>
@@ -234,8 +239,8 @@ export default function TasksPage() {
                       </div>
                       <div className="text-xs text-muted">{task.category} • {task.priority}</div>
                     </div>
-                    {task.deadline && <span className="badge badge-blue">{formatDate(task.deadline)}</span>}
-                    <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}>🗑</button>
+                    {task.deadline && <span className="badge badge-blue" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarDays size={12} /> {formatDate(task.deadline)}</span>}
+                    <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                   </div>
                 ))}
                 {filtered.length > ITEMS_PER_PAGE && (
@@ -257,7 +262,7 @@ export default function TasksPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editTask ? 'Edit Task' : 'Tambah Task Baru'}</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">

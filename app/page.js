@@ -9,6 +9,10 @@ import { getRoastMessage } from '@/lib/roast';
 import { playAchievement } from '@/lib/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import {
+  CheckSquare, Flame, Wallet, Timer, TrendingUp, Trophy,
+  Target, BookOpen, NotebookPen, Dumbbell, Rocket
+} from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -162,28 +166,28 @@ export default function Dashboard() {
       {/* Main Stats */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>✅</div>
+          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><CheckSquare size={28} /></div>
           <div className="stat-info">
             <h3>{stats.tasksCompleted}<span className="text-sm text-muted">/{stats.tasksTotal}</span></h3>
             <p>Tasks Selesai</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>🔥</div>
+          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><Flame size={28} /></div>
           <div className="stat-info">
             <h3>{stats.streak}</h3>
             <p>Streak Terpanjang</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>💰</div>
+          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><Wallet size={28} /></div>
           <div className="stat-info">
             <h3 className="text-lg">{formatCurrency(stats.totalIncome - stats.totalExpense)}</h3>
             <p>Saldo Bersih</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)' }}>⏱️</div>
+          <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}><Timer size={28} /></div>
           <div className="stat-info">
             <h3>{stats.focusSessions}</h3>
             <p>Sesi Fokus Hari Ini</p>
@@ -194,7 +198,7 @@ export default function Dashboard() {
       {/* Secondary Stats */}
       <div className="grid-2 mb-3">
         <div className="card card-padding">
-          <div className="card-title mb-2">📈 Progress Hari Ini</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><TrendingUp size={20} /> Progress Hari Ini</div>
           <div className="flex flex-col gap-2">
             <div>
               <div className="flex justify-between mb-1">
@@ -217,22 +221,22 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="card card-padding">
-          <div className="card-title mb-2">🏆 Quick Stats</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Trophy size={20} /> Quick Stats</div>
           <div className="flex flex-col gap-1">
             <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-secondary">🎯 Goals Aktif</span>
+              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={16} /> Goals Aktif</span>
               <span className="font-semibold">{stats.goalsActive}</span>
             </div>
             <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-secondary">📚 Sedang Dibaca</span>
+              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> Sedang Dibaca</span>
               <span className="font-semibold">{stats.booksReading}</span>
             </div>
             <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-secondary">📝 Total Jurnal</span>
+              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><NotebookPen size={16} /> Total Jurnal</span>
               <span className="font-semibold">{stats.journalEntries}</span>
             </div>
             <div className="flex justify-between items-center" style={{ padding: '6px 0' }}>
-              <span className="text-sm text-secondary">💪 Workout Minggu Ini</span>
+              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Dumbbell size={16} /> Workout Minggu Ini</span>
               <span className="font-semibold">{stats.workoutsThisWeek}</span>
             </div>
           </div>
@@ -242,7 +246,7 @@ export default function Dashboard() {
       {/* Finance Summary */}
       <div className="grid-2">
         <div className="card card-padding">
-          <div className="card-title mb-2">💵 Keuangan</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={20} /> Keuangan</div>
           <div className="flex flex-col gap-1">
             <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
               <span className="text-sm text-secondary">Pemasukan</span>
@@ -263,12 +267,12 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="card card-padding">
-          <div className="card-title mb-2">🚀 Quick Actions</div>
-          <div className="flex flex-col gap-1">
-            <a href="/tasks" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start' }}>✅ Tambah Task Baru</a>
-            <a href="/journal" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start' }}>📝 Tulis Jurnal</a>
-            <a href="/pomodoro" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start' }}>⏱️ Mulai Fokus</a>
-            <a href="/achievements" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start' }}>🏆 Lihat Achievements</a>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Rocket size={20} /> Quick Actions</div>
+          <div className="flex flex-col gap-2">
+            <a href="/tasks" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><CheckSquare size={16} /> Tambah Task Baru</a>
+            <a href="/journal" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><NotebookPen size={16} /> Tulis Jurnal</a>
+            <a href="/pomodoro" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Timer size={16} /> Mulai Fokus</a>
+            <a href="/achievements" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Trophy size={16} /> Lihat Achievements</a>
           </div>
         </div>
       </div>

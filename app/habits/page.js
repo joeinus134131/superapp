@@ -9,6 +9,10 @@ import { getStreakDeathMessage } from '@/lib/roast';
 import StreakDeath from '@/components/StreakDeath';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import {
+  Flame, CheckSquare, TrendingUp, Plus, CalendarDays,
+  ListTodo, Trash2
+} from 'lucide-react';
 
 export default function HabitsPage() {
   const [habits, setHabits] = useState([]);
@@ -155,27 +159,27 @@ export default function HabitsPage() {
       <StreakDeath message={streakDeathMsg} onDismiss={() => setStreakDeathMsg(null)} />
 
       <div className="page-header">
-        <h1>🔥 Habit Tracker</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Flame size={32} color="var(--accent-red)" /> Habit Tracker</h1>
         <p>Bangun kebiasaan baik dan raih streak terpanjang!</p>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>✅</div>
+          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><CheckSquare size={28} /></div>
           <div className="stat-info">
             <h3>{todayCompleted}<span className="text-sm text-muted">/{habits.length}</span></h3>
             <p>Selesai Hari Ini</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>📊</div>
+          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><TrendingUp size={28} /></div>
           <div className="stat-info">
             <h3>{completionRate}%</h3>
             <p>Completion Rate</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>🔥</div>
+          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><Flame size={28} /></div>
           <div className="stat-info">
             <h3>{maxStreak}</h3>
             <p>Streak Terpanjang</p>
@@ -185,7 +189,7 @@ export default function HabitsPage() {
 
       {/* Add Habit */}
       <form onSubmit={addHabit} className="card card-padding mb-3">
-        <div className="card-title mb-2">➕ Tambah Kebiasaan Baru</div>
+        <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Plus size={20} /> Tambah Kebiasaan Baru</div>
         <div className="flex flex-col gap-2">
           <div className="flex gap-1 flex-wrap" style={{ maxWidth: '100%' }}>
             {HABIT_EMOJIS.map(e => (
@@ -207,7 +211,7 @@ export default function HabitsPage() {
       {/* History Grid */}
       <div className="card card-padding mb-3">
         <div className="flex justify-between items-center mb-2">
-            <div className="card-title">📅 Riwayat Kebiasaan</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={20} /> Riwayat Kebiasaan</div>
             <div className="flex gap-2">
                 <button onClick={handlePrevDays} className="btn btn-secondary btn-sm">{'<'} Sblmnya</button>
                 <button onClick={handleNextDays} className="btn btn-secondary btn-sm" disabled={dateOffset === 0}>Selanjutnya {'>'}</button>
@@ -224,7 +228,7 @@ export default function HabitsPage() {
                     <br />{new Date(d).getDate()}
                   </th>
                 ))}
-                <th style={{ textAlign: 'center', padding: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>🔥</th>
+                <th style={{ textAlign: 'center', padding: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}><Flame size={16} style={{ display: 'inline', color: 'var(--accent-red)' }} /></th>
               </tr>
             </thead>
             <tbody>
@@ -273,7 +277,7 @@ export default function HabitsPage() {
         )}
         {habits.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">🔥</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Flame size={48} color="var(--accent-red)" /></div>
             <h3>Belum ada habit</h3>
             <p>Mulai tambahkan kebiasaan baik pertamamu!</p>
           </div>
@@ -282,7 +286,7 @@ export default function HabitsPage() {
 
       {/* Habits List */}
       <div className="card card-padding">
-        <div className="card-title mb-2">📋 Daftar Kebiasaan</div>
+        <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ListTodo size={20} /> Daftar Kebiasaan</div>
         {habits.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(h => {
           const todayDone = h.completedDates && h.completedDates.includes(today);
           return (
@@ -296,10 +300,10 @@ export default function HabitsPage() {
                   {h.name}
                 </div>
                 <div className="text-xs text-muted">
-                  🔥 Streak: {h.streak || 0} hari • Best: {h.bestStreak || 0} • Total: {h.completedDates ? h.completedDates.length : 0} hari
+                  <Flame size={12} style={{ display: 'inline', color: 'var(--accent-red)' }} /> Streak: {h.streak || 0} hari • Best: {h.bestStreak || 0} • Total: {h.completedDates ? h.completedDates.length : 0} hari
                 </div>
               </div>
-              <button className="btn btn-danger btn-sm" onClick={() => deleteHabit(h.id)}>🗑</button>
+              <button className="btn btn-danger btn-sm" onClick={() => deleteHabit(h.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
             </div>
           );
         })}

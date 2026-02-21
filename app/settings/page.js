@@ -2,6 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { useUser, AVATAR_OPTIONS } from '@/lib/auth';
+import {
+  Settings, CheckCircle2, Key, Check, Copy, User, Tag,
+  Camera, Upload, Trash2, Smile, Save
+} from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, updateProfile } = useUser();
@@ -56,11 +60,11 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>⚙️ Pengaturan Profil</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={32} color="var(--accent-purple)" /> Pengaturan Profil</h1>
         <p>Personalisasi profilmu — nama, avatar, dan foto</p>
       </div>
 
-      {saved && <div className="xp-toast">✅ Profil disimpan!</div>}
+      {saved && <div className="xp-toast" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} color="var(--accent-green)" /> Profil disimpan!</div>}
 
       <div style={{ maxWidth: '600px' }}>
         {/* Profile Preview */}
@@ -89,7 +93,7 @@ export default function SettingsPage() {
         {/* Unique ID Card */}
         <div className="card card-padding mb-2" style={{ background: 'var(--gradient-card)', border: '1px solid var(--accent-purple)' }}>
           <div className="flex justify-between items-center mb-1">
-            <label className="form-label" style={{ marginBottom: 0 }}>🔑 Kode Unik Login</label>
+            <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px' }}><Key size={16} /> Kode Unik Login</label>
             <span className="text-xs text-secondary" style={{ background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '12px' }}>
               Simpan & Rahasiakan
             </span>
@@ -120,9 +124,9 @@ export default function SettingsPage() {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              style={{ width: '100px' }}
+              style={{ width: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
-              {copied ? '✅ Copied' : '📋 Copy'}
+              {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
             </button>
           </div>
         </div>
@@ -130,7 +134,7 @@ export default function SettingsPage() {
         {/* Name */}
         <div className="card card-padding mb-2">
           <div className="form-group">
-            <label className="form-label">📝 Nama</label>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><User size={16} /> Nama</label>
             <input
               className="form-input"
               value={name}
@@ -143,7 +147,7 @@ export default function SettingsPage() {
 
         {/* Branding */}
         <div className="card card-padding mb-2">
-          <label className="form-label">🏷️ Custom Branding (Sidebar)</label>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={16} /> Custom Branding (Sidebar)</label>
           <div className="grid-2" style={{ gap: '12px', marginBottom: '16px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label text-xs">Nama Aplikasi</label>
@@ -184,11 +188,11 @@ export default function SettingsPage() {
 
         {/* Photo Upload */}
         <div className="card card-padding mb-2">
-          <label className="form-label">📸 Foto Profil</label>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Camera size={16} /> Foto Profil</label>
           <p className="text-sm text-secondary mb-2">Upload foto kamu (max 150 KB, disimpan di browser)</p>
           <div className="flex gap-1 items-center">
-            <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
-              📤 Upload Foto
+            <button className="btn btn-secondary" onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Upload size={16} /> Upload Foto
             </button>
             {customPhoto && (
               <>
@@ -204,7 +208,7 @@ export default function SettingsPage() {
                 >
                   Pakai Emoji
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={handleRemovePhoto}>🗑</button>
+                <button className="btn btn-danger btn-sm" onClick={handleRemovePhoto} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
               </>
             )}
           </div>
@@ -225,7 +229,7 @@ export default function SettingsPage() {
 
         {/* Emoji Avatar Picker */}
         <div className="card card-padding mb-2">
-          <label className="form-label">😎 Emoji Avatar {usePhoto && <span className="text-sm text-secondary">(fallback saat foto tidak aktif)</span>}</label>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Smile size={16} /> Emoji Avatar {usePhoto && <span className="text-sm text-secondary">(fallback saat foto tidak aktif)</span>}</label>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(8, 1fr)',
@@ -254,8 +258,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Save Button */}
-        <button className="btn btn-primary btn-lg w-full" onClick={handleSave}>
-          💾 Simpan Profil
+        <button className="btn btn-primary btn-lg w-full" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Save size={18} /> Simpan Profil
         </button>
       </div>
     </div>

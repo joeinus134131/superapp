@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getDaysInMonth, getFirstDayOfMonth, getToday, formatDate } from '@/lib/helpers';
+import { CalendarDays, Plus, ChevronLeft, ChevronRight, Trash2, Pin, X } from 'lucide-react';
 
 const EVENT_COLORS = [
   { id: 'purple', label: 'Default', color: '#8b5cf6' },
@@ -97,10 +98,10 @@ export default function CalendarPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1>📅 Calendar</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={32} color="var(--accent-purple)" /> Calendar</h1>
             <p>Kelola jadwal dan event kamu</p>
           </div>
-          <button className="btn btn-primary" onClick={() => openAdd()}>+ Tambah Event</button>
+          <button className="btn btn-primary" onClick={() => openAdd()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Event</button>
         </div>
       </div>
 
@@ -108,13 +109,13 @@ export default function CalendarPage() {
         {/* Calendar */}
         <div className="card card-padding">
           <div className="flex justify-between items-center mb-3">
-            <button className="btn btn-secondary btn-sm" onClick={prevMonth}>← Prev</button>
+            <button className="btn btn-secondary btn-sm" onClick={prevMonth} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ChevronLeft size={16} /> Prev</button>
             <div className="text-center">
               <h2 className="font-bold">{MONTH_NAMES[month]} {year}</h2>
             </div>
             <div className="flex gap-1">
               <button className="btn btn-secondary btn-sm" onClick={goToday}>Hari Ini</button>
-              <button className="btn btn-secondary btn-sm" onClick={nextMonth}>Next →</button>
+              <button className="btn btn-secondary btn-sm" onClick={nextMonth} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Next <ChevronRight size={16} /></button>
             </div>
           </div>
 
@@ -173,7 +174,7 @@ export default function CalendarPage() {
           <div className="card card-padding">
             <div className="flex justify-between items-center mb-2">
               <div className="card-title">{formatDate(selectedDate)}</div>
-              <button className="btn btn-primary btn-sm" onClick={() => openAdd(selectedDate)}>+</button>
+              <button className="btn btn-primary btn-sm" onClick={() => openAdd(selectedDate)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={16} /></button>
             </div>
             {selectedEvents.length === 0 ? (
               <div className="text-center text-muted text-sm" style={{ padding: '24px' }}>
@@ -191,7 +192,7 @@ export default function CalendarPage() {
                         <div className="text-xs text-muted">{event.time} • {colorInfo?.label || 'Default'}</div>
                         {event.description && <div className="text-xs text-secondary mt-1">{event.description}</div>}
                       </div>
-                      <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEvent(event.id); }}>🗑</button>
+                      <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEvent(event.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                     </div>
                   );
                 })}
@@ -212,7 +213,7 @@ export default function CalendarPage() {
 
           {/* Upcoming Events */}
           <div className="card card-padding">
-            <div className="card-title mb-2">📌 Mendatang (7 hari)</div>
+            <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Pin size={20} /> Mendatang (7 hari)</div>
             {upcoming.length === 0 ? (
               <div className="text-center text-muted text-sm" style={{ padding: '16px' }}>Tidak ada event mendatang</div>
             ) : (
@@ -221,7 +222,7 @@ export default function CalendarPage() {
                   const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
                   return (
                     <div key={i} className="activity-item">
-                      <div className="activity-icon" style={{ background: `${colorInfo?.color || '#8b5cf6'}22`, color: colorInfo?.color }}>📅</div>
+                      <div className="activity-icon" style={{ background: `${colorInfo?.color || '#8b5cf6'}22`, color: colorInfo?.color }}><CalendarDays size={20} /></div>
                       <div>
                         <div className="text-sm font-semibold">{event.title}</div>
                         <div className="activity-time">{formatDate(event.dateStr)} • {event.time}</div>
@@ -251,7 +252,7 @@ export default function CalendarPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editEvent ? 'Edit Event' : 'Tambah Event'}</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">

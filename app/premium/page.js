@@ -3,6 +3,24 @@
 import { useState, useEffect } from 'react';
 import { usePremium } from '@/lib/premium';
 import { useUser } from '@/lib/auth';
+import {
+  Gem, Star, Gift, Package, Sparkles, History, ShoppingCart, Unlock,
+  Flame, Cloud, BarChart2, Palette, RefreshCw, HardDrive
+} from 'lucide-react';
+
+const PACKAGE_ICONS = {
+  starter: <Star size={48} color="var(--accent-green)" />,
+  pro: <Flame size={48} color="var(--accent-purple)" />,
+  ultimate: <Gem size={48} color="var(--accent-yellow)" />
+};
+
+const FEATURE_ICONS = {
+  cloud_auto_sync: <Cloud size={28} color="var(--accent-cyan)" />,
+  advanced_analytics: <BarChart2 size={28} color="var(--accent-purple)" />,
+  custom_themes: <Palette size={28} color="var(--accent-red)" />,
+  cross_device: <RefreshCw size={28} color="var(--accent-green)" />,
+  extra_storage: <HardDrive size={28} color="var(--accent-yellow)" />
+};
 
 export default function PremiumStore() {
     const {
@@ -63,7 +81,7 @@ export default function PremiumStore() {
                 onSuccess: function (result) {
                     const res = buyPackage(pkg.id);
                     if (res.success) {
-                        showToast(`🎉 Pembayaran sukses! Mendapatkan paket ${res.package.name} (+${res.package.tokens} Token)`);
+                        showToast(`✨ Pembayaran sukses! Mendapatkan paket ${res.package.name} (+${res.package.tokens} Token)`);
                     }
                 },
                 onPending: function (result) {
@@ -100,7 +118,7 @@ export default function PremiumStore() {
             <div className="page-header">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1>💎 Premium Store</h1>
+                        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Gem size={32} color="var(--accent-purple)" /> Premium Store</h1>
                         <p>Dapatkan Token untuk unlock fitur spesial dan tambah storage.</p>
                     </div>
                     <div className="dashboard-level-badge" style={{ borderColor: 'var(--accent-purple)', background: 'var(--bg-card)' }}>
@@ -120,7 +138,7 @@ export default function PremiumStore() {
             <div className="card card-padding mb-3" style={{ background: 'var(--gradient-primary)', color: 'white' }}>
                 <div className="flex justify-between items-center flex-wrap gap-2">
                     <div>
-                        <h2 className="mb-1">Status: {isPremium ? '🌟 Premium User' : 'Standard User'}</h2>
+                        <h2 className="mb-1" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status: {isPremium ? <><Star size={20} color="var(--accent-yellow)" fill="var(--accent-yellow)" /> Premium User</> : 'Standard User'}</h2>
                         {tokenData.activePlan && (
                             <p className="text-sm font-bold opacity-100" style={{ color: 'var(--accent-green)' }}>
                                 Current Plan: {TOKEN_PACKAGES.find(p => p.id === tokenData.activePlan)?.name || 'Custom'}
@@ -133,15 +151,15 @@ export default function PremiumStore() {
                     </div>
                     <button
                         className="btn"
-                        style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}
+                        style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '6px' }}
                         onClick={handleClaim}
                     >
-                        🎁 Klaim Token Harian
+                        <Gift size={16} /> Klaim Token Harian
                     </button>
                 </div>
             </div>
 
-            <h2 className="mb-2">📦 Beli Token</h2>
+            <h2 className="mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={20} /> Beli Token</h2>
             <p className="text-sm text-secondary mb-3">
                 Pembayaran diamankan oleh Midtrans. Token dan storage tambahan akan masuk ke akunmu setelah pembayaran berhasil.
             </p>
@@ -163,7 +181,7 @@ export default function PremiumStore() {
                             </div>
                         )}
                         <div className="flex flex-col items-center text-center">
-                            <span style={{ fontSize: '48px', marginBottom: '8px' }}>{pkg.icon}</span>
+                            <span style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{PACKAGE_ICONS[pkg.id] || <Package size={48} />}</span>
                             <h3 style={{ color: pkg.color, marginBottom: '4px' }}>{pkg.name}</h3>
                             <p className="text-xs text-secondary mb-2">{pkg.desc}</p>
 
@@ -201,7 +219,7 @@ export default function PremiumStore() {
                 ))}
             </div>
 
-            <h2 className="mb-2">✨ Fitur Premium</h2>
+            <h2 className="mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Sparkles size={20} color="var(--accent-yellow)" /> Fitur Premium</h2>
             <div className="grid-2 mb-4">
                 {PREMIUM_FEATURES.map(feat => {
                     const unlocked = checkFeature(feat.id);
@@ -210,7 +228,7 @@ export default function PremiumStore() {
                             opacity: unlocked ? 1 : 0.7,
                             borderLeft: unlocked ? '4px solid var(--accent-green)' : '4px solid var(--border-color)'
                         }}>
-                            <div style={{ fontSize: '28px' }}>{feat.icon}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px' }}>{FEATURE_ICONS[feat.id] || <Sparkles size={28} />}</div>
                             <div style={{ flex: 1 }}>
                                 <div className="flex justify-between items-center mb-1">
                                     <h4 style={{ margin: 0 }}>{feat.name}</h4>
@@ -231,7 +249,7 @@ export default function PremiumStore() {
                 })}
             </div>
 
-            <h2 className="mb-2">📜 Riwayat Token</h2>
+            <h2 className="mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><History size={20} /> Riwayat Token</h2>
             <div className="card card-padding">
                 {tokenData.purchaseHistory.length === 0 && tokenData.spendHistory.length === 0 ? (
                     <p className="text-sm text-secondary text-center py-4">Belum ada riwayat transaksi token.</p>
@@ -243,7 +261,9 @@ export default function PremiumStore() {
                             .map((item, i) => (
                                 <div key={i} className="flex justify-between items-center" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
                                     <div>
-                                        <div className="text-sm font-semibold">{item.type === 'in' ? (item.price === 0 ? '🎁 Klaim Harian' : `🛒 Beli ${item.packageName}`) : `🔓 Buka ${item.label}`}</div>
+                                        <div className="text-sm font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {item.type === 'in' ? (item.price === 0 ? <><Gift size={14} color="var(--accent-green)" /> Klaim Harian</> : <><ShoppingCart size={14} color="var(--accent-green)" /> Beli {item.packageName}</>) : <><Unlock size={14} color="var(--accent-yellow)" /> Buka {item.label}</>}
+                                        </div>
                                         <div className="text-xs text-secondary">{new Date(item.date).toLocaleString('id-ID')}</div>
                                     </div>
                                     <div className={`font-bold ${item.type === 'in' ? 'text-green' : 'text-red'}`} style={{ color: item.type === 'in' ? 'var(--accent-green)' : 'var(--accent-red)' }}>

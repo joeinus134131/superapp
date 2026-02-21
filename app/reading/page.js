@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId } from '@/lib/helpers';
+import {
+  Library, BookOpen, CheckCircle2, Bookmark,
+  Star, Book, Trash2, X, Plus
+} from 'lucide-react';
 
 const BOOK_COLORS = [
   'linear-gradient(135deg, #8b5cf6, #6d28d9)',
@@ -66,55 +70,59 @@ export default function ReadingPage() {
     : '—';
 
   const StarRating = ({ rating, onRate, size = 20 }) => (
-    <div className="star-rating">
+    <div className="star-rating" style={{ display: 'flex', gap: '2px' }}>
       {[1, 2, 3, 4, 5].map(s => (
-        <span key={s} className={`star ${s <= rating ? 'filled' : ''}`}
-          style={{ fontSize: `${size}px`, cursor: onRate ? 'pointer' : 'default' }}
+        <span key={s} className="star"
+          style={{ cursor: onRate ? 'pointer' : 'default', lineHeight: 0, display: 'inline-block' }}
           onClick={() => onRate && onRate(s)}>
-          ⭐
+          <Star size={size} fill={s <= rating ? 'var(--accent-yellow)' : 'none'} color={s <= rating ? 'var(--accent-yellow)' : 'var(--border-color)'} />
         </span>
       ))}
     </div>
   );
 
-  const STATUS_LABELS = { reading: '📖 Sedang Dibaca', completed: '✅ Selesai', wishlist: '🔖 Wishlist' };
+  const STATUS_LABELS = {
+    reading: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><BookOpen size={12} /> Sedang Dibaca</span>,
+    completed: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} /> Selesai</span>,
+    wishlist: <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Bookmark size={12} /> Wishlist</span>
+  };
 
   return (
     <div>
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1>📚 Reading List</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Library size={32} color="var(--accent-purple)" /> Reading List</h1>
             <p>Track buku yang kamu baca dan ingin baca</p>
           </div>
-          <button className="btn btn-primary" onClick={openAdd}>+ Tambah Buku</button>
+          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Buku</button>
         </div>
       </div>
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(59, 130, 246, 0.15)' }}>📖</div>
+          <div className="stat-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent-blue)' }}><BookOpen size={28} /></div>
           <div className="stat-info">
             <h3>{reading}</h3>
             <p>Sedang Dibaca</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>✅</div>
+          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><CheckCircle2 size={28} /></div>
           <div className="stat-info">
             <h3>{completed}</h3>
             <p>Selesai</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>🔖</div>
+          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><Bookmark size={28} /></div>
           <div className="stat-info">
             <h3>{wishlist}</h3>
             <p>Wishlist</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>⭐</div>
+          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Star size={28} fill="currentColor" /></div>
           <div className="stat-info">
             <h3>{avgRating}</h3>
             <p>Rating Rata-rata</p>
@@ -123,26 +131,26 @@ export default function ReadingPage() {
       </div>
 
       <div className="tabs mb-2">
-        <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>📚 Semua ({books.length})</button>
-        <button className={`tab ${activeTab === 'reading' ? 'active' : ''}`} onClick={() => setActiveTab('reading')}>📖 Dibaca ({reading})</button>
-        <button className={`tab ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab('completed')}>✅ Selesai ({completed})</button>
-        <button className={`tab ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')}>🔖 Wishlist ({wishlist})</button>
+        <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Library size={16} /> Semua ({books.length})</button>
+        <button className={`tab ${activeTab === 'reading' ? 'active' : ''}`} onClick={() => setActiveTab('reading')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> Dibaca ({reading})</button>
+        <button className={`tab ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab('completed')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} /> Selesai ({completed})</button>
+        <button className={`tab ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Bookmark size={16} /> Wishlist ({wishlist})</button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="card card-padding">
           <div className="empty-state">
-            <div className="empty-state-icon">📚</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Library size={48} color="var(--accent-purple)" /></div>
             <h3>Belum ada buku</h3>
             <p>Mulai tambahkan buku ke daftar bacaanmu!</p>
-            <button className="btn btn-primary mt-2" onClick={openAdd}>+ Tambah Buku</button>
+            <button className="btn btn-primary mt-2" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Buku</button>
           </div>
         </div>
       ) : (
         <div className="grid-auto">
           {filtered.map(book => (
             <div key={book.id} className="book-card" onClick={() => openEdit(book)} style={{ cursor: 'pointer' }}>
-              <div className="book-cover" style={{ background: book.color || BOOK_COLORS[0] }}>📖</div>
+              <div className="book-cover" style={{ background: book.color || BOOK_COLORS[0], display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Book size={24} color="rgba(255,255,255,0.8)" /></div>
               <div className="book-info">
                 <h3>{book.title}</h3>
                 <p>{book.author}</p>
@@ -165,7 +173,7 @@ export default function ReadingPage() {
                 )}
                 {book.rating > 0 && <StarRating rating={book.rating} size={14} />}
               </div>
-              <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteBook(book.id); }}>🗑</button>
+              <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteBook(book.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
             </div>
           ))}
         </div>
@@ -176,7 +184,7 @@ export default function ReadingPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editBook ? 'Edit Buku' : 'Tambah Buku'}</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">

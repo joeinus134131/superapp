@@ -7,6 +7,10 @@ import { addXP, checkAchievements } from '@/lib/gamification';
 import { playTaskComplete } from '@/lib/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import {
+  NotebookPen, Plus, Notebook, Trash2, Edit3,
+  BookOpen, X, Save
+} from 'lucide-react';
 
 export default function JournalPage() {
   const [entries, setEntries] = useState([]);
@@ -101,16 +105,16 @@ export default function JournalPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1>📝 Journal & Notes</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><NotebookPen size={32} color="var(--accent-purple)" /> Journal & Notes</h1>
             <p>Tulis pikiran dan catatan harianmu</p>
           </div>
-          <button className="btn btn-primary" onClick={createNew}>+ Tulis Baru</button>
+          <button className="btn btn-primary" onClick={createNew} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tulis Baru</button>
         </div>
       </div>
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>📝</div>
+          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Notebook size={28} /></div>
           <div className="stat-info">
             <h3>{entries.length}</h3>
             <p>Total Catatan</p>
@@ -157,7 +161,7 @@ export default function JournalPage() {
                       </div>
                       <div className="text-xs text-muted mt-1">{formatDate(entry.date)}</div>
                     </div>
-                    <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}>🗑</button>
+                    <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                   </div>
                 ))}
                 {filtered.length > ITEMS_PER_PAGE && (
@@ -186,7 +190,7 @@ export default function JournalPage() {
                     <span>{formatDate(selected.date)}</span>
                   </div>
                 </div>
-                <button className="btn btn-secondary btn-sm" onClick={openEdit}>✏️ Edit</button>
+                <button className="btn btn-secondary btn-sm" onClick={openEdit} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Edit3 size={14} /> Edit</button>
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '16px', color: 'var(--text-secondary)' }}>
                 {selected.content}
@@ -194,10 +198,10 @@ export default function JournalPage() {
             </div>
           ) : (
             <div className="empty-state" style={{ height: '300px' }}>
-              <div className="empty-state-icon">📖</div>
+              <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><BookOpen size={48} color="var(--accent-purple)" /></div>
               <h3>Pilih Catatan</h3>
               <p>Pilih catatan dari daftar untuk membacanya, atau buat catatan baru.</p>
-              <button className="btn btn-primary mt-2" onClick={createNew}>+ Tulis Baru</button>
+              <button className="btn btn-primary mt-2" onClick={createNew} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tulis Baru</button>
             </div>
           )}
         </div>
@@ -209,7 +213,7 @@ export default function JournalPage() {
           <div className="modal" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h2>{form.id ? 'Edit Catatan' : 'Tulis Baru'}</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowEditor(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowEditor(false)}><X size={16} /></button>
             </div>
             
             <div className="modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
@@ -246,7 +250,7 @@ export default function JournalPage() {
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowEditor(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleSave}>💾 Simpan Catatan</button>
+              <button className="btn btn-primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={16} /> Simpan Catatan</button>
             </div>
           </div>
         </div>

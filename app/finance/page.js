@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday, formatRupiahInput, parseRupiahInput } from '@/lib/helpers';
+import {
+  Wallet, Download, Plus, TrendingUp, TrendingDown,
+  PieChart as PieChartIcon, List, History, Trash2, X
+} from 'lucide-react';
 
 // ─── Export helpers ────────────────────────────────────────────────────────────
 
@@ -190,33 +194,33 @@ export default function FinancePage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1>💰 Finance Tracker</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={32} color="var(--accent-green)" /> Finance Tracker</h1>
             <p>Kelola pemasukan dan pengeluaran kamu</p>
           </div>
           <div className="flex gap-1">
-            <button className="btn btn-secondary" onClick={() => setShowExportModal(true)}>📊 Export</button>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Tambah Transaksi</button>
+            <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Download size={16} /> Export</button>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Transaksi</button>
           </div>
         </div>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>📈</div>
+          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><TrendingUp size={28} /></div>
           <div className="stat-info">
             <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalIncome)}</h3>
             <p>Total Pemasukan</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>📉</div>
+          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><TrendingDown size={28} /></div>
           <div className="stat-info">
             <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalExpense)}</h3>
             <p>Total Pengeluaran</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: balance >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}>💰</div>
+          <div className="stat-icon" style={{ background: balance >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}><Wallet size={28} /></div>
           <div className="stat-info">
             <h3 style={{ fontSize: '20px', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatCurrency(balance)}</h3>
             <p>Saldo</p>
@@ -226,11 +230,11 @@ export default function FinancePage() {
 
       <div className="grid-2 mb-3">
         <div className="card card-padding">
-          <div className="card-title mb-2">📊 Pengeluaran per Kategori</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon size={20} /> Pengeluaran per Kategori</div>
           <PieChart />
         </div>
         <div className="card card-padding">
-          <div className="card-title mb-2">📋 Budget Overview</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><List size={20} /> Budget Overview</div>
           {EXPENSE_CATEGORIES.map(cat => {
             const spent = categoryTotals[cat.id] || 0;
             const pct = totalExpense > 0 ? (spent / totalExpense) * 100 : 0;
@@ -251,7 +255,7 @@ export default function FinancePage() {
 
       <div className="card card-padding">
         <div className="card-header">
-          <div className="card-title">📝 Riwayat Transaksi</div>
+          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><History size={20} /> Riwayat Transaksi</div>
           <div className="tabs" style={{ marginBottom: 0 }}>
             <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => { setActiveTab('all'); setListPage(1); }}>Semua</button>
             <button className={`tab ${activeTab === 'income' ? 'active' : ''}`} onClick={() => { setActiveTab('income'); setListPage(1); }}>Masuk</button>
@@ -260,7 +264,7 @@ export default function FinancePage() {
         </div>
         {filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">💰</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Wallet size={48} color="var(--accent-green)" /></div>
             <h3>Belum ada transaksi</h3>
             <p>Mulai catat keuanganmu!</p>
           </div>
@@ -278,7 +282,7 @@ export default function FinancePage() {
                     <span className={`transaction-amount ${t.type}`}>
                       {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                     </span>
-                    <button className="btn btn-danger btn-icon sm" onClick={() => deleteTransaction(t.id)}>🗑</button>
+                    <button className="btn btn-danger btn-icon sm" onClick={() => deleteTransaction(t.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                   </div>
                 );
               })}
@@ -303,15 +307,15 @@ export default function FinancePage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Tambah Transaksi</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Tipe</label>
                   <div className="tabs" style={{ marginBottom: 0 }}>
-                    <button type="button" className={`tab ${form.type === 'expense' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'expense', category: 'food'})}>📉 Pengeluaran</button>
-                    <button type="button" className={`tab ${form.type === 'income' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'income', category: 'salary'})}>📈 Pemasukan</button>
+                    <button type="button" className={`tab ${form.type === 'expense' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'expense', category: 'food'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TrendingDown size={16} /> Pengeluaran</button>
+                    <button type="button" className={`tab ${form.type === 'income' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'income', category: 'salary'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><TrendingUp size={16} /> Pemasukan</button>
                   </div>
                 </div>
                 <div className="form-group">
@@ -359,13 +363,13 @@ export default function FinancePage() {
         <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h2>📊 Export Laporan Keuangan</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowExportModal(false)}>✕</button>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Download size={20} /> Export Laporan</h2>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowExportModal(false)}><X size={16} /></button>
             </div>
             <div className="modal-body">
               {transactions.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-state-icon">📊</div>
+                  <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><PieChartIcon size={48} color="var(--accent-cyan)" /></div>
                   <h3>Belum ada data transaksi</h3>
                   <p>Tambah transaksi terlebih dahulu.</p>
                 </div>
@@ -388,8 +392,8 @@ export default function FinancePage() {
 
                   {/* Preview summary */}
                   <div className="card" style={{ background: 'var(--bg-glass)', padding: '16px', borderRadius: 'var(--radius-lg)', marginBottom: '16px' }}>
-                    <div className="card-title mb-2" style={{ fontSize: '13px' }}>
-                      📋 Preview: {exportMonth ? getMonthLabel(exportMonth) : 'Semua Periode'}
+                    <div className="card-title mb-2" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <List size={14} /> Preview: {exportMonth ? getMonthLabel(exportMonth) : 'Semua Periode'}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
                       <div>
@@ -442,8 +446,9 @@ export default function FinancePage() {
                 <button
                   className="btn btn-primary"
                   onClick={() => { exportToCSV(transactions, exportMonth); setShowExportModal(false); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  ⬇️ Download CSV
+                  <Download size={16} /> Download CSV
                 </button>
               )}
             </div>

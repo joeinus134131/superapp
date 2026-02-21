@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getToday, formatDate } from '@/lib/helpers';
+import {
+  Dumbbell, Droplets, Activity, Scale, Droplet,
+  Plus, Trash2, HeartPulse, X, CalendarDays
+} from 'lucide-react';
 
 export default function HealthPage() {
   const [health, setHealth] = useState({ workouts: [], weights: [], waterLog: {} });
@@ -125,34 +129,34 @@ export default function HealthPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>💪 Health & Fitness</h1>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Dumbbell size={32} color="var(--accent-cyan)" /> Health & Fitness</h1>
         <p>Lacak workout, berat badan, dan intake air harianmu</p>
       </div>
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>🏋️</div>
+          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Dumbbell size={28} /></div>
           <div className="stat-info">
             <h3>{todayWorkouts.length}</h3>
             <p>Workout Hari Ini</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)' }}>💧</div>
+          <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}><Droplets size={28} /></div>
           <div className="stat-info">
             <h3>{todayWater}<span className="text-sm text-muted">/{WATER_GOAL}</span></h3>
             <p>Gelas Air</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>📅</div>
+          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><Activity size={28} /></div>
           <div className="stat-info">
             <h3>{weekWorkouts.length}</h3>
             <p>Workout Minggu Ini</p>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>⚖️</div>
+          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><Scale size={28} /></div>
           <div className="stat-info">
             <h3>{health.weights && health.weights.length > 0 ? health.weights[health.weights.length - 1].weight : '—'}<span className="text-sm text-muted"> kg</span></h3>
             <p>Berat Terakhir</p>
@@ -163,12 +167,12 @@ export default function HealthPage() {
       <div className="grid-2 mb-3">
         {/* Water Tracker */}
         <div className="card card-padding">
-          <div className="card-title mb-2">💧 Water Intake</div>
+          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Droplets size={20} /> Water Intake</div>
           <p className="text-sm text-secondary mb-2">Target: {WATER_GOAL} gelas per hari</p>
           <div className="water-cups mb-2">
             {Array.from({ length: WATER_GOAL }, (_, i) => (
-              <div key={i} className={`water-cup ${i < todayWater ? 'filled' : ''}`} onClick={() => toggleWater(i + 1)}>
-                {i < todayWater ? '💧' : ''}
+              <div key={i} className={`water-cup ${i < todayWater ? 'filled' : ''}`} onClick={() => toggleWater(i + 1)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {i < todayWater ? <Droplet size={20} fill="currentColor" /> : ''}
               </div>
             ))}
           </div>
@@ -181,8 +185,8 @@ export default function HealthPage() {
         {/* Weight Chart */}
         <div className="card card-padding">
           <div className="flex justify-between items-center mb-2">
-            <div className="card-title">⚖️ Berat Badan</div>
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowWeightModal(true)}>+ Catat</button>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Scale size={20} /> Berat Badan</div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowWeightModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Plus size={14} /> Catat</button>
           </div>
           <WeightChart />
         </div>
@@ -191,8 +195,8 @@ export default function HealthPage() {
       {/* Workout Log */}
       <div className="card card-padding">
         <div className="flex justify-between items-center mb-2">
-          <div className="card-title">🏋️ Workout Log</div>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowWorkoutModal(true)}>+ Tambah Workout</button>
+          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} /> Workout Log</div>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowWorkoutModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Plus size={14} /> Tambah Workout</button>
         </div>
 
         {todayWorkouts.length > 0 && (
@@ -200,7 +204,9 @@ export default function HealthPage() {
             <p className="text-sm text-secondary mb-1">Hari Ini</p>
             {todayWorkouts.slice((todayPage - 1) * ITEMS_PER_PAGE, todayPage * ITEMS_PER_PAGE).map(w => (
               <div key={w.id} className="workout-item">
-                <span style={{ fontSize: '20px' }}>{w.type === 'strength' ? '🏋️' : w.type === 'cardio' ? '🏃' : '🧘'}</span>
+                <span className="text-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                  {w.type === 'strength' ? <Dumbbell size={18} /> : w.type === 'cardio' ? <Activity size={18} /> : <HeartPulse size={18} />}
+                </span>
                 <span className="workout-name">{w.exercise}</span>
                 <div className="workout-detail">
                   {w.type === 'strength' ? (
@@ -209,7 +215,7 @@ export default function HealthPage() {
                     <span>{w.duration} menit</span>
                   )}
                 </div>
-                <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)}>🗑</button>
+                <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
               </div>
             ))}
             {todayWorkouts.length > ITEMS_PER_PAGE && (
@@ -235,7 +241,9 @@ export default function HealthPage() {
               <p className="text-sm text-secondary mb-1">Sebelumnya</p>
               {pastWorkouts.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(w => (
                 <div key={w.id} className="workout-item" style={{ opacity: 0.7 }}>
-                  <span style={{ fontSize: '20px' }}>{w.type === 'strength' ? '🏋️' : w.type === 'cardio' ? '🏃' : '🧘'}</span>
+                  <span className="text-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                    {w.type === 'strength' ? <Dumbbell size={18} /> : w.type === 'cardio' ? <Activity size={18} /> : <HeartPulse size={18} />}
+                  </span>
                   <span className="workout-name">{w.exercise}</span>
                   <div className="workout-detail">
                     {w.type === 'strength' ? (
@@ -245,7 +253,7 @@ export default function HealthPage() {
                     )}
                     <span className="text-muted">{formatDate(w.date)}</span>
                   </div>
-                  <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)}>🗑</button>
+                  <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                 </div>
               ))}
               {pastWorkouts.length > ITEMS_PER_PAGE && (
@@ -265,7 +273,7 @@ export default function HealthPage() {
 
         {(!health.workouts || health.workouts.length === 0) && (
           <div className="empty-state">
-            <div className="empty-state-icon">💪</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Dumbbell size={48} color="var(--accent-cyan)" /></div>
             <h3>Belum ada workout</h3>
             <p>Mulai catat latihan harianmu!</p>
           </div>
@@ -278,16 +286,16 @@ export default function HealthPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Tambah Workout</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowWorkoutModal(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowWorkoutModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={addWorkout}>
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Tipe</label>
                   <div className="tabs" style={{ marginBottom: 0 }}>
-                    <button type="button" className={`tab ${workoutForm.type === 'strength' ? 'active' : ''}`} onClick={() => setWorkoutForm({...workoutForm, type: 'strength'})}>🏋️ Strength</button>
-                    <button type="button" className={`tab ${workoutForm.type === 'cardio' ? 'active' : ''}`} onClick={() => setWorkoutForm({...workoutForm, type: 'cardio'})}>🏃 Cardio</button>
-                    <button type="button" className={`tab ${workoutForm.type === 'flexibility' ? 'active' : ''}`} onClick={() => setWorkoutForm({...workoutForm, type: 'flexibility'})}>🧘 Flexibility</button>
+                    <button type="button" className={`tab ${workoutForm.type === 'strength' ? 'active' : ''}`} onClick={() => setWorkoutForm({...workoutForm, type: 'strength'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Dumbbell size={16} /> Strength</button>
+                    <button type="button" className={`tab ${workoutForm.type === 'cardio' ? 'active' : ''}`} onClick={() => setWorkoutForm({...workoutForm, type: 'cardio'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Cardio</button>
+                    <button type="button" className={`tab ${workoutForm.type === 'flexibility' ? 'active' : ''}`} onClick={() => setWorkoutForm({...workoutForm, type: 'flexibility'})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><HeartPulse size={16} /> Flexibility</button>
                   </div>
                 </div>
                 <div className="form-group">
@@ -327,7 +335,7 @@ export default function HealthPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Catat Berat Badan</h2>
-              <button className="btn btn-icon btn-secondary" onClick={() => setShowWeightModal(false)}>✕</button>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowWeightModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={addWeight}>
               <div className="modal-body">
