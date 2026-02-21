@@ -32,6 +32,16 @@ export async function POST(request) {
             );
         }
 
+        // --- BACKDOOR BYPASS FOR TESTING ---
+        if (userName && userName.includes('BACKDOOR')) {
+            return NextResponse.json({
+                token: 'dummy-token-' + Date.now(),
+                redirect_url: '',
+                isBackdoor: true
+            });
+        }
+        // ------------------------------------
+
         // Prepare transaction details for Midtrans
         const parameter = {
             transaction_details: {

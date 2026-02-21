@@ -5,7 +5,7 @@ import { usePremium } from '@/lib/premium';
 import { useUser } from '@/lib/auth';
 import {
   Gem, Star, Gift, Package, Sparkles, History, ShoppingCart, Unlock,
-  Flame, Cloud, BarChart2, Palette, RefreshCw, HardDrive
+  Flame, Cloud, BarChart2, Palette, RefreshCw, HardDrive, AlertCircle
 } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
 
@@ -77,6 +77,17 @@ export default function PremiumStore() {
             const data = await response.json();
 
             if (!response.ok) throw new Error(data.error || 'Server Error');
+
+            // --- BACKDOOR BYPASS ---
+            if (data.isBackdoor) {
+                const res = buyPackage(pkg.id);
+                if (res.success) {
+                    showToast(`🔓 [BACKDOOR] ${t('premium.toast_success')} ${res.package.name} (+${res.package.tokens} ${t('premium.token')})`);
+                }
+                setIsLoading(false);
+                return;
+            }
+            // -----------------------
 
             // Trigger Midtrans Snap
             window.snap.pay(data.token, {
@@ -162,9 +173,23 @@ export default function PremiumStore() {
             </div>
 
             <h2 className="mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={20} /> {t('premium.buy_tokens')}</h2>
-            <p className="text-sm text-secondary mb-3">
-                {t('premium.payment_info')}
-            </p>
+            <div className="mb-4">
+                <p className="text-sm text-secondary mb-3">
+                    {t('premium.payment_info')}
+                </p>
+                
+                <div className="p-3 rounded text-sm flex items-start gap-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', marginTop: '12px' }}>
+                    <div style={{ color: 'var(--accent-red)', marginTop: '2px' }}><AlertCircle size={18} /></div>
+                    <div>
+                        <strong style={{ color: 'var(--text-primary)' }}>{t('premium.payment_issue')}</strong><br/>
+                        <span className="text-secondary">{t('premium.payment_issue_desc')}</span><br/>
+                        <div style={{ marginTop: '8px', lineHeight: '1.6' }}>
+                            • WhatsApp: <a href="https://wa.me/6283802436288" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-green)', textDecoration: 'underline', fontWeight: 600 }}>083802436288</a><br/>
+                            • Email: <a href="mailto:idnmakerspce@gmail.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-purple)', textDecoration: 'underline', fontWeight: 600 }}>idnmakerspce@gmail.com</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="grid-3 mb-4">
                 {TOKEN_PACKAGES.map(pkg => (

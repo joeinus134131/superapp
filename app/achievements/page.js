@@ -8,12 +8,14 @@ import Confetti from '@/components/Confetti';
 import { useLanguage } from '@/lib/language';
 
 export default function AchievementsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [gamData, setGamData] = useState({ totalXP: 0, unlockedAchievements: [], xpHistory: [] });
   const [activeTab, setActiveTab] = useState('achievements');
   const [achievementStatus, setAchievementStatus] = useState({ total: 0, all: 0 });
   const [showConfetti, setShowConfetti] = useState(false);
   const [weeklyReport, setWeeklyReport] = useState(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const data = getXP();
@@ -137,7 +139,7 @@ export default function AchievementsPage() {
         <button className={`tab ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>
           {t('achievements.tab_report')}
         </button>
-        <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+        <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => { setActiveTab('history'); setHistoryPage(1); }}>
           {t('achievements.tab_history')}
         </button>
       </div>
@@ -205,18 +207,42 @@ export default function AchievementsPage() {
               <p>{t('achievements.start_earning')}</p>
             </div>
           ) : (
-            [...(gamData.xpHistory || [])].reverse().slice(0, 30).map((h, i) => (
-              <div key={i} className="activity-item">
-                <div className="activity-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>⚡</div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">{h.label}</div>
-                  <div className="activity-time">
-                    {new Date(h.date).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            <>
+              {[...(gamData.xpHistory || [])].reverse().slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE).map((h, i) => (
+                <div key={i} className="activity-item">
+                  <div className="activity-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>⚡</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold">{h.label}</div>
+                    <div className="activity-time">
+                      {new Date(h.date).toLocaleString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
+                  <span className="xp-gain-badge">+{h.xp} XP</span>
                 </div>
-                <span className="xp-gain-badge">+{h.xp} XP</span>
-              </div>
-            ))
+              ))}
+              
+              {Math.ceil((gamData.xpHistory || []).length / ITEMS_PER_PAGE) > 1 && (
+                <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid var(--border-color)' }}>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    disabled={historyPage === 1}
+                    onClick={() => setHistoryPage(p => p - 1)}
+                  >
+                    {t('achievements.prev')}
+                  </button>
+                  <span className="text-sm text-secondary">
+                    {t('achievements.page')} {historyPage} {t('achievements.of')} {Math.ceil((gamData.xpHistory || []).length / ITEMS_PER_PAGE)}
+                  </span>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    disabled={historyPage === Math.ceil((gamData.xpHistory || []).length / ITEMS_PER_PAGE)}
+                    onClick={() => setHistoryPage(p => p + 1)}
+                  >
+                    {t('achievements.next')}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
