@@ -14,6 +14,7 @@ import {
   CheckSquare, Flame, Wallet, Timer, TrendingUp, Trophy,
   Target, BookOpen, NotebookPen, Dumbbell, Rocket
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -111,10 +112,10 @@ export default function Dashboard() {
             <h1>{greetingTime()}, {user?.name || 'User'} {user?.avatar || '👋'}</h1>
             <p>{t('dashboard.summary')}</p>
           </div>
-          <div className="dashboard-level-badge" style={{ borderColor: level.color }}>
+          <Link href="/achievements" className="dashboard-level-badge" style={{ borderColor: level.color, cursor: 'pointer', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <span style={{ color: level.color, fontSize: '18px', fontWeight: 700 }}>Lv.{level.level}</span>
             <span className="text-xs" style={{ color: level.color }}>{level.title}</span>
-          </div>
+          </Link>
         </div>
       </div>
 

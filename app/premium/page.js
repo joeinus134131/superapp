@@ -185,7 +185,7 @@ export default function PremiumStore() {
                         <span className="text-secondary">{t('premium.payment_issue_desc')}</span><br/>
                         <div style={{ marginTop: '8px', lineHeight: '1.6' }}>
                             • WhatsApp: <a href="https://wa.me/6283802436288" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-green)', textDecoration: 'underline', fontWeight: 600 }}>083802436288</a><br/>
-                            • Email: <a href="mailto:idnmakerspce@gmail.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-purple)', textDecoration: 'underline', fontWeight: 600 }}>idnmakerspce@gmail.com</a>
+                            • Email: <a href="mailto:idnmakerspace@gmail.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-purple)', textDecoration: 'underline', fontWeight: 600 }}>idnmakerspace@gmail.com</a>
                         </div>
                     </div>
                 </div>

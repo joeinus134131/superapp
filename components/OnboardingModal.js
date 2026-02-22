@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, CheckSquare, Flame, Timer, Target, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Flame, Timer, Target, Smartphone, MessageSquare, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
 
 const STEPS_DATA = [
@@ -29,6 +29,16 @@ const STEPS_DATA = [
     titleKey: 'step5_title',
     descKey: 'step5_desc',
     icon: <Target size={64} color="var(--accent-yellow)" />,
+  },
+  {
+    titleKey: 'step6_title',
+    descKey: 'step6_desc',
+    icon: <Smartphone size={64} color="var(--accent-blue, #3b82f6)" />,
+  },
+  {
+    titleKey: 'step7_title',
+    descKey: 'step7_desc',
+    icon: <MessageSquare size={64} color="var(--accent-pink, #ec4899)" />,
   },
 ];
 
