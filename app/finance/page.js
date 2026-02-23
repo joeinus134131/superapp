@@ -81,6 +81,7 @@ export default function FinancePage() {
   const [listPage, setListPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
   const [form, setForm] = useState({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     const saved = getData(STORAGE_KEYS.TRANSACTIONS);
@@ -93,14 +94,45 @@ export default function FinancePage() {
     e.preventDefault();
     const rawAmount = parseRupiahInput(form.amount);
     if (!rawAmount || !form.description.trim()) return;
-    save([{
-      id: generateId(),
-      ...form,
-      amount: Number(rawAmount),
-      createdAt: new Date().toISOString()
-    }, ...transactions]);
+
+    if (editingId) {
+      // Update existing
+      save(transactions.map(t =>
+        t.id === editingId
+          ? { ...t, ...form, amount: Number(rawAmount) }
+          : t
+      ));
+    } else {
+      // Create new
+      save([{
+        id: generateId(),
+        ...form,
+        amount: Number(rawAmount),
+        createdAt: new Date().toISOString()
+      }, ...transactions]);
+    }
+
     setForm({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
+    setEditingId(null);
     setShowModal(false);
+  };
+
+  const openAddModal = () => {
+    setForm({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
+    setEditingId(null);
+    setShowModal(true);
+  };
+
+  const editTransaction = (t) => {
+    setForm({
+      type: t.type,
+      amount: formatRupiahInput(t.amount.toString()),
+      category: t.category,
+      description: t.description,
+      date: t.date,
+    });
+    setEditingId(t.id);
+    setShowModal(true);
   };
 
   const deleteTransaction = (id) => save(transactions.filter(t => t.id !== id));
@@ -201,7 +233,7 @@ export default function FinancePage() {
           </div>
           <div className="flex gap-1">
             <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Download size={16} /> {t('finance.export')}</button>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('finance.add_transaction')}</button>
+            <button className="btn btn-primary" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('finance.add_transaction')}</button>
           </div>
         </div>
       </div>
@@ -275,16 +307,16 @@ export default function FinancePage() {
               {filtered.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(t => {
                 const info = getCategoryInfo(t.category, t.type);
                 return (
-                  <div key={t.id} className="transaction-item">
+                  <div key={t.id} className="transaction-item" onClick={() => editTransaction(t)} style={{ cursor: 'pointer', transition: 'background 0.2s', ':hover': { background: 'var(--bg-glass)' } }}>
                     <div className="transaction-icon" style={{ background: `${info.color}22` }}>{info.emoji}</div>
-                    <div className="transaction-info">
+                    <div className="transaction-info" style={{ flex: 1 }}>
                       <h4>{t.description}</h4>
                       <p>{info.label} • {formatDate(t.date)}</p>
                     </div>
                     <span className={`transaction-amount ${t.type}`}>
                       {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                     </span>
-                    <button className="btn btn-danger btn-icon sm" onClick={() => deleteTransaction(t.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
+                    <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteTransaction(t.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '12px' }}><Trash2 size={16} /></button>
                   </div>
                 );
               })}
@@ -308,7 +340,7 @@ export default function FinancePage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{t('finance.add_transaction')}</h2>
+              <h2>{editingId ? t('finance.edit_transaction', 'Edit Transaksi') : t('finance.add_transaction')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>

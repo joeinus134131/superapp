@@ -11,9 +11,15 @@ export default function LevelUpModal({ level, onClose }) {
   return (
     <>
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
-      <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
-        <div className="levelup-modal" onClick={e => e.stopPropagation()}>
-          <div className="levelup-glow" style={{ '--glow-color': level.color }} />
+      <div 
+        className="modal-overlay" 
+        onMouseDown={e => {
+          if (e.target === e.currentTarget) onClose();
+        }} 
+        style={{ zIndex: 10001 }}
+      >
+        <div className="levelup-modal">
+          <div className="levelup-glow" style={{ '--glow-color': level.color, pointerEvents: 'none' }} />
           <div className="levelup-icon">⬆️</div>
           <h2 className="levelup-title">LEVEL UP!</h2>
           <div className="levelup-level" style={{ color: level.color }}>

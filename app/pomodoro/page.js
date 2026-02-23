@@ -15,7 +15,7 @@ export default function PomodoroPage() {
   const {
     mode, isRunning, timeLeft, sessions, todaySessions, totalFocusMin,
     notification, levelUpData, showConfetti, xpToast, wakeLockActive,
-    toggleTimer, resetTimer, switchMode,
+    autoStart, toggleTimer, resetTimer, switchMode, toggleAutoStart,
     dismissNotification, setLevelUpData, setShowConfetti,
   } = usePomodoro();
 
@@ -161,6 +161,18 @@ export default function PomodoroPage() {
               {isRunning ? <><Pause size={18} /> {t('pomodoro.pause')}</> : <><Play size={18} /> {t('pomodoro.start')}</>}
             </button>
             <button className="btn btn-lg btn-secondary" onClick={resetTimer} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCw size={18} /> {t('pomodoro.reset')}</button>
+          </div>
+
+          <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <input 
+                type="checkbox" 
+                checked={autoStart} 
+                onChange={toggleAutoStart}
+                style={{ width: '16px', height: '16px', accentColor: 'var(--accent-purple)', cursor: 'pointer' }}
+              />
+              {t('pomodoro.auto_start', 'Auto-start Next Session')}
+            </label>
           </div>
 
           <div className="text-sm text-muted mt-2">

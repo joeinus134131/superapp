@@ -93,7 +93,7 @@ SuperApp is Progressive Web App (PWA) ready, meaning you can install it directly
 We are constantly improving SuperApp to better suit your productivity needs! 
 
 If you encounter a bug, have a feature request, or just want to share your thoughts, you can submit your feedback directly by contacting us or filing an issue down below:
-- **GitHub Issues**: [Report a Bug or Request a Feature](https://github.com/yourusername/superapp/issues)
+- **GitHub Issues**: [Report a Bug or Request a Feature](https://github.com/joeinus134131/superapp/issues)
 - **Direct Feedback**: You can also use the integrated feedback form (if configured) within the app settings.
 
 Your input directly shapes the future updates of this platform!
