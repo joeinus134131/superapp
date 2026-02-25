@@ -15,6 +15,7 @@ import {
   Target, BookOpen, NotebookPen, Dumbbell, Rocket
 } from 'lucide-react';
 import Link from 'next/link';
+import ProInsights from '@/components/ProInsights';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -165,6 +166,9 @@ export default function Dashboard() {
         <p className="quote-text">{quote.text}</p>
         <p className="quote-author">— {quote.author}</p>
       </div>
+
+      {/* AI Smart Insights (Pro Feature) */}
+      <ProInsights stats={stats} />
 
       {/* Main Stats */}
       <div className="stats-grid">

@@ -8,6 +8,7 @@ import {
   PieChart as PieChartIcon, List, History, Trash2, X
 } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
+import { usePremium } from '@/lib/premium';
 
 // ─── Export helpers ────────────────────────────────────────────────────────────
 
@@ -82,13 +83,23 @@ export default function FinancePage() {
   const ITEMS_PER_PAGE = 10;
   const [form, setForm] = useState({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
   const [editingId, setEditingId] = useState(null);
+  
+  // Custom categories state
+  const { isPremium } = usePremium();
+  const [customCategories, setCustomCategories] = useState({ expense: [], income: [] });
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCat, setNewCat] = useState({ type: 'expense', label: '', emoji: '🍟', color: '#8b5cf6' });
 
   useEffect(() => {
     const saved = getData(STORAGE_KEYS.TRANSACTIONS);
     if (saved) setTransactions(saved);
+
+    const savedCats = getData('superapp_custom_categories');
+    if (savedCats) setCustomCategories(savedCats);
   }, []);
 
   const save = (t) => { setTransactions(t); setData(STORAGE_KEYS.TRANSACTIONS, t); };
+  const saveCats = (c) => { setCustomCategories(c); setData('superapp_custom_categories', c); };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -140,6 +151,9 @@ export default function FinancePage() {
   const filtered = activeTab === 'all' ? transactions :
     transactions.filter(t => t.type === activeTab);
 
+  const allExpenseCategories = [...EXPENSE_CATEGORIES, ...customCategories.expense];
+  const allIncomeCategories = [...INCOME_CATEGORIES, ...customCategories.income];
+
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const balance = totalIncome - totalExpense;
@@ -151,8 +165,28 @@ export default function FinancePage() {
   });
 
   const getCategoryInfo = (catId, type) => {
-    const list = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+    const list = type === 'expense' ? allExpenseCategories : allIncomeCategories;
     return list.find(c => c.id === catId) || { emoji: '📦', label: catId, color: '#6b7280' };
+  };
+
+  const handleAddCategory = (e) => {
+    e.preventDefault();
+    if (!newCat.label.trim()) return;
+    const cat = { id: `custom_${generateId()}`, ...newCat };
+    const updated = {
+      ...customCategories,
+      [newCat.type]: [...customCategories[newCat.type], cat]
+    };
+    saveCats(updated);
+    setNewCat({ type: newCat.type, label: '', emoji: '🍟', color: '#8b5cf6' });
+  };
+
+  const deleteCategory = (type, id) => {
+    const updated = {
+      ...customCategories,
+      [type]: customCategories[type].filter(c => c.id !== id)
+    };
+    saveCats(updated);
   };
 
   // Available months for export picker
@@ -231,7 +265,10 @@ export default function FinancePage() {
             <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={32} color="var(--accent-green)" /> {t('finance.title')}</h1>
             <p>{t('finance.desc')}</p>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary" onClick={() => setShowCategoryModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <List size={16} /> Kategori 👑
+            </button>
             <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Download size={16} /> {t('finance.export')}</button>
             <button className="btn btn-primary" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('finance.add_transaction')}</button>
           </div>
@@ -269,8 +306,9 @@ export default function FinancePage() {
         </div>
         <div className="card card-padding">
           <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><List size={20} /> {t('finance.budget_overview')}</div>
-          {EXPENSE_CATEGORIES.map(cat => {
+          {allExpenseCategories.map(cat => {
             const spent = categoryTotals[cat.id] || 0;
+            if (spent === 0 && cat.id.startsWith('custom_')) return null; // Hide unused custom completely empty
             const pct = totalExpense > 0 ? (spent / totalExpense) * 100 : 0;
             return (
               <div key={cat.id} style={{ marginBottom: '12px' }}>
@@ -372,7 +410,7 @@ export default function FinancePage() {
                   <div className="form-group">
                     <label className="form-label">{t('finance.category')}</label>
                     <select className="form-select" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-                      {(form.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(c => (
+                      {(form.type === 'expense' ? allExpenseCategories : allIncomeCategories).map(c => (
                         <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
                       ))}
                     </select>
@@ -484,6 +522,108 @@ export default function FinancePage() {
                 >
                   <Download size={16} /> {t('finance.download_csv')}
                 </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal (Pro Feature) */}
+      {showCategoryModal && (
+        <div className="modal-overlay" onClick={() => setShowCategoryModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <List size={20} color="var(--accent-purple)" /> Kustom Kategori
+                {!isPremium && <span className="badge badge-yellow">PRO</span>}
+              </h2>
+              <button className="btn btn-icon btn-secondary" onClick={() => setShowCategoryModal(false)}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              {!isPremium ? (
+                <div className="empty-state text-center" style={{ padding: '40px 20px' }}>
+                  <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                    <span style={{ fontSize: '48px' }}>👑</span>
+                  </div>
+                  <h3>Fitur Premium</h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                    Upgrade ke Pro untuk membuat kategori pemasukan dan pengeluaran Anda sendiri tanpa batas.
+                  </p>
+                  <button className="btn btn-primary btn-lg" onClick={() => { setShowCategoryModal(false); /* Should open upgrade modal usually */ }}>
+                    Upgrade ke Pro
+                  </button>
+                </div>
+              ) : (
+                <div className="grid-2">
+                  <div className="card card-padding" style={{ background: 'var(--bg-glass)' }}>
+                    <form onSubmit={handleAddCategory}>
+                      <h4 className="mb-3">Tambah Kategori Baru</h4>
+                      
+                      <div className="tabs mb-3" style={{ width: '100%', display: 'flex' }}>
+                        <button type="button" className={`tab ${newCat.type === 'expense' ? 'active' : ''}`} style={{flex:1}} onClick={() => setNewCat({...newCat, type: 'expense'})}>Pengeluaran</button>
+                        <button type="button" className={`tab ${newCat.type === 'income' ? 'active' : ''}`} style={{flex:1}} onClick={() => setNewCat({...newCat, type: 'income'})}>Pemasukan</button>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Nama Kategori</label>
+                        <input className="form-input" value={newCat.label} onChange={e => setNewCat({...newCat, label: e.target.value})} placeholder="Cth: Kopi, Bonus" required />
+                      </div>
+                      
+                      <div className="flex gap-2 form-group">
+                        <div style={{ flex: 1 }}>
+                          <label className="form-label">Emoji</label>
+                          <input className="form-input" value={newCat.emoji} onChange={e => setNewCat({...newCat, emoji: e.target.value})} placeholder="🍟" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label className="form-label">Warna</label>
+                          <input type="color" className="form-input" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} style={{ padding: '4px', height: '42px', cursor: 'pointer' }} />
+                        </div>
+                      </div>
+
+                      <button type="submit" className="btn btn-primary w-full mt-2">Tambah Kategori</button>
+                    </form>
+                  </div>
+
+                  <div className="card card-padding" style={{ background: 'var(--bg-glass)', maxHeight: '350px', overflowY: 'auto' }}>
+                    <h4 className="mb-3">Kategori Kustom Anda</h4>
+                    
+                    {customCategories.expense.length === 0 && customCategories.income.length === 0 ? (
+                      <p className="text-muted text-sm text-center mt-4">Belum ada kategori kustom.</p>
+                    ) : (
+                      <>
+                        {customCategories.expense.length > 0 && (
+                          <div className="mb-3">
+                            <strong className="text-sm text-secondary mb-2 block">Pengeluaran</strong>
+                            {customCategories.expense.map(c => (
+                              <div key={c.id} className="flex justify-between items-center mb-2 p-2 rounded" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                                <div className="flex items-center gap-2">
+                                  <span style={{ fontSize: '18px' }}>{c.emoji}</span>
+                                  <span className="text-sm" style={{ color: c.color }}>{c.label}</span>
+                                </div>
+                                <button className="btn btn-icon btn-danger sm" onClick={() => deleteCategory('expense', c.id)}><Trash2 size={12} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {customCategories.income.length > 0 && (
+                          <div className="mb-3">
+                            <strong className="text-sm text-secondary mb-2 block">Pemasukan</strong>
+                            {customCategories.income.map(c => (
+                              <div key={c.id} className="flex justify-between items-center mb-2 p-2 rounded" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                                <div className="flex items-center gap-2">
+                                  <span style={{ fontSize: '18px' }}>{c.emoji}</span>
+                                  <span className="text-sm" style={{ color: c.color }}>{c.label}</span>
+                                </div>
+                                <button className="btn btn-icon btn-danger sm" onClick={() => deleteCategory('income', c.id)}><Trash2 size={12} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

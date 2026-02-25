@@ -9,6 +9,7 @@ import {
   Timer, Target, Clock, BarChart2, Flame, Coffee,
   TreePalm, Play, Pause, RefreshCw, Lightbulb, Zap, X
 } from 'lucide-react';
+import PomodoroSoundscapes from '@/components/PomodoroSoundscapes';
 
 export default function PomodoroPage() {
   const { t } = useLanguage();
@@ -174,6 +175,9 @@ export default function PomodoroPage() {
               {t('pomodoro.auto_start', 'Auto-start Next Session')}
             </label>
           </div>
+
+          {/* Premium Soundscapes */}
+          <PomodoroSoundscapes isTimerRunning={isRunning} />
 
           <div className="text-sm text-muted mt-2">
             {t('pomodoro.session_prefix')}{todaySessions + 1} • {todaySessions % 4 === 3 && mode === 'focus' ? t('pomodoro.long_break_after') : `${4 - (todaySessions % 4)} ${t('pomodoro.sessions_until_long')}`}
