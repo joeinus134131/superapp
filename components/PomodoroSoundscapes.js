@@ -10,12 +10,12 @@ import { Lock, Volume2, VolumeX } from 'lucide-react';
 // ─── Ambient Sound Generator (Web Audio API, no external files) ────────────
 
 const SOUNDSCAPES = [
-  { id: 'rain', name: 'Hujan', emoji: '🌧️', color: '#3b82f6', desc: 'Suara hujan menenangkan' },
-  { id: 'cafe', name: 'Café', emoji: '☕', color: '#f59e0b', desc: 'Suasana kafe yang sibuk' },
-  { id: 'lofi', name: 'Lo-Fi', emoji: '🎵', color: '#8b5cf6', desc: 'Lo-fi beats santai' },
-  { id: 'nature', name: 'Alam', emoji: '🌿', color: '#10b981', desc: 'Suara alam & burung' },
-  { id: 'white', name: 'White Noise', emoji: '📻', color: '#6b7280', desc: 'White noise fokus' },
-  { id: 'ocean', name: 'Laut', emoji: '🌊', color: '#06b6d4', desc: 'Ombak pantai' },
+  { id: 'rain', name: 'Hujan', emoji: '🌧️', color: '#3b82f6', desc: 'Suara hujan yang menenangkan', icon: '🌧️' },
+  { id: 'cafe', name: 'Kafe', emoji: '☕', color: '#f59e0b', desc: 'Ambiens kafe yang nyaman', icon: '☕' },
+  { id: 'lofi', name: 'Lo-Fi', emoji: '🎵', color: '#8b5cf6', desc: 'Beat lo-fi yang santai', icon: '🎵' },
+  { id: 'forest', name: 'Hutan', emoji: '�', color: '#10b981', desc: 'Suara alam & burung', icon: '🌲' },
+  { id: 'focus', name: 'Focus', emoji: '🎯', color: '#ef4444', desc: 'Pink noise untuk fokus', icon: '🎯' },
+  { id: 'ocean', name: 'Laut', emoji: '🌊', color: '#06b6d4', desc: 'Ombak pantai yang tenang', icon: '🌊' },
 ];
 
 function createNoiseBuffer(ctx, duration = 2) {
@@ -29,26 +29,46 @@ function createNoiseBuffer(ctx, duration = 2) {
 }
 
 function startRainSound(ctx, dest) {
-  // Brown noise + gentle filter for rain
-  const noiseBuffer = createNoiseBuffer(ctx, 4);
+  // Improved rain with multiple noise layers and frequency sweeps
+  const duration = 4;
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  // Generate smoother brownian noise
+  let lastValue = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    lastValue = (lastValue + white * 0.1) * 0.95;
+    data[i] = lastValue * 0.5;
+  }
+
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer;
+  source.buffer = buffer;
   source.loop = true;
 
-  const lowpass = ctx.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  lowpass.frequency.value = 800;
+  // Multi-filter for realistic rain
+  const lowpass1 = ctx.createBiquadFilter();
+  lowpass1.type = 'lowpass';
+  lowpass1.frequency.value = 1200;
+  lowpass1.Q.value = 0.5;
+
+  const lowpass2 = ctx.createBiquadFilter();
+  lowpass2.type = 'lowpass';
+  lowpass2.frequency.value = 800;
+  lowpass2.Q.value = 0.3;
 
   const highpass = ctx.createBiquadFilter();
   highpass.type = 'highpass';
-  highpass.frequency.value = 200;
+  highpass.frequency.value = 150;
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.15;
+  gain.gain.value = 0.18;
 
-  source.connect(lowpass);
-  lowpass.connect(highpass);
-  highpass.connect(gain);
+  source.connect(highpass);
+  highpass.connect(lowpass1);
+  lowpass1.connect(lowpass2);
+  lowpass2.connect(gain);
   gain.connect(dest);
   source.start();
 
@@ -56,22 +76,40 @@ function startRainSound(ctx, dest) {
 }
 
 function startCafeSound(ctx, dest) {
-  // Broadband noise with midrange emphasis
-  const noiseBuffer = createNoiseBuffer(ctx, 3);
+  // Improved cafe ambience with voice-like components
+  const duration = 3;
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  let lastValue = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    lastValue = (lastValue + white * 0.15) * 0.92;
+    data[i] = lastValue;
+  }
+
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer;
+  source.buffer = buffer;
   source.loop = true;
 
   const bandpass = ctx.createBiquadFilter();
   bandpass.type = 'bandpass';
-  bandpass.frequency.value = 1200;
-  bandpass.Q.value = 0.5;
+  bandpass.frequency.value = 1500;
+  bandpass.Q.value = 0.8;
+
+  const midrange = ctx.createBiquadFilter();
+  midrange.type = 'peaking';
+  midrange.frequency.value = 2000;
+  midrange.gain.value = 3;
+  midrange.Q.value = 0.6;
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.08;
+  gain.gain.value = 0.1;
 
   source.connect(bandpass);
-  bandpass.connect(gain);
+  bandpass.connect(midrange);
+  midrange.connect(gain);
   gain.connect(dest);
   source.start();
 
@@ -79,87 +117,128 @@ function startCafeSound(ctx, dest) {
 }
 
 function startLofiSound(ctx, dest) {
-  // Soft oscillator cycle mimicking lo-fi chords
+  // Improved lo-fi with jazz-like chords
   const osc1 = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
+  const osc3 = ctx.createOscillator();
+  
   osc1.type = 'sine';
-  osc2.type = 'triangle';
-  osc1.frequency.value = 220;
-  osc2.frequency.value = 330;
+  osc2.type = 'sine';
+  osc3.type = 'triangle';
+  
+  osc1.frequency.value = 110;
+  osc2.frequency.value = 165;
+  osc3.frequency.value = 220;
 
+  // Smooth LFO for modulation
   const lfo = ctx.createOscillator();
   lfo.type = 'sine';
-  lfo.frequency.value = 0.3;
+  lfo.frequency.value = 0.4;
   const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 5;
+  lfoGain.gain.value = 8;
   lfo.connect(lfoGain);
   lfoGain.connect(osc1.frequency);
 
   const lowpass = ctx.createBiquadFilter();
   lowpass.type = 'lowpass';
-  lowpass.frequency.value = 600;
+  lowpass.frequency.value = 800;
+  lowpass.Q.value = 1;
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.06;
+  gain.gain.value = 0.05;
 
   osc1.connect(lowpass);
   osc2.connect(lowpass);
+  osc3.connect(lowpass);
   lowpass.connect(gain);
   gain.connect(dest);
 
   osc1.start();
   osc2.start();
+  osc3.start();
   lfo.start();
 
-  return { sources: [osc1, osc2, lfo], gain };
+  return { sources: [osc1, osc2, osc3, lfo], gain };
 }
 
 function startNatureSound(ctx, dest) {
-  // High-pass filtered noise for bird-like chirps + gentle wind
-  const noiseBuffer = createNoiseBuffer(ctx, 5);
+  // Improved forest sounds with wind and subtle bird-like elements
+  const duration = 5;
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  let lastValue = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    lastValue = (lastValue + white * 0.08) * 0.94;
+    data[i] = lastValue * 0.6;
+  }
+
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer;
+  source.buffer = buffer;
   source.loop = true;
 
-  const highpass = ctx.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = 3000;
+  // Wind layer
+  const windHighpass = ctx.createBiquadFilter();
+  windHighpass.type = 'highpass';
+  windHighpass.frequency.value = 800;
 
-  const lowpass = ctx.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  lowpass.frequency.value = 600;
-
-  const gain1 = ctx.createGain();
-  gain1.gain.value = 0.03;
-
-  const windSource = ctx.createBufferSource();
-  windSource.buffer = noiseBuffer;
-  windSource.loop = true;
   const windGain = ctx.createGain();
-  windGain.gain.value = 0.06;
+  windGain.gain.value = 0.05;
 
-  source.connect(highpass);
-  highpass.connect(gain1);
-  gain1.connect(dest);
-
-  windSource.connect(lowpass);
-  lowpass.connect(windGain);
+  source.connect(windHighpass);
+  windHighpass.connect(windGain);
   windGain.connect(dest);
 
-  source.start();
-  windSource.start();
+  // Bird-like chirps with high-pass noise
+  const chirpBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const chirpData = chirpBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    chirpData[i] = Math.random() * 2 - 1;
+  }
 
-  return { sources: [source, windSource], gain: gain1 };
+  const chirpSource = ctx.createBufferSource();
+  chirpSource.buffer = chirpBuffer;
+  chirpSource.loop = true;
+
+  const chirpHighpass = ctx.createBiquadFilter();
+  chirpHighpass.type = 'highpass';
+  chirpHighpass.frequency.value = 3500;
+
+  const chirpGain = ctx.createGain();
+  chirpGain.gain.value = 0.02;
+
+  chirpSource.connect(chirpHighpass);
+  chirpHighpass.connect(chirpGain);
+  chirpGain.connect(dest);
+
+  source.start();
+  chirpSource.start();
+
+  return { sources: [source, chirpSource], gain: windGain };
 }
 
 function startWhiteNoise(ctx, dest) {
-  const noiseBuffer = createNoiseBuffer(ctx, 4);
+  // Pink noise (1/f noise) - better for focus than white noise
+  const duration = 4;
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  let lastValue = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    lastValue = (lastValue + white * 0.05) * 0.98;
+    data[i] = lastValue;
+  }
+
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer;
+  source.buffer = buffer;
   source.loop = true;
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.08;
+  gain.gain.value = 0.1;
 
   source.connect(gain);
   gain.connect(dest);
@@ -169,26 +248,39 @@ function startWhiteNoise(ctx, dest) {
 }
 
 function startOceanSound(ctx, dest) {
-  // Low rumble + wave-like LFO
-  const noiseBuffer = createNoiseBuffer(ctx, 6);
+  // Improved ocean waves with realistic frequency sweep
+  const duration = 6;
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  let lastValue = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    lastValue = (lastValue + white * 0.12) * 0.93;
+    data[i] = lastValue;
+  }
+
   const source = ctx.createBufferSource();
-  source.buffer = noiseBuffer;
+  source.buffer = buffer;
   source.loop = true;
 
   const lowpass = ctx.createBiquadFilter();
   lowpass.type = 'lowpass';
-  lowpass.frequency.value = 400;
+  lowpass.frequency.value = 500;
+  lowpass.Q.value = 0.8;
 
+  // Wave-like LFO modulation
   const lfo = ctx.createOscillator();
   lfo.type = 'sine';
-  lfo.frequency.value = 0.15;
+  lfo.frequency.value = 0.1;
   const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 200;
+  lfoGain.gain.value = 250;
   lfo.connect(lfoGain);
   lfoGain.connect(lowpass.frequency);
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.12;
+  gain.gain.value = 0.14;
 
   source.connect(lowpass);
   lowpass.connect(gain);
@@ -203,8 +295,8 @@ const soundStarters = {
   rain: startRainSound,
   cafe: startCafeSound,
   lofi: startLofiSound,
-  nature: startNatureSound,
-  white: startWhiteNoise,
+  forest: startNatureSound,
+  focus: startWhiteNoise,
   ocean: startOceanSound,
 };
 
@@ -321,12 +413,13 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
 
   return (
     <div className="card card-padding mt-3" style={{
-      background: 'linear-gradient(135deg, rgba(139,92,246,0.04), rgba(6,182,212,0.04))',
-      border: '1px solid rgba(139,92,246,0.1)',
+      background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.06))',
+      border: '1px solid rgba(139,92,246,0.15)',
     }}>
-      <div className="flex justify-between items-center mb-2">
-        <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-          <Volume2 size={18} color="#8b5cf6" /> Ambient Soundscapes 👑
+      <div className="flex justify-between items-center mb-3">
+        <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+          <span style={{ fontSize: '20px' }}>🎵</span>
+          <span>Ambient Soundscapes</span>
         </div>
         {activeSound && (
           <button className="btn btn-sm btn-secondary" onClick={() => { stopSound(); setActiveSound(null); }} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
@@ -335,39 +428,63 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px', marginBottom: '14px' }}>
         {SOUNDSCAPES.map(s => (
           <button
             key={s.id}
             onClick={() => playSound(s.id)}
             className="btn"
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-              padding: '12px 8px', borderRadius: '12px', fontSize: '12px',
-              background: activeSound === s.id ? `${s.color}22` : 'var(--bg-glass)',
-              border: activeSound === s.id ? `2px solid ${s.color}` : '1px solid var(--border-color)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+              padding: '14px 10px', borderRadius: '14px', fontSize: '13px',
+              background: activeSound === s.id ? `${s.color}20` : 'rgba(255,255,255,0.03)',
+              border: activeSound === s.id ? `2px solid ${s.color}` : '1px solid rgba(255,255,255,0.08)',
               color: activeSound === s.id ? s.color : 'var(--text-primary)',
-              transition: 'all 0.2s',
+              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
               cursor: 'pointer',
+              fontWeight: activeSound === s.id ? 600 : 500,
+              transform: activeSound === s.id ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: activeSound === s.id ? `0 0 16px ${s.color}40` : 'none',
             }}
           >
-            <span style={{ fontSize: '24px' }}>{s.emoji}</span>
-            <span style={{ fontWeight: 600 }}>{s.name}</span>
+            <span style={{ fontSize: '28px', lineHeight: '1' }}>{s.emoji}</span>
+            <span>{s.name}</span>
+            <span className="text-xs" style={{ opacity: 0.7, marginTop: '2px' }}>{s.desc}</span>
           </button>
         ))}
       </div>
 
       {activeSound && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <VolumeX size={14} color="var(--text-muted)" />
+        <div style={{ 
+          padding: '12px 14px', 
+          background: 'rgba(139,92,246,0.08)',
+          border: '1px solid rgba(139,92,246,0.15)',
+          borderRadius: '10px',
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px' 
+        }}>
+          <VolumeX size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
           <input
-            type="range" min="0" max="1" step="0.05"
+            type="range" min="0" max="1" step="0.01"
             value={volume}
             onChange={e => setVolume(Number(e.target.value))}
-            style={{ flex: 1, accentColor: '#8b5cf6' }}
+            style={{ 
+              flex: 1, 
+              accentColor: '#8b5cf6',
+              height: '4px',
+              borderRadius: '2px',
+            }}
           />
-          <Volume2 size={14} color="var(--text-muted)" />
-          <span className="text-xs text-muted" style={{ minWidth: '30px' }}>{Math.round(volume * 100)}%</span>
+          <Volume2 size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+          <span className="text-xs" style={{ 
+            minWidth: '35px', 
+            textAlign: 'right',
+            fontWeight: 600,
+            color: '#8b5cf6'
+          }}>
+            {Math.round(volume * 100)}%
+          </span>
         </div>
       )}
     </div>

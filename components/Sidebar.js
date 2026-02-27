@@ -162,7 +162,21 @@ export default function Sidebar() {
       <div className={`sidebar-overlay ${open ? 'show' : ''}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">{user?.appIcon || '⚡'}</div>
+          <div className="sidebar-brand-icon" style={{
+            fontSize: '32px',
+            lineHeight: '1',
+            width: '48px',
+            height: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+            flexShrink: 0
+          }}>
+            {user?.appIcon || '⚡'}
+          </div>
           <div>
             <h1>{user?.appName || 'SuperApp'}</h1>
             <p>{user?.appTagline || 'Personal Management'}</p>

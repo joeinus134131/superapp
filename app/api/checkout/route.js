@@ -4,9 +4,10 @@ import { NextResponse } from 'next/server';
 import { TOKEN_PACKAGES } from '@/lib/tokenSystem';
 
 // Initialize Snap client
-// Use Sandbox mode for development
+// Use environment variable to determine production/sandbox mode
+const isProduction = process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION === 'true';
 const snap = new midtransClient.Snap({
-    isProduction: false,
+    isProduction: isProduction,
     serverKey: process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-YOUR_SERVER_KEY',
     clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'SB-Mid-client-YOUR_CLIENT_KEY',
 });
@@ -69,7 +70,8 @@ export async function POST(request) {
 
         return NextResponse.json({
             token: transaction.token,
-            redirect_url: transaction.redirect_url
+            redirect_url: transaction.redirect_url,
+            mode: isProduction ? 'production' : 'sandbox'
         });
 
     } catch (error) {

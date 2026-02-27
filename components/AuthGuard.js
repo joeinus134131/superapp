@@ -101,8 +101,7 @@ export default function AuthGuard({ children }) {
 
       <div className="login-container">
         {/* Hero */}
-        <div className="login-hero">
-          <div className="login-brand-icon">⚡</div>
+        <div className="login-hero" style={{ textAlign: 'center' }}>
           <h1 className="login-title">{t('login.title')}</h1>
           <p className="login-subtitle">{t('login.subtitle')}</p>
         </div>

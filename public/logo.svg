@@ -1,0 +1,37 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="95" fill="url(#logoGradient)" opacity="0.1"/>
+  
+  <!-- Main Shape - Stylized S for Super with productivity elements -->
+  <g filter="url(#glow)">
+    <!-- Left curve - representing organization -->
+    <path d="M 60 50 Q 60 70 80 80 Q 70 85 60 90" fill="none" stroke="url(#logoGradient)" stroke-width="8" stroke-linecap="round"/>
+    
+    <!-- Center element - representing growth/progress -->
+    <circle cx="100" cy="100" r="35" fill="none" stroke="url(#logoGradient)" stroke-width="8" opacity="0.7"/>
+    <path d="M 75 125 L 100 100 L 125 75" fill="none" stroke="url(#logoGradient)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Right curve - representing achievement -->
+    <path d="M 140 50 Q 140 70 120 80 Q 130 85 140 90" fill="none" stroke="url(#logoGradient)" stroke-width="8" stroke-linecap="round"/>
+    
+    <!-- Bottom accent - representing momentum -->
+    <path d="M 85 145 L 100 160 L 115 145" fill="url(#logoGradient)" opacity="0.9"/>
+  </g>
+  
+  <!-- Subtle animation indicator dots -->
+  <circle cx="100" cy="100" r="50" fill="none" stroke="url(#logoGradient)" stroke-width="2" opacity="0.3" stroke-dasharray="5,5"/>
+</svg>
