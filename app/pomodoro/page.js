@@ -30,21 +30,39 @@ export default function PomodoroPage() {
   const circumference = 2 * Math.PI * 120;
   const strokeDashoffset = circumference * (1 - progress);
 
-  // Weekly stats
-  const getWeekStats = () => {
+  // Streak journey stats (21 days)
+  const getStreakStats = () => {
     const stats = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 20; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       const count = sessions.filter(s => s.date === dateStr).length;
-      stats.push({ date: dateStr, count, day: d.toLocaleDateString('id-ID', { weekday: 'short' }) });
+      stats.push({
+        date: dateStr,
+        count,
+        day: d.toLocaleDateString('id-ID', { weekday: 'short' }),
+        dayNum: d.getDate(),
+        month: d.toLocaleDateString('id-ID', { month: 'short' }),
+        isToday: dateStr === getToday(),
+      });
     }
     return stats;
   };
 
-  const weekStats = getWeekStats();
-  const maxSessions = Math.max(...weekStats.map(s => s.count), 1);
+  const streakStats = getStreakStats();
+  const maxSessions = Math.max(...streakStats.map(s => s.count), 1);
+  
+  // Calculate current streak
+  const getCurrentStreak = () => {
+    let streak = 0;
+    for (let i = streakStats.length - 1; i >= 0; i--) {
+      if (streakStats[i].count > 0) streak++;
+      else break;
+    }
+    return streak;
+  };
+  const currentStreak = getCurrentStreak();
 
   return (
     <div>
@@ -184,22 +202,83 @@ export default function PomodoroPage() {
           </div>
         </div>
 
-        {/* Weekly Chart */}
+        {/* Streak Journey */}
         <div className="card card-padding">
-          <div className="card-title mb-3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={20} /> {t('pomodoro.weekly_stats')}</div>
-          <div className="flex items-end gap-2 justify-between" style={{ height: '200px', padding: '0 8px' }}>
-            {weekStats.map((s, i) => (
-              <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                <span className="text-xs font-semibold">{s.count}</span>
-                <div style={{
-                  width: '100%', maxWidth: '40px',
-                  height: `${Math.max((s.count / maxSessions) * 160, 4)}px`,
-                  background: s.date === getToday() ? 'var(--gradient-primary)' : 'rgba(139, 92, 246, 0.3)',
-                  borderRadius: 'var(--radius-sm)', transition: 'height 0.3s ease',
-                }} />
-                <span className="text-xs text-muted">{s.day}</span>
+          <div className="flex justify-between items-center mb-3">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={20} /> {t('pomodoro.weekly_stats')}</div>
+            {currentStreak > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '20px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '12px', fontWeight: 700, color: 'var(--accent-yellow)' }}>
+                <Flame size={14} /> {currentStreak} Day Streak
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Scrollable Streak Journey */}
+          <div style={{
+            overflowX: 'auto',
+            scrollSnapType: 'x mandatory',
+            WebkitOverflowScrolling: 'touch',
+            padding: '8px 0 12px',
+            margin: '0 -4px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(139,92,246,0.3) transparent',
+          }}>
+            <div style={{ display: 'flex', gap: '8px', minWidth: 'max-content', padding: '0 4px' }}>
+              {streakStats.map((s, i) => (
+                <div key={i} style={{
+                  scrollSnapAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px',
+                  minWidth: '56px',
+                }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500 }}>{s.day}</span>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: s.count > 0 ? '16px' : '14px',
+                    fontWeight: 700,
+                    background: s.count > 0
+                      ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(6,182,212,0.3))'
+                      : 'rgba(255,255,255,0.03)',
+                    border: s.isToday
+                      ? '2px solid var(--accent-purple)'
+                      : s.count > 0
+                        ? '2px solid rgba(139,92,246,0.4)'
+                        : '2px solid rgba(255,255,255,0.06)',
+                    color: s.count > 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                    boxShadow: s.isToday
+                      ? '0 0 12px rgba(139,92,246,0.4), inset 0 0 8px rgba(139,92,246,0.1)'
+                      : s.count > 0
+                        ? '0 0 8px rgba(139,92,246,0.15)'
+                        : 'none',
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                  }}>
+                    {s.count > 0 ? (
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                        <span style={{ fontSize: '10px', lineHeight: 1 }}>🔥</span>
+                        <span style={{ fontSize: '13px', fontWeight: 800, marginTop: '1px' }}>{s.count}</span>
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '13px' }}>—</span>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: s.isToday ? 700 : 500,
+                    color: s.isToday ? 'var(--accent-purple)' : 'var(--text-muted)',
+                  }}>
+                    {s.isToday ? 'Hari ini' : s.dayNum}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="mt-3" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>

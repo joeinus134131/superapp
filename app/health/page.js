@@ -5,7 +5,7 @@ import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getToday, formatDate } from '@/lib/helpers';
 import {
   Dumbbell, Droplets, Activity, Scale, Droplet,
-  Plus, Trash2, HeartPulse, X, CalendarDays
+  Plus, Trash2, HeartPulse, X, CalendarDays, History
 } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
 
@@ -182,6 +182,75 @@ export default function HealthPage() {
             <div className="progress-fill" style={{ width: `${(todayWater / WATER_GOAL) * 100}%`, background: 'var(--accent-cyan)' }} />
           </div>
           <div className="text-sm text-muted mt-1">{todayWater}/{WATER_GOAL} {t('health.glasses')} ({Math.round((todayWater / WATER_GOAL) * 100)}%)</div>
+
+          {/* Water Journey History */}
+          <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+            <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+              <History size={16} /> Water Journey
+            </div>
+            <div style={{
+              overflowX: 'auto',
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
+              padding: '4px 0 8px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(6,182,212,0.3) transparent',
+            }}>
+              <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
+                {Array.from({ length: 14 }, (_, idx) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (13 - idx));
+                  const dateStr = d.toISOString().split('T')[0];
+                  const cups = health.waterLog?.[dateStr] || 0;
+                  const pct = cups / WATER_GOAL;
+                  const isToday = dateStr === today;
+                  const color = pct >= 1 ? 'var(--accent-green)' : pct > 0 ? 'var(--accent-yellow)' : 'rgba(255,255,255,0.06)';
+                  const bgColor = pct >= 1 ? 'rgba(16,185,129,0.2)' : pct > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)';
+                  return (
+                    <div key={dateStr} style={{
+                      scrollSnapAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '3px',
+                      minWidth: '48px',
+                    }}>
+                      <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        {d.toLocaleDateString('id-ID', { weekday: 'short' })}
+                      </span>
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: bgColor,
+                        border: isToday ? `2px solid var(--accent-cyan)` : `2px solid ${color}`,
+                        boxShadow: isToday ? '0 0 10px rgba(6,182,212,0.3)' : 'none',
+                        transition: 'all 0.3s ease',
+                      }}>
+                        {pct >= 1 ? (
+                          <span style={{ fontSize: '14px' }}>💧</span>
+                        ) : pct > 0 ? (
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-yellow)' }}>{cups}</span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: isToday ? 700 : 400,
+                        color: isToday ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                      }}>
+                        {isToday ? 'Hari ini' : d.getDate()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Weight Chart */}

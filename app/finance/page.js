@@ -5,7 +5,8 @@ import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday, formatRupiahInput, parseRupiahInput } from '@/lib/helpers';
 import {
   Wallet, Download, Plus, TrendingUp, TrendingDown,
-  PieChart as PieChartIcon, List, History, Trash2, X
+  PieChart as PieChartIcon, List, History, Trash2, X,
+  CalendarDays, BarChart2
 } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
 import { usePremium } from '@/lib/premium';
@@ -306,24 +307,105 @@ export default function FinancePage() {
         </div>
         <div className="card card-padding">
           <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><List size={20} /> {t('finance.budget_overview')}</div>
-          {allExpenseCategories.map(cat => {
-            const spent = categoryTotals[cat.id] || 0;
-            if (spent === 0 && cat.id.startsWith('custom_')) return null; // Hide unused custom completely empty
-            const pct = totalExpense > 0 ? (spent / totalExpense) * 100 : 0;
-            return (
-              <div key={cat.id} style={{ marginBottom: '12px' }}>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm">{cat.emoji} {cat.label}</span>
-                  <span className="text-sm font-semibold">{formatCurrency(spent)}</span>
+          <div style={{ maxHeight: '400px', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.3) transparent', paddingRight: '4px' }}>
+            {allExpenseCategories.map(cat => {
+              const spent = categoryTotals[cat.id] || 0;
+              if (spent === 0 && cat.id.startsWith('custom_')) return null;
+              const pct = totalExpense > 0 ? (spent / totalExpense) * 100 : 0;
+              return (
+                <div key={cat.id} style={{ marginBottom: '12px' }}>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm">{cat.emoji} {cat.label}</span>
+                    <span className="text-sm font-semibold">{formatCurrency(spent)}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${pct}%`, background: cat.color }} />
+                  </div>
                 </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${pct}%`, background: cat.color }} />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* Monthly Report Section */}
+      {transactions.length > 0 && (() => {
+        const monthMap = {};
+        transactions.forEach(tx => {
+          const mk = getMonthKey(tx.date);
+          if (!mk) return;
+          if (!monthMap[mk]) monthMap[mk] = { income: 0, expense: 0 };
+          if (tx.type === 'income') monthMap[mk].income += tx.amount;
+          else monthMap[mk].expense += tx.amount;
+        });
+        const monthKeys = Object.keys(monthMap).sort().reverse();
+        if (monthKeys.length === 0) return null;
+        const maxMonthExpense = Math.max(...monthKeys.map(k => monthMap[k].expense), 1);
+        
+        return (
+          <div className="card card-padding mb-3">
+            <div className="card-title mb-3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CalendarDays size={20} /> Laporan Bulanan
+            </div>
+            <div style={{ maxHeight: '400px', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'rgba(16,185,129,0.3) transparent' }}>
+              {monthKeys.map((mk, idx) => {
+                const data = monthMap[mk];
+                const balance = data.income - data.expense;
+                const prevMk = monthKeys[idx + 1];
+                const prevData = prevMk ? monthMap[prevMk] : null;
+                const expenseChange = prevData ? ((data.expense - prevData.expense) / (prevData.expense || 1)) * 100 : null;
+                const barWidth = (data.expense / maxMonthExpense) * 100;
+                
+                return (
+                  <div key={mk} style={{
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--bg-glass)',
+                    marginBottom: '10px',
+                    border: '1px solid var(--border-color)',
+                    transition: 'all 0.2s ease',
+                  }}>
+                    <div className="flex justify-between items-center mb-2">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '14px' }}>{getMonthLabel(mk)}</span>
+                        {expenseChange !== null && (
+                          <span style={{
+                            fontSize: '10px', fontWeight: 600,
+                            padding: '2px 8px', borderRadius: '12px',
+                            background: expenseChange > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                            color: expenseChange > 0 ? 'var(--accent-red)' : 'var(--accent-green)',
+                          }}>
+                            {expenseChange > 0 ? '▲' : '▼'} {Math.abs(expenseChange).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                      <span style={{
+                        fontWeight: 700, fontSize: '14px',
+                        color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                      }}>
+                        {balance >= 0 ? '+' : ''}{formatCurrency(balance)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>Pemasukan</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-green)' }}>{formatCurrency(data.income)}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>Pengeluaran</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-red)' }}>{formatCurrency(data.expense)}</div>
+                      </div>
+                    </div>
+                    <div className="progress-bar" style={{ height: '6px' }}>
+                      <div className="progress-fill" style={{ width: `${barWidth}%`, background: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', transition: 'width 0.5s ease' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="card card-padding">
         <div className="card-header">
