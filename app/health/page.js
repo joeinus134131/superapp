@@ -168,7 +168,7 @@ export default function HealthPage() {
 
       <div className="grid-2 mb-3">
         {/* Water Tracker */}
-        <div className="card card-padding">
+        <div className="card card-padding" style={{ overflow: 'hidden' }}>
           <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Droplets size={20} /> {t('health.water_intake')}</div>
           <p className="text-sm text-secondary mb-2">{t('health.target_glasses')} {WATER_GOAL} {t('health.glasses_per_day')}</p>
           <div className="water-cups mb-2">
@@ -193,6 +193,7 @@ export default function HealthPage() {
               scrollSnapType: 'x mandatory',
               WebkitOverflowScrolling: 'touch',
               padding: '4px 0 8px',
+              maxWidth: '100%',
               scrollbarWidth: 'thin',
               scrollbarColor: 'rgba(6,182,212,0.3) transparent',
             }}>
