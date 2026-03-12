@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { UserProvider } from '@/lib/auth';
+import { ThemeProvider } from '@/lib/themeContext';
 import AuthGuard from '@/components/AuthGuard';
 import Sidebar from '@/components/Sidebar';
 import { PomodoroProvider } from '@/lib/pomodoroContext';
@@ -32,22 +33,24 @@ export default function AppShell({ children }) {
   }
 
   return (
-    <LanguageProvider>
-      <UserProvider>
-        <PremiumProvider>
-          <PomodoroProvider>
-            <AuthGuard>
-              <div className="app-layout">
-                <Sidebar />
-                <main className="main-content">
-                  {children}
-                </main>
-                <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
-              </div>
-            </AuthGuard>
-          </PomodoroProvider>
-        </PremiumProvider>
-      </UserProvider>
-    </LanguageProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <UserProvider>
+          <PremiumProvider>
+            <PomodoroProvider>
+              <AuthGuard>
+                <div className="app-layout">
+                  <Sidebar />
+                  <main className="main-content">
+                    {children}
+                  </main>
+                  <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
+                </div>
+              </AuthGuard>
+            </PomodoroProvider>
+          </PremiumProvider>
+        </UserProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

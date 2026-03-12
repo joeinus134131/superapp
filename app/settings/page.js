@@ -7,6 +7,7 @@ import {
   Camera, Upload, Trash2, Smile, Save, Globe
 } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function SettingsPage() {
   const { user, updateProfile } = useUser();
@@ -114,6 +115,17 @@ export default function SettingsPage() {
               <option value="en">🇬🇧 English (EN)</option>
             </select>
           </div>
+        </div>
+
+        {/* Theme Preferences */}
+        <div className="card card-padding mb-2">
+          <div className="flex justify-between items-center mb-1">
+            <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>🎨 {t('settings.theme') || 'Theme'}</label>
+          </div>
+          <p className="text-sm text-secondary mb-3">
+            {t('settings.theme_desc') || 'Pilih tema gelap atau terang sesuai preferensi Anda'}
+          </p>
+          <ThemeToggle />
         </div>
 
         {/* Unique ID Card */}

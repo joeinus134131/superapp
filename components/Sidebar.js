@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@/lib/auth';
+import { useTheme } from '@/lib/themeContext';
 import XPBar from './XPBar';
 import { exportAllData, importData, getStorageSize } from '@/lib/backup';
 import { pushToCloud, pullFromCloud, getSyncId } from '@/lib/cloudSync';
@@ -46,6 +47,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { user, logout } = useUser();
+  const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const { isRunning, timeLeft, mode, toggleTimer } = usePomodoro();
   const [showUserMenu, setShowUserMenu] = useState(false);
