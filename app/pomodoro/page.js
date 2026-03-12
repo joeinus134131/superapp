@@ -203,7 +203,7 @@ export default function PomodoroPage() {
         </div>
 
         {/* Streak Journey */}
-        <div className="card card-padding">
+        <div className="card card-padding" style={{ overflow: 'hidden' }}>
           <div className="flex justify-between items-center mb-3">
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={20} /> {t('pomodoro.weekly_stats')}</div>
             {currentStreak > 0 && (
@@ -220,6 +220,7 @@ export default function PomodoroPage() {
             WebkitOverflowScrolling: 'touch',
             padding: '8px 0 12px',
             margin: '0 -4px',
+            maxWidth: '100%',
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(139,92,246,0.3) transparent',
           }}>
