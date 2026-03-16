@@ -155,7 +155,7 @@ function analyzeProductivity(stats) {
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 const insightStyles = {
-  success: { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.25)', color: '#10b981' },
+  success: { bg: 'rgba(5, 150, 105, 0.08)', border: 'rgba(5, 150, 105, 0.25)', color: '#059669' },
   warning: { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', color: '#f59e0b' },
   danger:  { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.25)', color: '#ef4444' },
   info:    { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.25)', color: '#8b5cf6' },

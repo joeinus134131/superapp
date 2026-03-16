@@ -9,6 +9,7 @@ import { getRoastMessage } from '@/lib/roast';
 import { playAchievement } from '@/lib/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
+import DailyPopup from '@/components/DailyPopup';
 import { useLanguage } from '@/lib/language';
 import {
   CheckSquare, Flame, Wallet, Timer, TrendingUp, Trophy,
@@ -136,10 +137,10 @@ export default function Dashboard() {
 
   const greetingTime = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return t('dashboard.morning');
-    if (hour < 17) return t('dashboard.afternoon');
-    if (hour < 20) return t('dashboard.evening');
-    return t('dashboard.night');
+    if (hour < 12) return 'Selamat Pagi';
+    if (hour < 17) return 'Selamat Siang';
+    if (hour < 20) return 'Selamat Sore';
+    return 'Selamat Malam';
   };
 
   const roastStyles = {
@@ -152,35 +153,22 @@ export default function Dashboard() {
     <div>
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
       {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
+      <DailyPopup quote={quote} roast={roast} />
 
-      <div className="page-header">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1>{greetingTime()}, {user?.name || 'User'} {user?.avatar || '👋'}</h1>
-            <p>{t('dashboard.summary')}</p>
-          </div>
-          <Link href="/achievements" className="dashboard-level-badge" style={{ borderColor: level.color, cursor: 'pointer', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ color: level.color, fontSize: '18px', fontWeight: 700 }}>Lv.{level.level}</span>
-            <span className="text-xs" style={{ color: level.color }}>{level.title}</span>
-          </Link>
+      <div className="page-header" style={{ marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', marginBottom: '4px' }}>{greetingTime()}, {user?.name || 'Pengguna'}</h1>
+          <p className="text-secondary" style={{ fontSize: '15px' }}>Berikut adalah ringkasan produktivitasmu hari ini.</p>
         </div>
       </div>
 
-      {/* AI Roast / Motivation */}
-      {roast && (
-        <div className="roast-card mb-3" style={{
-          background: roastStyles[roast.type]?.bg,
-          borderColor: roastStyles[roast.type]?.border,
-        }}>
-          <span className="roast-icon">{roastStyles[roast.type]?.icon}</span>
-          <p className="roast-text">{roast.text}</p>
-        </div>
-      )}
+      {/* AI Smart Insights (Pro Feature) - Top Hierarchy */}
+      <ProInsights stats={stats} />
 
       {/* New Achievements */}
       {newAchievements.length > 0 && (
         <div className="achievement-unlock-banner mb-3">
-          <h3>🏆 {t('dashboard.achievement_unlocked')}</h3>
+          <h3>🏆 Pencapaian Terbuka!</h3>
           <div className="flex gap-1 flex-wrap">
             {newAchievements.map(a => (
               <div key={a.id} className="achievement-unlock-item">
@@ -192,29 +180,26 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* XP Progress */}
-      <div className="card card-padding mb-3" style={{ background: 'var(--gradient-card)', borderColor: level.color + '33' }}>
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm font-semibold" style={{ color: level.color }}>{level.title}</span>
-          <span className="text-sm text-muted">{gamData.totalXP} XP</span>
+      {/* XP Progress - Integrated Champion Badge */}
+      <div className="card card-padding mb-4" style={{ background: 'var(--bg-glass)', border: '1px solid var(--border-color)', position: 'relative', overflow: 'hidden' }}>
+        <div className="flex justify-between items-center mb-3">
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+             <span style={{ fontSize: '24px' }}>🏆</span>
+             <span className="font-bold" style={{ color: 'var(--text-primary)', fontSize: '18px' }}>{level.title}</span>
+             <span style={{ background: level.color + '22', color: level.color, padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', marginLeft: '4px' }}>Lv. {level.level}</span>
+           </div>
+           <Link href="/achievements" style={{ fontSize: '12px', color: 'var(--accent-purple)', textDecoration: 'none', fontWeight: 600 }}>Lihat Detail</Link>
         </div>
-        <div className="xp-bar-track">
-          <div className="xp-bar-fill" style={{ width: `${progress.percent}%`, background: `linear-gradient(90deg, ${level.color}, ${level.color}88)` }} />
+        
+        <div className="xp-bar-track" style={{ background: 'rgba(0,0,0,0.1)', height: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+          <div className="xp-bar-fill" style={{ width: `${progress.percent}%`, background: `linear-gradient(90deg, ${level.color}, ${level.color}dd)`, height: '100%', borderRadius: '8px' }} />
         </div>
-        <div className="flex justify-between text-xs text-muted mt-1">
-          <span>{progress.percent}% {t('dashboard.to_next_level')}</span>
-          <span>{progress.current}/{progress.needed} XP</span>
+        
+        <div className="flex justify-between items-center" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <span style={{ fontWeight: 500 }}>{gamData.totalXP} XP <span style={{ opacity: 0.6, fontWeight: 'normal' }}>Total</span></span>
+          <span><span style={{ fontWeight: 600 }}>{progress.percent}%</span> menuju Lv. {level.level + 1} ({progress.current} / {progress.needed} XP)</span>
         </div>
       </div>
-
-      {/* Motivational Quote */}
-      <div className="quote-card mb-3">
-        <p className="quote-text">{quote.text}</p>
-        <p className="quote-author">— {quote.author}</p>
-      </div>
-
-      {/* AI Smart Insights (Pro Feature) */}
-      <ProInsights stats={stats} />
 
       {/* Main Stats */}
       <div className="stats-grid">

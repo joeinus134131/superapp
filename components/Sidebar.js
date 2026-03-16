@@ -20,25 +20,26 @@ import OnboardingModal from '@/components/OnboardingModal';
 import FeedbackModal from '@/components/FeedbackModal';
 
 const NAV_ITEMS = [
-  { section: 'overview' },
-  { href: '/', icon: <LayoutDashboard size={18} />, label: 'dashboard' },
-  { href: '/achievements', icon: <Trophy size={18} />, label: 'achievements' },
-  { section: 'productivity' },
-  { href: '/tasks', icon: <CheckSquare size={18} />, label: 'tasks' },
-  { href: '/habits', icon: <Flame size={18} />, label: 'habits' },
-  { href: '/pomodoro', icon: <Timer size={18} />, label: 'pomodoro' },
-  { href: '/goals', icon: <Target size={18} />, label: 'goals' },
-  { section: 'life' },
-  { href: '/finance', icon: <Wallet size={18} />, label: 'finance' },
-  { href: '/health', icon: <Dumbbell size={18} />, label: 'health' },
-  { href: '/journal', icon: <NotebookPen size={18} />, label: 'journal' },
-  { section: 'growth' },
-  { href: '/reading', icon: <BookMarked size={18} />, label: 'reading' },
-  { href: '/calendar', icon: <CalendarDays size={18} />, label: 'calendar' },
-  { section: 'system' },
-  { href: '/premium', icon: <Gem size={18} />, label: 'premium' },
-  { href: '/notifications', icon: <Bell size={18} />, label: 'notifications' },
-  { href: '/settings', icon: <Settings size={18} />, label: 'settings' },
+  { section: 'Gambaran Umum' },
+  { href: '/', icon: <LayoutDashboard size={18} />, label: 'Beranda' },
+  { href: '/achievements', icon: <Trophy size={18} />, label: 'Pencapaian' },
+  { section: 'Perencanaan' },
+  { href: '/tasks', icon: <CheckSquare size={18} />, label: 'Tugas' },
+  { href: '/goals', icon: <Target size={18} />, label: 'Target' },
+  { section: 'Fokus & Kebiasaan' },
+  { href: '/habits', icon: <Flame size={18} />, label: 'Kebiasaan' },
+  { href: '/pomodoro', icon: <Timer size={18} />, label: 'Fokus' },
+  { section: 'Keseimbangan Hidup' },
+  { href: '/finance', icon: <Wallet size={18} />, label: 'Keuangan' },
+  { href: '/health', icon: <Dumbbell size={18} />, label: 'Kesehatan' },
+  { href: '/journal', icon: <NotebookPen size={18} />, label: 'Jurnal Pribadi' },
+  { section: 'Pertumbuhan Diri' },
+  { href: '/reading', icon: <BookMarked size={18} />, label: 'Buku & Bacaan' },
+  { href: '/calendar', icon: <CalendarDays size={18} />, label: 'Kalender' },
+  { section: 'Sistem' },
+  { href: '/premium', icon: <Gem size={18} />, label: 'Premium' },
+  { href: '/notifications', icon: <Bell size={18} />, label: 'Notifikasi' },
+  { href: '/settings', icon: <Settings size={18} />, label: 'Pengaturan' },
 ];
 
 export default function Sidebar() {
@@ -165,7 +166,7 @@ export default function Sidebar() {
           <div className="sidebar-brand-icon">{user?.appIcon || '⚡'}</div>
           <div>
             <h1>{user?.appName || 'SuperApp'}</h1>
-            <p>{user?.appTagline || 'Personal Management'}</p>
+            <p>{user?.appTagline || 'Asisten Produktivitas & Pertumbuhanmu'}</p>
           </div>
         </div>
 
@@ -217,7 +218,7 @@ export default function Sidebar() {
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item, i) => {
             if (item.section) {
-              return <div key={i} className="sidebar-section-label">{t(`sidebar.${item.section}`)}</div>;
+              return <div key={i} className="sidebar-section-label">{item.section}</div>;
             }
             const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
             return (
@@ -225,7 +226,7 @@ export default function Sidebar() {
                 className={`sidebar-link ${isActive ? 'active' : ''}`}
                 onClick={() => setOpen(false)}>
                 <span className="sidebar-link-icon">{item.icon}</span>
-                <span className="sidebar-link-label">{t(`sidebar.${item.label}`)}</span>
+                <span className="sidebar-link-label">{item.label}</span>
               </Link>
             );
           })}
