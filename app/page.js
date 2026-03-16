@@ -21,11 +21,6 @@ import ProInsights from '@/components/ProInsights';
 export default function Dashboard() {
   const { user } = useUser();
   const { t } = useLanguage();
-  const [stats, setStats] = useState({
-    tasksCompleted: 0, tasksTotal: 0, habitsToday: 0, habitsTotal: 0,
-    streak: 0, totalIncome: 0, totalExpense: 0, focusSessions: 0,
-    goalsActive: 0, booksReading: 0, journalEntries: 0, workoutsThisWeek: 0,
-  });
   const [quote] = useState(getRandomQuote());
   const [roast, setRoast] = useState(null);
   const [gamData, setGamData] = useState({ totalXP: 0 });
