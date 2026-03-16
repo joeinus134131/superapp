@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getData, STORAGE_KEYS } from '@/lib/storage';
 import { getRandomQuote, getToday, formatCurrency } from '@/lib/helpers';
 import { useUser } from '@/lib/auth';
@@ -81,7 +81,7 @@ export default function Dashboard() {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  const stats = React.useMemo(() => {
+  const stats = useMemo(() => {
     const { tasks, habits, transactions, pomodoro, goals, books, journal, health } = rawData;
     
     const completedTasks = tasks.filter(t => t.status === 'done').length;
