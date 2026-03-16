@@ -33,16 +33,61 @@ export default function Dashboard() {
   const [newAchievements, setNewAchievements] = useState([]);
   const today = getToday();
 
-  useEffect(() => {
-    const tasks = getData(STORAGE_KEYS.TASKS) || [];
-    const habits = getData(STORAGE_KEYS.HABITS) || [];
-    const transactions = getData(STORAGE_KEYS.TRANSACTIONS) || [];
-    const pomodoro = getData(STORAGE_KEYS.POMODORO) || { sessions: [] };
-    const goals = getData(STORAGE_KEYS.GOALS) || [];
-    const books = getData(STORAGE_KEYS.READING) || [];
-    const journal = getData(STORAGE_KEYS.JOURNAL) || [];
-    const health = getData(STORAGE_KEYS.HEALTH) || { workouts: [] };
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [rawData, setRawData] = useState({
+    tasks: [], habits: [], transactions: [], pomodoro: { sessions: [] },
+    goals: [], books: [], journal: [], health: { workouts: [] }
+  });
 
+  // Fetch from async localforage
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      if (typeof window === 'undefined') return;
+      try {
+        const [
+          tasks, habits, transactions, pomodoro,
+          goals, books, journal, health
+        ] = await Promise.all([
+          getData(STORAGE_KEYS.TASKS),
+          getData(STORAGE_KEYS.HABITS),
+          getData(STORAGE_KEYS.TRANSACTIONS),
+          getData(STORAGE_KEYS.POMODORO),
+          getData(STORAGE_KEYS.GOALS),
+          getData(STORAGE_KEYS.READING),
+          getData(STORAGE_KEYS.JOURNAL),
+          getData(STORAGE_KEYS.HEALTH),
+        ]);
+
+        if (isMounted) {
+          setRawData({
+            tasks: tasks || [],
+            habits: habits || [],
+            transactions: transactions || [],
+            pomodoro: pomodoro || { sessions: [] },
+            goals: goals || [],
+            books: books || [],
+            journal: journal || [],
+            health: health || { workouts: [] },
+          });
+        }
+      } catch (e) {
+        console.error("Error loading dashboard data:", e);
+      }
+    }
+    
+    loadData();
+    return () => { isMounted = false; };
+  }, [refreshTrigger, today]);
+
+  useEffect(() => {
+    // Force a re-render to catch client-side storage after mount
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  const stats = React.useMemo(() => {
+    const { tasks, habits, transactions, pomodoro, goals, books, journal, health } = rawData;
+    
     const completedTasks = tasks.filter(t => t.status === 'done').length;
     const todayHabits = habits.filter(h => h.completedDates && h.completedDates.includes(today)).length;
     let maxStreak = 0;
@@ -55,7 +100,7 @@ export default function Dashboard() {
     const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
     const workoutsWeek = health.workouts ? health.workouts.filter(w => new Date(w.date) >= weekAgo).length : 0;
 
-    const newStats = {
+    return {
       tasksCompleted: completedTasks, tasksTotal: tasks.length,
       habitsToday: todayHabits, habitsTotal: habits.length,
       streak: maxStreak, totalIncome: income, totalExpense: expense,
@@ -63,9 +108,10 @@ export default function Dashboard() {
       booksReading: readingBooks, journalEntries: journal.length,
       workoutsThisWeek: workoutsWeek,
     };
-    setStats(newStats);
+  }, [rawData, today]);
 
-    // Gamification
+  useEffect(() => {
+    // Gamification & side-effects that need to run once stats/mount logic settles
     const loginResult = checkDailyLogin();
     if (loginResult.levelUp) {
       setLevelUpData(loginResult.newLevel);

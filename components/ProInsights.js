@@ -213,7 +213,7 @@ export default function ProInsights({ stats }) {
     return (
       <div className="card card-padding mb-3" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.06))' }}>
         <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={20} color="#8b5cf6" /> AI Smart Insights 👑
+          <Sparkles size={20} color="#8b5cf6" /> Analisis AI 👑
         </div>
         <p className="text-sm text-muted">Tambahkan lebih banyak data (transaksi, kebiasaan, sesi fokus) untuk mendapatkan insight personal dari AI.</p>
       </div>
@@ -225,8 +225,8 @@ export default function ProInsights({ stats }) {
       background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.06))',
       border: '1px solid rgba(139,92,246,0.15)',
     }}>
-      <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Sparkles size={20} color="#8b5cf6" /> AI Smart Insights 👑
+      <div className="card-title mb-3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Sparkles size={20} color="#8b5cf6" /> <span style={{ background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SuperAI Insights</span> 👑
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {allInsights.map((insight, i) => {
@@ -241,10 +241,13 @@ export default function ProInsights({ stats }) {
                 <span style={{ fontSize: '18px' }}>{insight.icon}</span>
                 <strong className="text-sm" style={{ color: style.color }}>{insight.title}</strong>
               </div>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)', margin: 0 }}>{insight.text}</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{insight.text}</p>
             </div>
           );
         })}
+        <div className="text-xs text-muted" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', gap: '4px' }}>
+           <Zap size={12}/> Dihasilkan secara otomatis (M26) berdasarkan aktivitas Anda.
+        </div>
       </div>
     </div>
   );

@@ -463,6 +463,7 @@ img {
   transition: all var(--transition-fast);
   border: none;
   white-space: nowrap;
+  min-height: 44px; /* A11y padding */
 }
 
 .btn-primary {
@@ -559,6 +560,7 @@ img {
   font-size: 14px;
   transition: all var(--transition-fast);
   outline: none;
+  min-height: 44px; /* A11y padding */
 }
 
 .form-input:focus,
