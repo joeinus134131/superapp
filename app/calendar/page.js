@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getDaysInMonth, getFirstDayOfMonth, getToday, formatDate } from '@/lib/helpers';
 import { CalendarDays, Plus, ChevronLeft, ChevronRight, Trash2, Pin, X } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
@@ -35,7 +35,7 @@ export default function CalendarPage() {
   const today = getToday();
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.EVENTS);
+    const saved = getDataSync(STORAGE_KEYS.EVENTS);
     if (saved) setEvents(saved);
   }, []);
 

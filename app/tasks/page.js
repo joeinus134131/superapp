@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/helpers';
 import { addXP, checkAchievements } from '@/lib/gamification';
 import { playTaskComplete, playXPGain, playError } from '@/lib/sounds';
@@ -38,7 +38,7 @@ export default function TasksPage() {
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.TASKS);
+    const saved = getDataSync(STORAGE_KEYS.TASKS);
     if (saved) setTasks(saved);
   }, []);
 

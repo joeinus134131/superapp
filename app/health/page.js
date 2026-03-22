@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getToday, formatDate } from '@/lib/helpers';
 import {
   Dumbbell, Droplets, Activity, Scale, Droplet,
@@ -22,7 +22,7 @@ export default function HealthPage() {
   const today = getToday();
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.HEALTH);
+    const saved = getDataSync(STORAGE_KEYS.HEALTH);
     if (saved) setHealth(saved);
   }, []);
 

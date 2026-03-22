@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, getToday } from '@/lib/helpers';
 import { addXP, checkAchievements } from '@/lib/gamification';
 import { playHabitDone, playStreakBreak, playXPGain } from '@/lib/sounds';
@@ -31,7 +31,7 @@ export default function HabitsPage() {
   const today = getToday();
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.HABITS);
+    const saved = getDataSync(STORAGE_KEYS.HABITS);
     if (saved) setHabits(saved);
   }, []);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getXP, getCurrentLevel, getXPProgress, LEVELS, ACHIEVEMENTS, checkAchievements } from '@/lib/gamification';
-import { getData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, STORAGE_KEYS } from '@/lib/storage';
 import { formatCurrency, getToday } from '@/lib/helpers';
 import Confetti from '@/components/Confetti';
 import { useLanguage } from '@/lib/language';
@@ -27,12 +27,12 @@ export default function AchievementsPage() {
   }, []);
 
   const generateWeeklyReport = () => {
-    const tasks = getData(STORAGE_KEYS.TASKS) || [];
-    const habits = getData(STORAGE_KEYS.HABITS) || [];
-    const transactions = getData(STORAGE_KEYS.TRANSACTIONS) || [];
-    const pomodoro = getData(STORAGE_KEYS.POMODORO) || { sessions: [] };
-    const journal = getData(STORAGE_KEYS.JOURNAL) || [];
-    const health = getData(STORAGE_KEYS.HEALTH) || { workouts: [] };
+    const tasks = getDataSync(STORAGE_KEYS.TASKS) || [];
+    const habits = getDataSync(STORAGE_KEYS.HABITS) || [];
+    const transactions = getDataSync(STORAGE_KEYS.TRANSACTIONS) || [];
+    const pomodoro = getDataSync(STORAGE_KEYS.POMODORO) || { sessions: [] };
+    const journal = getDataSync(STORAGE_KEYS.JOURNAL) || [];
+    const health = getDataSync(STORAGE_KEYS.HEALTH) || { workouts: [] };
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, getToday } from '@/lib/helpers';
 import {
   Target, Plus, CheckCircle2, BarChart2, Flame, Check,
@@ -20,7 +20,7 @@ export default function GoalsPage() {
   const [newMilestone, setNewMilestone] = useState('');
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.GOALS);
+    const saved = getDataSync(STORAGE_KEYS.GOALS);
     if (saved) setGoals(saved);
   }, []);
 

@@ -9,7 +9,7 @@ import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, Zap, Lock } from 'lu
 // ─── Local AI Engine (no API needed, runs entirely client-side) ────────────────
 
 function analyzeFinances(transactions) {
-  if (!transactions || transactions.length < 2) return [];
+  if (!Array.isArray(transactions) || transactions.length < 2) return [];
 
   const insights = [];
   const now = new Date();
@@ -163,7 +163,13 @@ const insightStyles = {
 
 export default function ProInsights({ stats }) {
   const { isPremium } = usePremium();
-  const transactions = useMemo(() => getData(STORAGE_KEYS.TRANSACTIONS) || [], []);
+  const [transactions, setTransactions] = useState([]);
+
+  useEffect(() => {
+    getData(STORAGE_KEYS.TRANSACTIONS).then(data => {
+      setTransactions(Array.isArray(data) ? data : []);
+    });
+  }, []);
 
   const financeInsights = useMemo(() => analyzeFinances(transactions), [transactions]);
   const productivityInsights = useMemo(() => analyzeProductivity(stats || {}), [stats]);

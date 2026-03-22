@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId } from '@/lib/helpers';
 import {
   Library, BookOpen, CheckCircle2, Bookmark,
@@ -31,7 +31,7 @@ export default function ReadingPage() {
   });
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.READING);
+    const saved = getDataSync(STORAGE_KEYS.READING);
     if (saved) setBooks(saved);
   }, []);
 

@@ -116,7 +116,7 @@ export default function Dashboard() {
     setGamData(getXP());
 
     // Roast
-    setRoast(getRoastMessage(newStats));
+    setRoast(getRoastMessage(stats));
 
     // Check achievements
     const achResult = checkAchievements();

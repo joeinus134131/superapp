@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, getToday, MOOD_EMOJIS } from '@/lib/helpers';
 import { addXP, checkAchievements } from '@/lib/gamification';
 import { playTaskComplete } from '@/lib/sounds';
@@ -27,7 +27,7 @@ export default function JournalPage() {
   const [xpToast, setXpToast] = useState(null);
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.JOURNAL);
+    const saved = getDataSync(STORAGE_KEYS.JOURNAL);
     if (saved) setEntries(saved);
   }, []);
 

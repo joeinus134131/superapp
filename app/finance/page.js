@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { getDataSync, setData, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday, formatRupiahInput, parseRupiahInput } from '@/lib/helpers';
 import {
   Wallet, Download, Plus, TrendingUp, TrendingDown,
@@ -91,10 +91,10 @@ export default function FinancePage() {
   const [newCat, setNewCat] = useState({ type: 'expense', label: '', emoji: '🍟', color: '#8b5cf6' });
 
   useEffect(() => {
-    const saved = getData(STORAGE_KEYS.TRANSACTIONS);
+    const saved = getDataSync(STORAGE_KEYS.TRANSACTIONS);
     if (saved) setTransactions(saved);
 
-    const savedCats = getData('superapp_custom_categories');
+    const savedCats = getDataSync('superapp_custom_categories');
     if (savedCats) setCustomCategories(savedCats);
   }, []);
 
