@@ -1,0 +1,27 @@
+{
+  "name": "@superapp/web",
+  "version": "1.0.0",
+  "description": "SuperApp Web - Next.js App",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@superapp/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.97.0",
+    "crypto-js": "^4.2.0",
+    "localforage": "^1.10.0",
+    "lucide-react": "^0.575.0",
+    "midtrans-client": "^1.4.3",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.1.6"
+  }
+}

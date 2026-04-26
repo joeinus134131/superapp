@@ -1,0 +1,32 @@
+{
+  "name": "@superapp/shared",
+  "version": "1.0.0",
+  "description": "Shared logic and utilities for SuperApp web and mobile",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./auth": "./lib/auth.js",
+    "./gamification": "./lib/gamification.js",
+    "./token-system": "./lib/tokenSystem.js",
+    "./premium": "./lib/premium.js",
+    "./storage": "./lib/storage.js",
+    "./supabase": "./lib/supabaseClient.js",
+    "./helpers": "./lib/helpers.js",
+    "./notifications": "./lib/notifications.js",
+    "./backup": "./lib/backup.js",
+    "./cloud-sync": "./lib/cloudSync.js",
+    "./dictionaries": "./lib/dictionaries.js",
+    "./language": "./lib/language.js",
+    "./roast": "./lib/roast.js",
+    "./sounds": "./lib/sounds.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
