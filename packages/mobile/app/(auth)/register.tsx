@@ -11,8 +11,9 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
-  const { register } = useAuth()
+  const { register, connection, refreshConnection } = useAuth()
   const { isDark } = useTheme()
 
   const handleRegister = async () => {
@@ -33,12 +34,15 @@ export default function RegisterScreen() {
 
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     try {
       const result = await register(email, password, name)
       if (result?.success) {
-        // Navigate to login or verification screen
-        router.replace('/(auth)/login')
+        setSuccessMessage('Akun berhasil dibuat. Silakan buka email Anda dan klik link verifikasi untuk masuk di Android.')
+        setTimeout(() => {
+          router.replace('/(auth)/login')
+        }, 1500)
       } else {
         setError(result?.error || 'Registration failed')
       }
@@ -69,6 +73,39 @@ export default function RegisterScreen() {
         {error ? (
           <View style={{ backgroundColor: '#fee', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f44' }}>
             <Text style={{ color: '#c00' }}>{error}</Text>
+          </View>
+        ) : null}
+
+        {successMessage ? (
+          <View style={{ backgroundColor: '#ecfdf3', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#16a34a' }}>
+            <Text style={{ color: '#166534' }}>{successMessage}</Text>
+          </View>
+        ) : null}
+
+        {!connection.ready ? (
+          <View style={{ backgroundColor: '#fff7e6', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
+            <Text style={{ color: '#9a6700', fontWeight: '600', marginBottom: 4 }}>
+              Mobile backend belum siap
+            </Text>
+            <Text style={{ color: '#9a6700', marginBottom: 10 }}>
+              {connection.message}
+            </Text>
+            <TouchableOpacity
+              onPress={() => refreshConnection()}
+              disabled={connection.checking}
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: '#f59e0b',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 6,
+                opacity: connection.checking ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>
+                {connection.checking ? 'Checking...' : 'Cek Koneksi Lagi'}
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -154,7 +191,7 @@ export default function RegisterScreen() {
 
         <TouchableOpacity
           onPress={handleRegister}
-          disabled={loading}
+          disabled={loading || connection.checking || !connection.ready}
           style={{
             backgroundColor: '#8b5cf6',
             padding: 14,

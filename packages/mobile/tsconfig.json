@@ -9,7 +9,7 @@
       "DOM.Iterable"
     ],
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowJs": true,
     "strict": false,
@@ -19,8 +19,7 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "types": [
-      "react-native",
-      "node"
+      "react-native"
     ],
     "typeRoots": [
       "./node_modules/@types",

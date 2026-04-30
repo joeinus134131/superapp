@@ -3,6 +3,7 @@
     "name": "SuperApp",
     "slug": "superapp-mobile",
     "version": "1.0.0",
+    "scheme": "superapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -13,31 +14,46 @@
     },
     "ios": {
       "supportsTabletMode": true,
-      "bundleIdentifier": "com.superapp.mobile"
+      "bundleIdentifier": "com.superapp.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Digunakan untuk mengambil foto profil.",
+        "NSPhotoLibraryUsageDescription": "Digunakan untuk memilih foto dari galeri.",
+        "NSPhotoLibraryAddUsageDescription": "Digunakan untuk menyimpan foto.",
+        "NSLocalNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
+        "NSUserNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
+        "NSHealthShareUsageDescription": "Digunakan untuk membaca data kesehatan (opsional).",
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.superapp.mobile"
+      "package": "com.superapp.mobile",
+      "permissions": [
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-router"
+    ],
     "extra": {
-      "supabaseUrl": "https://your-supabase-url.supabase.co",
-      "supabaseAnonKey": "your-anon-key",
+      "supabaseUrl": "https://bdtsztphkqmpzrqascdl.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkdHN6dHBoa3FtcHpycWFzY2RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMDYxNjUsImV4cCI6MjA5Mjc4MjE2NX0.vfeQlQy-eeltUWiYLzW9MDrFiGGiypH53soeCC5AsNM",
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "bdtsztphkqmpzrqascdl"
       }
-    },
-    "updates": {
-      "url": "https://u.expo.dev/YOUR_EAS_PROJECT_ID"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
     }
   }
 }

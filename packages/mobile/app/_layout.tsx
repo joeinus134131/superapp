@@ -1,26 +1,53 @@
-'use client'
-
 import { useEffect, useState } from 'react'
 import { useFonts } from 'expo-font'
-import { useAssets } from 'expo-asset'
 import * as SplashScreen from 'expo-splash-screen'
 import { Stack } from 'expo-router'
 import { ThemeProvider } from '../context/themeContext'
 import { PremiumProvider } from '../context/premiumContext'
 import { LanguageProvider } from '../context/languageContext'
-import { useAuth } from '../hooks/useAuth'
-import { StatusBar } from 'expo-status-bar'
+import { AuthProvider, useAuth } from '../hooks/useAuth'
+import { configureSupabaseRuntime } from '@superapp/shared'
+import { getMobileSupabaseConfig } from '../lib/runtimeConfig'
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync()
+
+configureSupabaseRuntime(getMobileSupabaseConfig())
+
+function RootNavigator() {
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading) {
+      SplashScreen.hideAsync()
+    }
+  }, [loading])
+
+  if (loading) {
+    return null
+  }
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+      }}
+    >
+      {user ? (
+        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+      ) : (
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      )}
+    </Stack>
+  )
+}
 
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false)
   const [fontsLoaded] = useFonts({
     'SpaceMono': require('../assets/fonts/SpaceMono-Regular.ttf'),
   })
-
-  const { user, loading } = useAuth()
 
   useEffect(() => {
     async function prepare() {
@@ -37,34 +64,19 @@ export default function RootLayout() {
     prepare()
   }, [])
 
-  const onLayoutRootView = async () => {
-    if (appIsReady && fontsLoaded && !loading) {
-      await SplashScreen.hideAsync()
-    }
-  }
-
-  if (!appIsReady || !fontsLoaded || loading) {
+  if (!appIsReady || !fontsLoaded) {
     return null
   }
 
   return (
     <ThemeProvider>
-      <PremiumProvider>
-        <LanguageProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              gestureEnabled: true,
-            }}
-          >
-            {user ? (
-              <Stack.Screen name="(app)" options={{ headerShown: false }} />
-            ) : (
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            )}
-          </Stack>
-        </LanguageProvider>
-      </PremiumProvider>
+      <AuthProvider>
+        <PremiumProvider>
+          <LanguageProvider>
+            <RootNavigator />
+          </LanguageProvider>
+        </PremiumProvider>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

@@ -10,7 +10,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, connection, refreshConnection } = useAuth()
   const { isDark } = useTheme()
 
   const handleLogin = async () => {
@@ -59,6 +59,33 @@ export default function LoginScreen() {
           </View>
         ) : null}
 
+        {!connection.ready ? (
+          <View style={{ backgroundColor: '#fff7e6', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
+            <Text style={{ color: '#9a6700', fontWeight: '600', marginBottom: 4 }}>
+              Mobile backend belum siap
+            </Text>
+            <Text style={{ color: '#9a6700', marginBottom: 10 }}>
+              {connection.message}
+            </Text>
+            <TouchableOpacity
+              onPress={() => refreshConnection()}
+              disabled={connection.checking}
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: '#f59e0b',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 6,
+                opacity: connection.checking ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>
+                {connection.checking ? 'Checking...' : 'Cek Koneksi Lagi'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View style={{ marginBottom: 20 }}>
           <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Email</Text>
           <TextInput
@@ -102,7 +129,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           onPress={handleLogin}
-          disabled={loading}
+          disabled={loading || connection.checking || !connection.ready}
           style={{
             backgroundColor: '#8b5cf6',
             padding: 14,

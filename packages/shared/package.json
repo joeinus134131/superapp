@@ -21,7 +21,8 @@
     "./sounds": "./lib/sounds.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.38.0"
+    "@supabase/supabase-js": "^2.38.0",
+    "crypto-js": "^4.2.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
