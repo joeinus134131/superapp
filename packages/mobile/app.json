@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "SuperApp",
-    "slug": "superapp-mobile",
+    "name": "SelfOne - Smart Assistant",
+    "slug": "selfone-mobile",
     "version": "1.0.0",
-    "scheme": "superapp",
+    "scheme": "selfone",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0f0f17"
     },
     "ios": {
       "supportsTabletMode": true,
-      "bundleIdentifier": "com.superapp.mobile",
+      "bundleIdentifier": "com.selfone.mobile",
       "infoPlist": {
         "NSCameraUsageDescription": "Digunakan untuk mengambil foto profil.",
         "NSPhotoLibraryUsageDescription": "Digunakan untuk memilih foto dari galeri.",
@@ -22,7 +22,10 @@
         "NSLocalNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
         "NSUserNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
         "NSHealthShareUsageDescription": "Digunakan untuk membaca data kesehatan (opsional).",
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -30,7 +33,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.superapp.mobile",
+      "package": "com.selfone.mobile",
       "permissions": [
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -46,7 +49,11 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-router"
+      "expo-router",
+      "expo-audio",
+      "@react-native-community/datetimepicker",
+      "expo-localization",
+      "expo-secure-store"
     ],
     "extra": {
       "supabaseUrl": "https://bdtsztphkqmpzrqascdl.supabase.co",

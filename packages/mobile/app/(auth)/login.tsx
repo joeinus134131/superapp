@@ -1,17 +1,29 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView } from 'react-native'
+import { 
+  View, Text, TextInput, TouchableOpacity, ActivityIndicator, 
+  ScrollView, KeyboardAvoidingView, StyleSheet, Dimensions, Image
+} from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../context/themeContext'
+import { useColors } from '../../lib/theme'
+import { BrandLogo } from '../../components/BrandLogo'
+import { MaterialIcons } from '@expo/vector-icons'
+import { useLanguage } from '../../context/languageContext'
+
+const { width } = Dimensions.get('window')
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const { login, connection, refreshConnection } = useAuth()
   const { isDark } = useTheme()
+  const c = useColors(isDark)
+  const { t } = useLanguage()
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -37,120 +49,118 @@ export default function LoginScreen() {
     }
   }
 
-  const bgColor = isDark ? '#1a1a1a' : '#ffffff'
-  const textColor = isDark ? '#ffffff' : '#000000'
-  const borderColor = isDark ? '#333333' : '#e0e0e0'
-
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: bgColor }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.bgPrimary }}>
+      {/* Decorative background elements */}
+      <View style={[styles.glowCircle, { backgroundColor: c.purple, opacity: 0.1, top: -100, right: -100 }]} />
+      <View style={[styles.glowCircle, { backgroundColor: c.cyan, opacity: 0.05, bottom: -150, left: -100, width: 300, height: 300 }]} />
+
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
         <View style={{ marginBottom: 40, alignItems: 'center' }}>
-          <Text style={{ fontSize: 32, fontWeight: 'bold', color: textColor, marginBottom: 10 }}>
-            SuperApp
+          <BrandLogo size={100} textSize={44} style={{ flexDirection: 'column' }} />
+          <Text style={[styles.brandTagline, { color: c.purple, marginTop: 16 }]}>
+            {t('login.title')}
           </Text>
-          <Text style={{ fontSize: 16, color: '#888', textAlign: 'center' }}>
-            Your all-in-one productivity companion
+          <Text style={[styles.subtitle, { color: c.textSecondary, marginTop: 12 }]}>
+            {t('login.subtitle')}
           </Text>
         </View>
 
         {error ? (
-          <View style={{ backgroundColor: '#fee', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f44' }}>
-            <Text style={{ color: '#c00' }}>{error}</Text>
+          <View style={[styles.errorContainer, { backgroundColor: isDark ? '#442222' : '#fee', borderLeftColor: c.red }]}>
+            <MaterialIcons name="error-outline" size={18} color={c.red} style={{ marginRight: 8 }} />
+            <Text style={{ color: isDark ? '#ffaaaa' : '#c00', flex: 1 }}>{error}</Text>
           </View>
         ) : null}
 
         {!connection.ready ? (
-          <View style={{ backgroundColor: '#fff7e6', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
-            <Text style={{ color: '#9a6700', fontWeight: '600', marginBottom: 4 }}>
-              Mobile backend belum siap
-            </Text>
-            <Text style={{ color: '#9a6700', marginBottom: 10 }}>
+          <View style={[styles.warningContainer, { backgroundColor: isDark ? '#332211' : '#fff7e6', borderLeftColor: c.yellow }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <MaterialIcons name="wifi-off" size={18} color={c.yellow} style={{ marginRight: 8 }} />
+              <Text style={{ color: isDark ? '#ffddaa' : '#9a6700', fontWeight: '700' }}>
+                Backend belum siap
+              </Text>
+            </View>
+            <Text style={{ color: isDark ? '#ccaa88' : '#9a6700', marginBottom: 12, fontSize: 13 }}>
               {connection.message}
             </Text>
             <TouchableOpacity
               onPress={() => refreshConnection()}
               disabled={connection.checking}
-              style={{
-                alignSelf: 'flex-start',
-                backgroundColor: '#f59e0b',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 6,
-                opacity: connection.checking ? 0.6 : 1,
-              }}
+              style={[styles.refreshBtn, { backgroundColor: c.yellow, opacity: connection.checking ? 0.6 : 1 }]}
             >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>
-                {connection.checking ? 'Checking...' : 'Cek Koneksi Lagi'}
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>
+                {connection.checking ? 'Checking...' : 'Cek Koneksi'}
               </Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Email</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: borderColor,
-              borderRadius: 8,
-              padding: 12,
-              color: textColor,
-              backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5',
-            }}
-            placeholder="your@email.com"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
-            editable={!loading}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: c.textPrimary }]}>{t('login.email')}</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
+            <MaterialIcons name="alternate-email" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
+            <TextInput
+              style={[styles.input, { color: c.textPrimary }]}
+              placeholder={t('login.new_user_placeholder')}
+              placeholderTextColor={c.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              editable={!loading}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
         </View>
 
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Password</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: borderColor,
-              borderRadius: 8,
-              padding: 12,
-              color: textColor,
-              backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5',
-            }}
-            placeholder="••••••••"
-            placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
-            editable={!loading}
-            secureTextEntry
-          />
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: c.textPrimary }]}>{t('login.password')}</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
+            <MaterialIcons name="lock-outline" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
+            <TextInput
+              style={[styles.input, { color: c.textPrimary }]}
+              placeholder="••••••••"
+              placeholderTextColor={c.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              editable={!loading}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+              <MaterialIcons 
+                name={showPassword ? "visibility" : "visibility-off"} 
+                size={20} 
+                color={c.textMuted} 
+              />
+            </TouchableOpacity>
+          </View>
+          <Link href="/(auth)/forgot-password" asChild>
+            <TouchableOpacity style={{ alignSelf: 'flex-end', marginTop: 8, padding: 4 }}>
+              <Text style={{ color: c.purple, fontSize: 13, fontWeight: '600' }}>{t('login.forgot_password')}</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
         <TouchableOpacity
           onPress={handleLogin}
           disabled={loading || connection.checking || !connection.ready}
-          style={{
-            backgroundColor: '#8b5cf6',
-            padding: 14,
-            borderRadius: 8,
-            alignItems: 'center',
-            marginBottom: 20,
-            opacity: loading ? 0.6 : 1,
-          }}
+          activeOpacity={0.8}
+          style={[
+            styles.signInBtn, 
+            { backgroundColor: c.purple, opacity: (loading || connection.checking || !connection.ready) ? 0.5 : 1 }
+          ]}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>Sign In</Text>
+            <Text style={styles.signInBtnText}>{t('login.sign_in')}</Text>
           )}
         </TouchableOpacity>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: textColor }}>Don't have an account? </Text>
+        <View style={styles.footer}>
           <Link href="/(auth)/register" asChild>
             <TouchableOpacity>
-              <Text style={{ color: '#8b5cf6', fontWeight: 'bold' }}>Sign Up</Text>
+              <Text style={{ color: c.textSecondary }}>{t('login.register_link')}</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -158,3 +168,28 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  title: { fontSize: 40, fontWeight: '900', marginBottom: 2, letterSpacing: -1 },
+  brandTagline: { fontSize: 18, fontWeight: '700', opacity: 0.9, letterSpacing: 1, textTransform: 'uppercase' },
+  subtitle: { fontSize: 14, textAlign: 'center', opacity: 0.6 },
+  logoContainer: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  logoImage: { width: '100%', height: '100%' },
+  glowCircle: { position: 'absolute', width: 250, height: 250, borderRadius: 125 },
+  
+  errorContainer: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, marginBottom: 24, borderLeftWidth: 4 },
+  warningContainer: { padding: 14, borderRadius: 12, marginBottom: 24, borderLeftWidth: 4 },
+  refreshBtn: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '700', marginBottom: 8, marginLeft: 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, height: 56 },
+  input: { flex: 1, fontSize: 15, height: '100%' },
+  
+  signInBtn: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 12, marginBottom: 24, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  signInBtnText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
+  
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
+})
+
+

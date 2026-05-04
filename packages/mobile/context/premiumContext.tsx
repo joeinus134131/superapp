@@ -39,7 +39,7 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
           .single()
 
         if (!error && data) {
-          setIsPremium(data.is_premium || false)
+          setIsPremium(Boolean(data.is_premium))
         }
       }
     } catch (err) {

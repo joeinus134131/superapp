@@ -1,430 +1,357 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  Alert, StyleSheet, Dimensions, RefreshControl,
+  View, Text, ScrollView, TouchableOpacity,
+  Alert, StyleSheet, RefreshControl, Modal
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
-import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
-import { generateId, getToday } from '../../lib/helpers';
-import { addXP } from '../../lib/gamification';
+import { getToday } from '../../lib/helpers';
+import { useLanguage } from '../../context/languageContext';
 import * as Haptics from 'expo-haptics';
 
-interface Habit {
-  id: string;
-  name: string;
-  emoji: string;
-  completedDates: string[];
-  streak: number;
-  bestStreak: number;
-  createdAt: string;
-}
+import { useHabits, Habit } from '../../hooks/useHabits';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
 
-const HABIT_EMOJIS = ['⭐', '💪', '📚', '🧘', '🏃', '💧', '🥗', '😴', '✍️', '🎯', '🧹', '💊'];
+const HABIT_ICONS = [
+  'star', 'fitness-center', 'menu-book', 'self-improvement', 'directions-run', 
+  'water-drop', 'restaurant', 'bedtime', 'edit', 'ads-click', 
+  'cleaning-services', 'medication', 'apple', 'computer', 'directions-bike', 
+  'local-cafe', 'palette', 'music-note', 'eco', 'shower', 
+  'smartphone', 'volume-off', 'handshake', 'wb-sunny'
+];
 
 export default function HabitsScreen() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
   const layout = useMobileLayout();
+  const { t, language } = useLanguage();
 
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [newHabit, setNewHabit] = useState('');
-  const [newEmoji, setNewEmoji] = useState('⭐');
-  const [refreshing, setRefreshing] = useState(false);
-  const [xpToast, setXpToast] = useState<string | null>(null);
-  const [levelUpData, setLevelUpData] = useState<{level: number, title: string} | null>(null);
-  
-  const [listPage, setListPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const { 
+    habits, loading, xpToast, levelUpData, setLevelUpData, 
+    addHabit, toggleHabit, deleteHabit, refreshHabits 
+  } = useHabits();
 
-  const load = useCallback(async () => {
-    const saved = await getData(STORAGE_KEYS.HABITS);
-    if (saved && Array.isArray(saved)) setHabits(saved);
-  }, []);
+  const [showModal, setShowModal] = useState(false);
+  const [newHabitName, setNewHabitName] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState('star');
+  const [historyRange, setHistoryRange] = useState(7);
 
-  useEffect(() => { load(); }, [load]);
-
-  const save = async (h: Habit[]) => {
-    setHabits(h);
-    await setData(STORAGE_KEYS.HABITS, h);
+  const handleAddHabit = async () => {
+    if (!newHabitName.trim()) return;
+    await addHabit(newHabitName, selectedIcon);
+    setNewHabitName('');
+    setShowModal(false);
   };
 
-  const addHabit = async () => {
-    if (!newHabit.trim()) return;
-    await save([...habits, {
-      id: generateId(),
-      name: newHabit.trim(),
-      emoji: newEmoji,
-      completedDates: [],
-      streak: 0,
-      bestStreak: 0,
-      createdAt: new Date().toISOString(),
-    }]);
-    setNewHabit('');
-  };
-
-  const toggleHabit = async (id: string) => {
-    const updated = habits.map(h => {
-      if (h.id !== id) return h;
-      const dates = h.completedDates || [];
-      const isCompleted = dates.includes(today);
-      const newDates = isCompleted
-        ? dates.filter(d => d !== today)
-        : [...dates, today];
-
-      // Calculate streak
-      let streak = 0;
-      const sorted = [...newDates].sort().reverse();
-      const todayDate = new Date(today);
-      for (let i = 0; i < sorted.length; i++) {
-        const check = new Date(today);
-        check.setDate(todayDate.getDate() - i);
-        const y = check.getFullYear();
-        const m = String(check.getMonth() + 1).padStart(2, '0');
-        const d = String(check.getDate()).padStart(2, '0');
-        const checkStr = `${y}-${m}-${d}`;
-        if (sorted.includes(checkStr)) streak++;
-        else break;
-      }
-
-      const bestStreak = Math.max(h.bestStreak || 0, streak);
-
-      if (!isCompleted) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        addXP('HABIT_DONE').then(result => {
-          if (result.levelUp) setLevelUpData(result.newLevel);
-          setXpToast(`+${result.xpGained} XP`);
-          setTimeout(() => setXpToast(null), 2000);
-        });
-
-        if (streak === 7) {
-          addXP('STREAK_7');
-          setXpToast('+50 XP 🔥 7 Day Streak!');
-        }
-        if (streak === 30) {
-          addXP('STREAK_30');
-          setXpToast('+200 XP 🏔️ 30 Day Streak!');
-        }
-      } else {
-        // Un-checking
-        if (streak < h.streak && h.streak >= 3) {
-          // Streak broke!
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        } else {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      }
-
-      return { ...h, completedDates: newDates, streak, bestStreak };
-    });
-    await save(updated);
-  };
-
-  const deleteHabit = (id: string) => {
-    Alert.alert('Hapus Habit', 'Yakin ingin menghapus habit ini?', [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Hapus', style: 'destructive', onPress: () => save(habits.filter(h => h.id !== id)) },
+  const handleDeleteHabit = (id: string) => {
+    Alert.alert(t('habits.delete_title'), t('habits.delete_confirm'), [
+      { text: t('tasks.cancel'), style: 'cancel' },
+      { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteHabit(id) },
     ]);
   };
 
-  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const todayCompleted = useMemo(() => habits.filter(h => h.completedDates?.includes(today)).length, [habits, today]);
+  const completionRate = useMemo(() => habits.length > 0 ? Math.round((todayCompleted / habits.length) * 100) : 0, [todayCompleted, habits.length]);
+  const maxStreak = useMemo(() => habits.reduce((max, h) => Math.max(max, h.streak || 0), 0), [habits]);
 
-  const todayCompleted = habits.filter(h => h.completedDates?.includes(today)).length;
-  const completionRate = habits.length > 0 ? Math.round((todayCompleted / habits.length) * 100) : 0;
-  const maxStreak = habits.reduce((max, h) => Math.max(max, h.streak || 0), 0);
-
-  // Get visible 7-day range
-  const getVisibleDays = () => {
-    const days: string[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      days.push(`${y}-${m}-${day}`);
-    }
-    return days;
-  };
-  const visibleDays = getVisibleDays();
+  const visibleDays = useMemo(() => Array.from({ length: historyRange }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (historyRange - 1 - i));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }), [historyRange]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {xpToast && (
-        <View style={[styles.xpToast, { top: layout.insets.top + 12 }]}>
-          <Text style={styles.xpToastText}>⚡ {xpToast}</Text>
+      {/* Header */}
+      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
+            <MaterialIcons name="local-fire-department" size={24} color={c.purple} />
+          </View>
+          <View>
+            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.habits')}</Text>
+            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('habits.subtitle')}</Text>
+          </View>
         </View>
-      )}
+        <TouchableOpacity 
+          style={[styles.historyToggle, { backgroundColor: c.purple + '15', borderColor: c.purple + '30', borderWidth: 1 }]} 
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setHistoryRange(r => r === 7 ? 30 : 7);
+          }}
+        >
+          <MaterialIcons name="event" size={16} color={c.purple} />
+          <Text style={{ color: c.purple, fontWeight: '800', marginLeft: 6 }}>{historyRange} {t('habits.day')}</Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshHabits} tintColor={c.purple} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: MOBILE_SPACING.screen, paddingTop: layout.topPadding, paddingBottom: layout.bottomPadding }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: layout.bottomPadding + 100 }}
       >
         {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-            <View style={[styles.statIcon, { backgroundColor: c.green + '22' }]}>
-              <MaterialIcons name="check-box" size={22} color={c.green} />
-            </View>
-            <Text style={[styles.statValue, { color: c.textPrimary }]}>{todayCompleted}/{habits.length}</Text>
-            <Text style={[styles.statLabel, { color: c.textMuted }]}>Hari Ini</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-            <View style={[styles.statIcon, { backgroundColor: c.purple + '22' }]}>
-              <MaterialIcons name="trending-up" size={22} color={c.purple} />
-            </View>
-            <Text style={[styles.statValue, { color: c.textPrimary }]}>{completionRate}%</Text>
-            <Text style={[styles.statLabel, { color: c.textMuted }]}>Selesai</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-            <View style={[styles.statIcon, { backgroundColor: c.red + '22' }]}>
-              <MaterialIcons name="local-fire-department" size={22} color={c.red} />
-            </View>
-            <Text style={[styles.statValue, { color: c.textPrimary }]}>{maxStreak}</Text>
-            <Text style={[styles.statLabel, { color: c.textMuted }]}>Streak</Text>
-          </View>
-        </View>
-
-        {/* Add Habit */}
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-          <View style={styles.cardTitleRow}>
-            <MaterialIcons name="add-circle-outline" size={18} color={c.purple} />
-            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Tambah Habit</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-            <View style={styles.emojiRow}>
-              {HABIT_EMOJIS.map(e => (
-                <TouchableOpacity
-                  key={e}
-                  style={[styles.emojiBtn, newEmoji === e && { backgroundColor: c.purple + '22', borderColor: c.purple }]}
-                  onPress={() => setNewEmoji(e)}
-                >
-                  <Text style={{ fontSize: 18 }}>{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-          <View style={styles.addRow}>
-            <TextInput
-              style={[styles.input, { flex: 1, backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-              value={newHabit}
-              onChangeText={setNewHabit}
-              placeholder="Nama habit baru..."
-              placeholderTextColor={c.textMuted}
-              onSubmitEditing={addHabit}
-            />
-            <TouchableOpacity style={[styles.addBtnSmall, { backgroundColor: c.purple }]} onPress={addHabit}>
-              <MaterialIcons name="add" size={22} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 7-Day Calendar */}
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-          <View style={styles.cardTitleRow}>
-            <MaterialIcons name="calendar-month" size={18} color={c.cyan} />
-            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Riwayat 7 Hari</Text>
-          </View>
-
-          {/* Day headers */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ paddingBottom: 8 }}>
-              <View style={styles.calendarHeader}>
-                <View style={{ width: 120 }} />
-                {visibleDays.map(d => {
-                  const date = new Date(d);
-                  const isToday = d === today;
-                  return (
-                    <View key={d} style={[styles.dayCol, { width: 46 }]}>
-                      <Text style={[styles.dayName, { color: isToday ? c.purple : c.textMuted }]}>
-                        {date.toLocaleDateString('id-ID', { weekday: 'short' }).slice(0, 3)}
-                      </Text>
-                      <Text style={[styles.dayNum, { color: isToday ? c.purple : c.textSecondary, fontWeight: isToday ? '800' : '500' }]}>
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                  );
-                })}
-                <View style={[styles.dayCol, { width: 46 }]}>
-                  <MaterialIcons name="local-fire-department" size={14} color={c.red} />
-                </View>
+          {[
+            { label: t('habits.today'), value: `${todayCompleted}/${habits.length}`, icon: 'check-circle' as const, color: c.green },
+            { label: t('habits.rate'), value: `${completionRate}%`, icon: 'trending-up' as const, color: c.purple },
+            { label: t('habits.best_streak'), value: maxStreak, icon: 'local-fire-department' as const, color: c.red },
+          ].map((s, i) => (
+            <Card key={i} style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: s.color + '15' }]}>
+                <MaterialIcons name={s.icon} size={20} color={s.color} />
               </View>
+              <Text style={[styles.statValue, { color: c.textPrimary }]}>{s.value}</Text>
+              <Text style={[styles.statLabel, { color: c.textMuted }]}>{s.label}</Text>
+            </Card>
+          ))}
+        </View>
 
-              {/* Habit rows */}
-              {habits.length === 0 ? (
-                <View style={[styles.emptyState, { width: w - 80 }]}>
-                  <MaterialIcons name="local-fire-department" size={40} color={c.textMuted} />
-                  <Text style={[styles.emptyText, { color: c.textMuted }]}>Belum ada habit</Text>
-                  <Text style={[styles.emptySubtext, { color: c.textMuted }]}>Mulai tambah kebiasaan baru</Text>
-                </View>
-              ) : habits.map(h => {
-                const todayDone = h.completedDates?.includes(today);
-                return (
-                  <View key={h.id} style={[styles.habitRow, { borderTopColor: c.border }]}>
-                    <View style={[styles.habitName, { width: 120 }]}>
-                      <Text style={{ fontSize: 16 }}>{h.emoji}</Text>
-                      <Text style={[styles.habitNameText, { color: c.textPrimary }]} numberOfLines={1}>
-                        {h.name}
+        {/* Consistency Analysis */}
+        <Card style={{ padding: 20, marginBottom: 24 }}>
+          <View style={styles.cardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialIcons name="auto-graph" size={18} color={c.purple} />
+              <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('habits.consistency_analysis')}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.analysisMeta}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.consistencyLabel, { color: c.textSecondary }]}>{t('habits.global_consistency')}</Text>
+              <View style={[styles.consistencyBarTrack, { backgroundColor: c.bgInput }]}>
+                <View style={[styles.consistencyBarFill, { width: `${completionRate}%`, backgroundColor: c.purple }]} />
+              </View>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[styles.consistencyValue, { color: c.textPrimary }]}>{completionRate}%</Text>
+            </View>
+          </View>
+
+          <View style={styles.journeyTimeline}>
+            {visibleDays.slice().reverse().map((d, index) => {
+              const date = new Date(d);
+              const isToday = d === today;
+              const completedHabits = habits.filter(h => h.completedDates?.includes(d));
+              
+              return (
+                <View key={d} style={styles.timelineDay}>
+                  <View style={styles.timelineLeft}>
+                    <Text style={[styles.timelineDate, { color: isToday ? c.purple : c.textMuted }]}>
+                      {date.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}
+                    </Text>
+                    <View style={[styles.timelineLine, { backgroundColor: c.border }]} />
+                    <View style={[styles.timelineDot, { backgroundColor: completedHabits.length > 0 ? c.green : c.border }]} />
+                  </View>
+                  
+                  <View style={styles.timelineContent}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.timelineDayName, { color: c.textPrimary }]}>
+                        {isToday ? t('habits.today') : date.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'long' })}
                       </Text>
+                      {completedHabits.length > 0 && (
+                        <Badge label={`${completedHabits.length} ${t('habits.status_completed').toUpperCase()}`} color={c.green} />
+                      )}
                     </View>
-                    {visibleDays.map(d => {
-                      const done = h.completedDates?.includes(d);
-                      const isToday = d === today;
-                      return (
-                        <TouchableOpacity
-                          key={d}
-                          style={[styles.dayCol, { width: 46 }]}
-                          onPress={() => isToday && toggleHabit(h.id)}
-                          disabled={!isToday}
-                        >
-                          <View style={[styles.heatCell, done && { backgroundColor: c.green }, isToday && !done && { borderColor: c.purple, borderWidth: 1.5 }]}>
-                            {done && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                    <View style={[styles.dayCol, { width: 46 }]}>
-                      <Text style={[styles.streakNum, { color: c.yellow }]}>{h.streak || 0}</Text>
+                    
+                    <View style={styles.timelineHabits}>
+                      {completedHabits.length === 0 ? (
+                        <Text style={[styles.noHabitsText, { color: c.textMuted }]}>{t('habits.no_activity')}</Text>
+                      ) : (
+                        <View style={styles.habitsCloud}>
+                          {completedHabits.map(h => (
+                            <View key={h.id} style={[styles.habitTag, { backgroundColor: c.bgInput, borderColor: c.border }]}>
+                              <MaterialIcons name={h.icon as any} size={12} color={c.purple} />
+                              <Text style={[styles.habitTagText, { color: c.textPrimary }]}>{h.name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        </View>
-
-        {/* Habit List with details */}
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-          <View style={styles.cardTitleRow}>
-            <MaterialIcons name="format-list-bulleted" size={18} color={c.purple} />
-            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Daftar Habit</Text>
-          </View>
-          {habits.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(h => {
-            const todayDone = h.completedDates?.includes(today);
-            return (
-              <View key={h.id} style={[styles.habitListItem, { borderBottomColor: c.border }]}>
-                <TouchableOpacity style={[styles.checkbox, todayDone && { backgroundColor: c.green, borderColor: c.green }]} onPress={() => toggleHabit(h.id)}>
-                  {todayDone && <MaterialIcons name="check" size={14} color="#fff" />}
-                </TouchableOpacity>
-                <Text style={{ fontSize: 18 }}>{h.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.habitItemName, { color: c.textPrimary, textDecorationLine: todayDone ? 'line-through' : 'none', opacity: todayDone ? 0.5 : 1 }]}>
-                    {h.name}
-                  </Text>
-                  <Text style={[styles.habitItemMeta, { color: c.textMuted }]}>
-                    🔥 Streak: {h.streak || 0} hari • Best: {h.bestStreak || 0} • Total: {h.completedDates?.length || 0}
-                  </Text>
                 </View>
-                <TouchableOpacity onPress={() => deleteHabit(h.id)}>
-                  <MaterialIcons name="delete-outline" size={20} color={c.red} />
-                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Card>
+
+        {/* Habit List Section */}
+        <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>{t('habits.habit_list').toUpperCase()}</Text>
+        {habits.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialIcons name="add-task" size={48} color={c.textMuted} />
+            <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('habits.empty_list')}</Text>
+          </View>
+        ) : habits.map(h => {
+          const todayDone = h.completedDates?.includes(today);
+          return (
+            <Card 
+              key={h.id} 
+              style={styles.habitItemCard}
+              onPress={() => toggleHabit(h.id)}
+            >
+              <View style={[styles.checkbox, todayDone && { backgroundColor: c.green, borderColor: c.green }]}>
+                {todayDone && <MaterialIcons name="check" size={16} color="#fff" />}
               </View>
-            );
-          })}
-          
-          {habits.length > ITEMS_PER_PAGE && (
-            <View style={styles.paginationRow}>
-              <Text style={{ color: c.textSecondary, fontSize: 13 }}>
-                Halaman {listPage} dari {Math.ceil(habits.length / ITEMS_PER_PAGE)}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity 
-                  style={[styles.pageBtn, { borderColor: c.border }]} 
-                  disabled={listPage === 1} 
-                  onPress={() => setListPage(p => Math.max(1, p - 1))}
-                >
-                  <Text style={{ color: listPage === 1 ? c.textMuted : c.textPrimary }}>Prev</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.pageBtn, { borderColor: c.border }]} 
-                  disabled={listPage * ITEMS_PER_PAGE >= habits.length} 
-                  onPress={() => setListPage(p => p + 1)}
-                >
-                  <Text style={{ color: listPage * ITEMS_PER_PAGE >= habits.length ? c.textMuted : c.textPrimary }}>Next</Text>
-                </TouchableOpacity>
+              <View style={[styles.habitIcon, { backgroundColor: c.bgInput }]}>
+                <MaterialIcons name={h.icon as any} size={24} color={c.purple} />
               </View>
-            </View>
-          )}
-        </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.habitItemName, { color: c.textPrimary, textDecorationLine: todayDone ? 'line-through' : 'none', opacity: todayDone ? 0.6 : 1 }]}>
+                  {h.name}
+                </Text>
+                <View style={styles.habitMeta}>
+                  <MaterialIcons name="local-fire-department" size={14} color={c.red} />
+                  <Text style={[styles.habitItemMeta, { color: c.textSecondary }]}>{h.streak} {t('habits.day_streak')}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => handleDeleteHabit(h.id)} style={styles.deleteBtn}>
+                <MaterialIcons name="delete-outline" size={20} color={c.textMuted} />
+              </TouchableOpacity>
+            </Card>
+          );
+        })}
       </ScrollView>
+
+      <FloatingActionButton onPress={() => setShowModal(true)} />
+
+      {/* Add Modal */}
+      <Modal visible={showModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('habits.new_habit')}</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
+            </View>
+            
+            <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('habits.icon_label')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiGrid}>
+              {HABIT_ICONS.map(iconName => (
+                <TouchableOpacity 
+                  key={iconName} 
+                  style={[styles.emojiSelect, { backgroundColor: c.bgInput }, selectedIcon === iconName && { backgroundColor: c.purple + '20', borderColor: c.purple, borderWidth: 1 }]} 
+                  onPress={() => { setSelectedIcon(iconName); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                >
+                  <MaterialIcons name={iconName as any} size={24} color={selectedIcon === iconName ? c.purple : c.textSecondary} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Input 
+              label={t('habits.name_label')}
+              value={newHabitName}
+              onChangeText={setNewHabitName}
+              placeholder={t('habits.name_placeholder')}
+              autoFocus
+              containerStyle={{ marginTop: 24 }}
+            />
+            
+            <Button 
+              label={t('habits.start_btn')} 
+              onPress={handleAddHabit} 
+              variant="primary"
+              style={{ height: 60, marginTop: 12 }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Level Up Modal */}
       {levelUpData && (
         <View style={styles.levelUpOverlay}>
           <View style={[styles.levelUpModal, { backgroundColor: c.bgPrimary, borderColor: c.purple }]}>
-            <Text style={{ fontSize: 48, textAlign: 'center', marginBottom: 12 }}>🎉</Text>
+            <MaterialIcons name="auto-awesome" size={64} color={c.purple} style={{ marginBottom: 16 }} />
             <Text style={[styles.levelUpTitle, { color: c.purple }]}>LEVEL UP!</Text>
-            <Text style={[styles.levelUpDesc, { color: c.textPrimary }]}>
-              Anda telah mencapai <Text style={{ fontWeight: '800' }}>Level {levelUpData.level}</Text>
-            </Text>
+            <Text style={[styles.levelUpDesc, { color: c.textPrimary }]}>{t('achievements.level_up_desc') || 'Anda telah mencapai Level'} {levelUpData.level}</Text>
             <Text style={[styles.levelUpRank, { color: c.textSecondary }]}>{levelUpData.title}</Text>
-            <TouchableOpacity
-              style={[styles.levelUpBtn, { backgroundColor: c.purple }]}
-              onPress={() => setLevelUpData(null)}
-            >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Lanjutkan!</Text>
+            <TouchableOpacity style={[styles.levelUpBtn, { backgroundColor: c.purple }]} onPress={() => setLevelUpData(null)}>
+              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('tasks.save') || 'Lanjutkan!'}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {xpToast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{xpToast}</Text>
         </View>
       )}
     </View>
   );
 }
 
-const w = Dimensions.get('window').width;
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  card: { borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  cardTitle: { fontSize: 18, fontWeight: '800' },
-
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
-  statCard: { flex: 1, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 10, alignItems: 'center', borderWidth: 1, minHeight: 128, justifyContent: 'center' },
-  statIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  statValue: { fontSize: 20, fontWeight: '900' },
-  statLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
-
-  emojiRow: { flexDirection: 'row', gap: 8 },
-  emojiBtn: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
-  addRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  input: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, borderWidth: 1 },
-  addBtnSmall: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-
-  calendarHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  dayCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  dayName: { fontSize: 10, fontWeight: '600' },
-  dayNum: { fontSize: 12 },
-
-  habitRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1 },
-  habitName: { width: 104, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  habitNameText: { fontSize: 13, fontWeight: '700', flex: 1 },
-  heatCell: { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
-  streakNum: { fontSize: 13, fontWeight: '800' },
-
-  habitListItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1 },
-  checkbox: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, borderColor: '#555', alignItems: 'center', justifyContent: 'center' },
-  habitItemName: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
-  habitItemMeta: { fontSize: 12, lineHeight: 18 },
-
-  emptyState: { alignItems: 'center', paddingVertical: 32 },
-  emptyText: { fontSize: 16, fontWeight: '700', marginTop: 8 },
-  emptySubtext: { fontSize: 13, marginTop: 4 },
-
-  pageBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
-  paginationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)' },
-
-  xpToast: { position: 'absolute', top: 50, right: 16, zIndex: 999, backgroundColor: '#8b5cf6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  xpToastText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-
-  levelUpOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  levelUpModal: { width: '80%', padding: 24, borderRadius: 24, borderWidth: 2, alignItems: 'center' },
-  levelUpTitle: { fontSize: 24, fontWeight: '900', marginBottom: 8, letterSpacing: 2 },
-  levelUpDesc: { fontSize: 16, marginBottom: 4, textAlign: 'center' },
+  pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
+  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 28, fontWeight: '900' },
+  pageSubtitle: { fontSize: 14, marginTop: 2 },
+  historyToggle: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+  
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  statCard: { flex: 1, padding: 16, alignItems: 'center' },
+  statIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  statValue: { fontSize: 18, fontWeight: '900' },
+  statLabel: { fontSize: 11, fontWeight: '700' },
+  
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  cardTitle: { fontSize: 16, fontWeight: '900' },
+  analysisMeta: { flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.1)' },
+  consistencyLabel: { fontSize: 12, fontWeight: '800', marginBottom: 8 },
+  consistencyBarTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  consistencyBarFill: { height: '100%', borderRadius: 4 },
+  consistencyValue: { fontSize: 20, fontWeight: '900' },
+  
+  journeyTimeline: { paddingLeft: 4 },
+  timelineDay: { flexDirection: 'row', minHeight: 80, marginBottom: 4 },
+  timelineLeft: { width: 70, alignItems: 'center', position: 'relative' },
+  timelineDate: { fontSize: 10, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+  timelineLine: { position: 'absolute', top: 24, bottom: -4, width: 2, left: 49 },
+  timelineDot: { position: 'absolute', top: 6, left: 45, width: 10, height: 10, borderRadius: 5, zIndex: 2, borderWidth: 2, borderColor: '#fff' },
+  timelineContent: { flex: 1, paddingLeft: 12, paddingBottom: 24 },
+  timelineDayName: { fontSize: 14, fontWeight: '800', marginBottom: 8 },
+  timelineHabits: { gap: 6 },
+  noHabitsText: { fontSize: 12, fontStyle: 'italic', opacity: 0.6 },
+  habitsCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  habitTag: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  habitTagText: { fontSize: 11, fontWeight: '700' },
+  
+  sectionLabel: { fontSize: 11, fontWeight: '900', marginLeft: 4, marginBottom: 16, letterSpacing: 1 },
+  habitItemCard: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 18, marginBottom: 14 },
+  habitIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  checkbox: { width: 28, height: 28, borderRadius: 9, borderWidth: 2, borderColor: 'rgba(150,150,150,0.2)', alignItems: 'center', justifyContent: 'center' },
+  habitItemName: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  habitMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  habitItemMeta: { fontSize: 12, fontWeight: '700' },
+  deleteBtn: { padding: 4 },
+  
+  emptyState: { alignItems: 'center', paddingVertical: 40, opacity: 0.6 },
+  emptyText: { fontSize: 15, fontWeight: '800', marginTop: 12 },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 24, fontWeight: '900' },
+  inputLabel: { fontSize: 14, fontWeight: '800', marginBottom: 12 },
+  emojiGrid: { gap: 10, paddingBottom: 10 },
+  emojiSelect: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  
+  levelUpOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.8)', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  levelUpModal: { width: '85%', padding: 32, borderRadius: 32, borderWidth: 2, alignItems: 'center' },
+  levelUpTitle: { fontSize: 28, fontWeight: '900', marginBottom: 12 },
+  levelUpDesc: { fontSize: 16, textAlign: 'center', marginBottom: 24 },
   levelUpRank: { fontSize: 14, marginBottom: 24, textAlign: 'center', fontWeight: '600' },
-  levelUpBtn: { width: '100%', paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+  levelUpBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+  toastText: { color: '#fff', fontWeight: '800' },
 });

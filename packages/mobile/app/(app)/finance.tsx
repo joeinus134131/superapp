@@ -1,32 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
+  View, Text, ScrollView, TouchableOpacity,
   Modal, Alert, StyleSheet, Dimensions, RefreshControl,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
-import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
-import { generateId, formatCurrency, formatDate, formatRupiahInput, parseRupiahInput } from '../../lib/helpers';
-import { PageHeader } from '../../components/PageHeader';
+import { formatCurrency, formatDate, formatRupiahInput, parseRupiahInput } from '../../lib/helpers';
+import { useLanguage } from '../../context/languageContext';
+import { useSettings } from '../../context/settingsContext';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
 
-interface Transaction {
-  id: string;
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-}
+import { useFinance, Transaction, CustomCategory } from '../../hooks/useFinance';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
 
-interface CustomCategory {
-  id: string;
-  label: string;
-  emoji: string;
-  color: string;
-  type: 'income' | 'expense';
-}
+const CATEGORY_CONFIG: Record<string, { icon: string, color: string, key: string }> = {
+  'Makanan': { icon: 'restaurant', color: '#ef4444', key: 'finance.cat_food' },
+  'Transport': { icon: 'directions-car', color: '#3b82f6', key: 'finance.cat_transport' },
+  'Belanja': { icon: 'shopping-bag', color: '#ec4899', key: 'finance.cat_shopping' },
+  'Tagihan': { icon: 'receipt', color: '#f59e0b', key: 'finance.cat_bills' },
+  'Hiburan': { icon: 'sports-esports', color: '#8b5cf6', key: 'finance.cat_entertainment' },
+  'Kesehatan': { icon: 'medical-services', color: '#10b981', key: 'finance.cat_health' },
+  'Pendidikan': { icon: 'school', color: '#6366f1', key: 'finance.cat_education' },
+  'Gaji': { icon: 'payments', color: '#10b981', key: 'finance.cat_salary' },
+  'Freelance': { icon: 'laptop-mac', color: '#3b82f6', key: 'finance.cat_freelance' },
+  'Investasi': { icon: 'trending-up', color: '#8b5cf6', key: 'finance.cat_investment' },
+  'Bonus': { icon: 'card-giftcard', color: '#f59e0b', key: 'finance.cat_bonus' },
+  'Lainnya': { icon: 'more-horiz', color: '#94a3b8', key: 'finance.cat_others' },
+};
 
 const INCOME_CATS = ['Gaji', 'Freelance', 'Investasi', 'Bonus', 'Lainnya'];
 const EXPENSE_CATS = ['Makanan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan', 'Kesehatan', 'Pendidikan', 'Lainnya'];
@@ -35,11 +41,17 @@ export default function FinanceScreen() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
+  const { settings } = useSettings();
+  const { t, language } = useLanguage();
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { 
+    transactions, customCategories, loading, 
+    addTransaction, deleteTransaction, addCustomCategory, 
+    deleteCustomCategory, refreshFinance 
+  } = useFinance();
+
   const [showModal, setShowModal] = useState(false);
   const [tab, setTab] = useState<'all' | 'income' | 'expense'>('all');
-  const [refreshing, setRefreshing] = useState(false);
   const [form, setForm] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
@@ -50,102 +62,95 @@ export default function FinanceScreen() {
   const [listPage, setListPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
   
-  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([]);
   const [showCatModal, setShowCatModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [newCat, setNewCat] = useState({ label: '', emoji: '✨', color: '#8b5cf6', type: 'expense' as 'income' | 'expense' });
 
-  const load = useCallback(async () => {
-    const saved = await getData(STORAGE_KEYS.TRANSACTIONS);
-    if (saved && Array.isArray(saved)) setTransactions(saved);
-    const savedCats = await getData(STORAGE_KEYS.CUSTOM_CATEGORIES);
-    if (savedCats && Array.isArray(savedCats)) setCustomCategories(savedCats);
-  }, []);
+  const translateCategory = (cat: string) => {
+    return CATEGORY_CONFIG[cat] ? t(CATEGORY_CONFIG[cat].key) : cat;
+  };
 
-  useEffect(() => { load(); }, [load]);
-
-  const save = async (data: Transaction[]) => {
-    setTransactions(data);
-    await setData(STORAGE_KEYS.TRANSACTIONS, data);
+  const maskCurrency = (val: number | string) => {
+    if (settings.hideFinanceBalance) return language === 'id' ? 'Rp ******' : '$ ******';
+    return typeof val === 'number' ? formatCurrency(val, language) : val;
   };
 
   const handleSubmit = async () => {
     const rawAmt = parseRupiahInput(form.amount);
     const amt = parseFloat(rawAmt);
     if (!amt || amt <= 0) return;
-    const tx: Transaction = {
-      id: generateId(),
+    await addTransaction({
       type: form.type,
       amount: amt,
       category: form.category,
       description: form.description,
       date: form.date,
-    };
-    await save([tx, ...transactions]);
+    });
     setShowModal(false);
     setForm({ type: 'expense', amount: '', category: 'Makanan', description: '', date: new Date().toISOString().split('T')[0] });
   };
 
-  const deleteTransaction = (id: string) => {
-    Alert.alert('Hapus Transaksi', 'Yakin?', [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Hapus', style: 'destructive', onPress: () => save(transactions.filter(t => t.id !== id)) },
+  const handleDelete = (id: string) => {
+    Alert.alert(t('finance.title'), t('finance.delete_confirm') || 'Yakin hapus transaksi ini?', [
+      { text: t('finance.cancel'), style: 'cancel' },
+      { text: t('tasks.delete_btn') || 'Hapus', style: 'destructive', onPress: () => deleteTransaction(id) },
     ]);
   };
 
-  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const filtered = useMemo(() => 
+    tab === 'all' ? transactions : transactions.filter(t => t.type === tab),
+  [transactions, tab]);
 
-  const filtered = tab === 'all' ? transactions : transactions.filter(t => t.type === tab);
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const totalIncome = useMemo(() => transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), [transactions]);
+  const totalExpense = useMemo(() => transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0), [transactions]);
   const balance = totalIncome - totalExpense;
-
-  const cats = form.type === 'income' ? INCOME_CATS : EXPENSE_CATS;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      <PageHeader
-        title="Keuangan"
-        subtitle="Catat pemasukan dan pengeluaran dengan rapi."
-        textColor={c.textPrimary}
-        subtextColor={c.textSecondary}
-        borderColor={c.border}
-        backgroundColor={c.bgPrimary}
-        actionColor={c.green}
-        onActionPress={() => setShowModal(true)}
-      />
+      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={[styles.headerIconBox, { backgroundColor: c.green + '15' }]}>
+            <MaterialIcons name="account-balance-wallet" size={24} color={c.green} />
+          </View>
+          <View>
+            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('finance.title')}</Text>
+            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('finance.desc')}</Text>
+          </View>
+        </View>
+      </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshFinance} tintColor={c.purple} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: MOBILE_SPACING.screen, paddingTop: 14, paddingBottom: layout.bottomPadding }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: layout.bottomPadding + 100 }}
       >
         {/* Balance Card */}
         <View style={[styles.balanceCard, { backgroundColor: balance >= 0 ? c.green : c.red }]}>
-          <Text style={styles.balanceLabel}>Saldo Bersih</Text>
-          <Text style={styles.balanceAmount}>{formatCurrency(balance)}</Text>
+          <Text style={styles.balanceLabel}>{t('finance.balance')}</Text>
+          <Text style={styles.balanceAmount}>{maskCurrency(balance)}</Text>
           <View style={styles.balanceRow}>
             <View style={styles.balanceItem}>
               <MaterialIcons name="arrow-upward" size={16} color="#fff" />
-              <Text style={styles.balanceItemText}>{formatCurrency(totalIncome)}</Text>
+              <Text style={styles.balanceItemText}>{maskCurrency(totalIncome)}</Text>
             </View>
-            <View style={[styles.balanceDivider]} />
+            <View style={styles.balanceDivider} />
             <View style={styles.balanceItem}>
               <MaterialIcons name="arrow-downward" size={16} color="#fff" />
-              <Text style={styles.balanceItemText}>{formatCurrency(totalExpense)}</Text>
+              <Text style={styles.balanceItemText}>{maskCurrency(totalExpense)}</Text>
             </View>
           </View>
         </View>
 
         {/* Category summary */}
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+        <Card style={{ padding: 20, marginBottom: 20 }}>
           <View style={styles.cardTitleRow}>
             <MaterialIcons name="pie-chart" size={18} color={c.purple} />
-            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Ringkasan Bulan Ini</Text>
+            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('finance.budget_overview')}</Text>
           </View>
           {[
-            { label: 'Total Pemasukan', value: totalIncome, color: c.green, icon: 'arrow-upward' as const },
-            { label: 'Total Pengeluaran', value: totalExpense, color: c.red, icon: 'arrow-downward' as const },
-            { label: 'Jumlah Transaksi', value: transactions.length, color: c.purple, icon: 'receipt-long' as const, isCurrency: false },
+            { label: t('finance.total_income'), value: totalIncome, color: c.green, icon: 'arrow-upward' as const },
+            { label: t('finance.total_expense'), value: totalExpense, color: c.red, icon: 'arrow-downward' as const },
+            { label: t('finance.transaction_history'), value: transactions.length, color: c.purple, icon: 'receipt-long' as const, isCurrency: false },
           ].map((item, i) => (
             <View key={i} style={[styles.summaryRow, { borderBottomColor: c.border }]}>
               <View style={styles.summaryLeft}>
@@ -155,22 +160,22 @@ export default function FinanceScreen() {
                 <Text style={[styles.summaryLabel, { color: c.textSecondary }]}>{item.label}</Text>
               </View>
               <Text style={[styles.summaryValue, { color: item.color }]}>
-                {(item as any).isCurrency === false ? item.value : formatCurrency(item.value as number)}
+                {(item as any).isCurrency === false ? item.value : maskCurrency(item.value as number)}
               </Text>
             </View>
           ))}
-        </View>
+        </Card>
 
         {/* Filter Tabs */}
         <View style={styles.tabRow}>
-          {(['all', 'income', 'expense'] as const).map(t => (
+          {(['all', 'income', 'expense'] as const).map(tKey => (
             <TouchableOpacity
-              key={t}
-              style={[styles.tabBtn, tab === t && { backgroundColor: c.purple + '22', borderColor: c.purple }]}
-              onPress={() => { setTab(t); setListPage(1); }}
+              key={tKey}
+              style={[styles.tabBtn, tab === tKey && { backgroundColor: c.purple + '22', borderColor: c.purple }]}
+              onPress={() => { setTab(tKey); setListPage(1); }}
             >
-              <Text style={[styles.tabText, { color: tab === t ? c.purple : c.textSecondary }]}>
-                {t === 'all' ? 'Semua' : t === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+              <Text style={[styles.tabText, { color: tab === tKey ? c.purple : c.textSecondary }]}>
+                {tKey === 'all' ? t('finance.all') : tKey === 'income' ? t('finance.income') : t('finance.expense')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -180,12 +185,12 @@ export default function FinanceScreen() {
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialIcons name="account-balance-wallet" size={48} color={c.textMuted} />
-            <Text style={[styles.emptyText, { color: c.textMuted }]}>Belum ada transaksi</Text>
+            <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('finance.no_transactions_yet')}</Text>
           </View>
         ) : (
           <>
             {filtered.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(tx => (
-              <View key={tx.id} style={[styles.txCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+              <Card key={tx.id} style={styles.txCard}>
                 <View style={[styles.txIcon, { backgroundColor: (tx.type === 'income' ? c.green : c.red) + '22' }]}>
                   <MaterialIcons
                     name={tx.type === 'income' ? 'arrow-upward' : 'arrow-downward'}
@@ -194,25 +199,25 @@ export default function FinanceScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.txCategory, { color: c.textPrimary }]}>{tx.category}</Text>
+                  <Text style={[styles.txCategory, { color: c.textPrimary }]}>{translateCategory(tx.category)}</Text>
                   {tx.description ? <Text style={[styles.txDesc, { color: c.textSecondary }]}>{tx.description}</Text> : null}
-                  <Text style={[styles.txDate, { color: c.textMuted }]}>{formatDate(tx.date)}</Text>
+                  <Text style={[styles.txDate, { color: c.textMuted }]}>{formatDate(tx.date, language)}</Text>
                 </View>
                 <View style={styles.txRight}>
                   <Text style={[styles.txAmount, { color: tx.type === 'income' ? c.green : c.red }]}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    {tx.type === 'income' ? '+' : '-'}{maskCurrency(tx.amount)}
                   </Text>
-                  <TouchableOpacity onPress={() => deleteTransaction(tx.id)} style={{ marginTop: 4 }}>
+                  <TouchableOpacity onPress={() => handleDelete(tx.id)} style={{ marginTop: 4 }}>
                     <MaterialIcons name="delete-outline" size={18} color={c.textMuted} />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </Card>
             ))}
             
             {filtered.length > ITEMS_PER_PAGE && (
               <View style={styles.paginationRow}>
                 <Text style={{ color: c.textSecondary, fontSize: 13 }}>
-                  Halaman {listPage} dari {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                  {t('finance.page')} {listPage} {t('finance.of')} {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TouchableOpacity 
@@ -220,14 +225,14 @@ export default function FinanceScreen() {
                     disabled={listPage === 1} 
                     onPress={() => setListPage(p => Math.max(1, p - 1))}
                   >
-                    <Text style={{ color: listPage === 1 ? c.textMuted : c.textPrimary }}>Prev</Text>
+                    <Text style={{ color: listPage === 1 ? c.textMuted : c.textPrimary }}>{t('finance.prev')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[styles.pageBtn, { borderColor: c.border }]} 
                     disabled={listPage * ITEMS_PER_PAGE >= filtered.length} 
                     onPress={() => setListPage(p => p + 1)}
                   >
-                    <Text style={{ color: listPage * ITEMS_PER_PAGE >= filtered.length ? c.textMuted : c.textPrimary }}>Next</Text>
+                    <Text style={{ color: listPage * ITEMS_PER_PAGE >= filtered.length ? c.textMuted : c.textPrimary }}>{t('finance.next')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -236,128 +241,129 @@ export default function FinanceScreen() {
         )}
       </ScrollView>
 
+      <FloatingActionButton onPress={() => setShowModal(true)} />
+
       {/* Add Modal */}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>Transaksi Baru</Text>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('finance.add_transaction')}</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
                 <MaterialIcons name="close" size={24} color={c.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Visualisasi Pengeluaran */}
-              {totalExpense > 0 && (
-                <View style={[styles.txCard, { backgroundColor: c.bgCard, borderColor: c.border, marginBottom: 24, flexDirection: 'column', alignItems: 'stretch' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <MaterialIcons name="pie-chart" size={20} color={c.purple} />
-                    <Text style={{ color: c.textPrimary, fontSize: 16, fontWeight: '700' }}>Alokasi Pengeluaran</Text>
-                  </View>
-                  {Object.entries(
-                    transactions
-                      .filter(t => t.type === 'expense')
-                      .reduce((acc, t) => {
-                        acc[t.category] = (acc[t.category] || 0) + t.amount;
-                        return acc;
-                      }, {} as Record<string, number>)
-                  )
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 4) // Top 4
-                    .map(([cat, amt]) => {
-                      const pct = (amt / totalExpense) * 100;
-                      return (
-                        <View key={cat} style={{ marginBottom: 12 }}>
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <Text style={{ color: c.textSecondary, fontSize: 13 }}>{cat}</Text>
-                            <Text style={{ color: c.textPrimary, fontSize: 13, fontWeight: '600' }}>{Math.round(pct)}%</Text>
-                          </View>
-                          <View style={{ height: 8, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' }}>
-                            <View style={{ height: '100%', width: `${pct}%`, backgroundColor: c.purple, borderRadius: 4 }} />
-                          </View>
-                        </View>
-                      );
-                    })}
-                </View>
-              )}
-
-              {/* Type */}
               <View style={styles.typeRow}>
-                {(['expense', 'income'] as const).map(t => (
+                {(['expense', 'income'] as const).map(tKey => (
                   <TouchableOpacity
-                    key={t}
-                    style={[styles.typeBtn, form.type === t && {
-                      backgroundColor: (t === 'income' ? c.green : c.red) + '22',
-                      borderColor: t === 'income' ? c.green : c.red,
+                    key={tKey}
+                    style={[styles.typeBtn, form.type === tKey && {
+                      backgroundColor: (tKey === 'income' ? c.green : c.red) + '22',
+                      borderColor: tKey === 'income' ? c.green : c.red,
                     }]}
-                    onPress={() => setForm({ ...form, type: t, category: t === 'income' ? 'Gaji' : 'Makanan' })}
+                    onPress={() => setForm({ ...form, type: tKey, category: tKey === 'income' ? 'Gaji' : 'Makanan' })}
                   >
                     <MaterialIcons
-                      name={t === 'income' ? 'arrow-upward' : 'arrow-downward'}
+                      name={tKey === 'income' ? 'arrow-upward' : 'arrow-downward'}
                       size={18}
-                      color={form.type === t ? (t === 'income' ? c.green : c.red) : c.textSecondary}
+                      color={form.type === tKey ? (tKey === 'income' ? c.green : c.red) : c.textSecondary}
                     />
-                    <Text style={[styles.typeBtnText, { color: form.type === t ? (t === 'income' ? c.green : c.red) : c.textSecondary }]}>
-                      {t === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+                    <Text style={[styles.typeBtnText, { color: form.type === tKey ? (tKey === 'income' ? c.green : c.red) : c.textSecondary }]}>
+                      {tKey === 'income' ? t('finance.income') : t('finance.expense')}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Jumlah (Rp)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
+              <Input 
+                label={t('finance.amount')}
                 value={form.amount}
                 onChangeText={v => setForm({ ...form, amount: formatRupiahInput(v) })}
                 placeholder="0"
-                placeholderTextColor={c.textMuted}
                 keyboardType="numeric"
               />
 
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Kategori</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {(form.type === 'income' 
-                    ? [...INCOME_CATS, ...customCategories.filter(c => c.type === 'income').map(c => c.label)] 
-                    : [...EXPENSE_CATS, ...customCategories.filter(c => c.type === 'expense').map(c => c.label)]
-                  ).map(catLabel => {
-                    const isCustom = customCategories.find(c => c.label === catLabel);
-                    const displayLabel = isCustom ? `${isCustom.emoji} ${catLabel}` : catLabel;
-                    return (
-                      <TouchableOpacity
-                        key={catLabel}
-                        style={[styles.catChip, form.category === catLabel && { backgroundColor: c.purple + '22', borderColor: c.purple }]}
-                        onPress={() => setForm({ ...form, category: catLabel })}
-                      >
-                        <Text style={{ color: form.category === catLabel ? c.purple : c.textSecondary }}>{displayLabel}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                  <TouchableOpacity
-                    style={[styles.catChip, { borderStyle: 'dashed', borderColor: c.border }]}
-                    onPress={() => { setShowModal(false); setShowCatModal(true); }}
-                  >
-                    <Text style={{ color: c.textMuted }}>+ Baru</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+              <Text style={[styles.inputLabel, { color: c.textSecondary, marginBottom: 12 }]}>{t('finance.category')}</Text>
+              <View style={styles.categoryGrid}>
+                {(form.type === 'income' 
+                  ? [...INCOME_CATS, ...customCategories.filter(cat => cat.type === 'income').map(cat => cat.label)] 
+                  : [...EXPENSE_CATS, ...customCategories.filter(cat => cat.type === 'expense').map(cat => cat.label)]
+                ).map(catLabel => {
+                  const isCustom = customCategories.find(cat => cat.label === catLabel);
+                  const config = CATEGORY_CONFIG[catLabel] || { icon: 'star', color: c.purple };
+                  const isSelected = form.category === catLabel;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={catLabel}
+                      style={[
+                        styles.categoryItem, 
+                        { backgroundColor: c.bgInput, borderColor: c.border },
+                        isSelected && { backgroundColor: config.color + '15', borderColor: config.color, borderWidth: 2 }
+                      ]}
+                      onPress={() => setForm({ ...form, category: catLabel })}
+                    >
+                      <View style={[styles.categoryIcon, { backgroundColor: isSelected ? config.color : c.textMuted + '22' }]}>
+                        {isCustom ? (
+                          <Text style={{ fontSize: 18 }}>{isCustom.emoji}</Text>
+                        ) : (
+                          <MaterialIcons name={config.icon as any} size={20} color={isSelected ? '#fff' : c.textSecondary} />
+                        )}
+                      </View>
+                      <Text style={[styles.categoryLabelText, { color: isSelected ? c.textPrimary : c.textSecondary }]} numberOfLines={1}>
+                        {translateCategory(catLabel)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  style={[styles.categoryItem, { borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent' }]}
+                  onPress={() => { setShowModal(false); setShowCatModal(true); }}
+                >
+                  <View style={[styles.categoryIcon, { backgroundColor: c.bgInput }]}>
+                    <MaterialIcons name="add" size={20} color={c.textMuted} />
+                  </View>
+                  <Text style={[styles.categoryLabelText, { color: c.textMuted }]}>{t('finance.category')}</Text>
+                </TouchableOpacity>
+              </View>
 
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Keterangan (opsional)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
+              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('finance.date')}</Text>
+              <TouchableOpacity
+                style={[styles.dateInput, { backgroundColor: c.bgInput, borderColor: c.border }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <MaterialIcons name="event" size={20} color={c.purple} />
+                <Text style={{ color: c.textPrimary, fontSize: 15, fontWeight: '600' }}>
+                  {formatDate(form.date, language)}
+                </Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(form.date)}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      setForm({ ...form, date: selectedDate.toISOString().split('T')[0] });
+                    }
+                  }}
+                />
+              )}
+
+              <Input 
+                label={t('finance.description')}
                 value={form.description}
                 onChangeText={v => setForm({ ...form, description: v })}
-                placeholder="Catatan transaksi..."
-                placeholderTextColor={c.textMuted}
+                placeholder={t('finance.description_placeholder')}
+                containerStyle={{ marginTop: 16 }}
               />
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={[styles.cancelBtn, { borderColor: c.border }]} onPress={() => setShowModal(false)}>
-                  <Text style={{ color: c.textSecondary, fontWeight: '600' }}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.submitBtn, { backgroundColor: c.green }]} onPress={handleSubmit}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Simpan</Text>
-                </TouchableOpacity>
+                <Button label={t('finance.cancel')} onPress={() => setShowModal(false)} variant="secondary" style={{ flex: 1, height: 60 }} />
+                <Button label={t('finance.save')} onPress={handleSubmit} variant="primary" style={{ flex: 1, height: 60 }} />
               </View>
             </ScrollView>
           </View>
@@ -367,91 +373,80 @@ export default function FinanceScreen() {
       {/* Custom Categories Modal */}
       <Modal visible={showCatModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgPrimary, borderColor: c.border, borderWidth: 1, height: '80%' }]}>
+          <View style={[styles.modalContent, { backgroundColor: c.bgPrimary, height: '80%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>Kategori Kustom 👑</Text>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('finance.category')}</Text>
               <TouchableOpacity onPress={() => setShowCatModal(false)}>
                 <MaterialIcons name="close" size={24} color={c.textPrimary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-              {/* Add New Category */}
               <View style={{ marginBottom: 24 }}>
-                <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Tipe Kategori</Text>
+                <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('finance.type')}</Text>
                 <View style={styles.typeTabs}>
                   <TouchableOpacity
-                    style={[styles.typeBtn, newCat.type === 'expense' && { backgroundColor: c.red + '22', borderColor: c.red }]}
+                    style={[styles.typeBtnTab, newCat.type === 'expense' && { backgroundColor: c.red + '22', borderColor: c.red }]}
                     onPress={() => setNewCat({ ...newCat, type: 'expense' })}
                   >
-                    <Text style={{ color: newCat.type === 'expense' ? c.red : c.textSecondary, fontWeight: '600' }}>Pengeluaran</Text>
+                    <Text style={{ color: newCat.type === 'expense' ? c.red : c.textSecondary, fontWeight: '600' }}>{t('finance.expense')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.typeBtn, newCat.type === 'income' && { backgroundColor: c.green + '22', borderColor: c.green }]}
+                    style={[styles.typeBtnTab, newCat.type === 'income' && { backgroundColor: c.green + '22', borderColor: c.green }]}
                     onPress={() => setNewCat({ ...newCat, type: 'income' })}
                   >
-                    <Text style={{ color: newCat.type === 'income' ? c.green : c.textSecondary, fontWeight: '600' }}>Pemasukan</Text>
+                    <Text style={{ color: newCat.type === 'income' ? c.green : c.textSecondary, fontWeight: '600' }}>{t('finance.income')}</Text>
                   </TouchableOpacity>
                 </View>
 
-                <Text style={[styles.inputLabel, { color: c.textSecondary, marginTop: 16 }]}>Emoji & Nama</Text>
+                <Text style={[styles.inputLabel, { color: c.textSecondary, marginTop: 16 }]}>Emoji & {t('finance.category')}</Text>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border, width: 60, textAlign: 'center' }]}
+                  <Input
                     value={newCat.emoji}
                     onChangeText={v => setNewCat({ ...newCat, emoji: v })}
                     maxLength={2}
+                    inputStyle={{ width: 60, textAlign: 'center' }}
                   />
-                  <TextInput
-                    style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border, flex: 1 }]}
+                  <Input
                     value={newCat.label}
                     onChangeText={v => setNewCat({ ...newCat, label: v })}
-                    placeholder="Nama Kategori..."
-                    placeholderTextColor={c.textMuted}
+                    placeholder={t('finance.category')}
+                    containerStyle={{ flex: 1 }}
                   />
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.submitBtn, { backgroundColor: c.purple, marginTop: 16 }]}
+                <Button 
+                  label={t('finance.save')} 
                   onPress={async () => {
                     if (!newCat.label) return;
-                    const cCat: CustomCategory = {
-                      id: generateId(),
+                    await addCustomCategory({
                       label: newCat.label.trim(),
                       emoji: newCat.emoji || '✨',
                       color: newCat.color,
                       type: newCat.type
-                    };
-                    const updated = [...customCategories, cCat];
-                    setCustomCategories(updated);
-                    await setData(STORAGE_KEYS.CUSTOM_CATEGORIES, updated);
+                    });
                     setNewCat({ ...newCat, label: '', emoji: '✨' });
                   }}
-                >
-                  <Text style={styles.submitBtnText}>Tambah Kategori</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  style={{ height: 60 }}
+                />
               </View>
 
-              {/* List Categories */}
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Kategori Tersimpan</Text>
+              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('finance.category')}</Text>
               {customCategories.length === 0 ? (
-                <Text style={{ color: c.textMuted, marginTop: 8 }}>Belum ada kategori kustom.</Text>
+                <Text style={{ color: c.textMuted, marginTop: 8 }}>{t('finance.no_transactions_yet')}</Text>
               ) : customCategories.map(cat => (
-                <View key={cat.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border }}>
+                <View key={cat.id} style={[styles.customCatItem, { borderBottomColor: c.border }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <Text style={{ fontSize: 24 }}>{cat.emoji}</Text>
                     <View>
                       <Text style={{ color: c.textPrimary, fontSize: 16, fontWeight: '600' }}>{cat.label}</Text>
                       <Text style={{ color: cat.type === 'income' ? c.green : c.red, fontSize: 12 }}>
-                        {cat.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+                        {cat.type === 'income' ? t('finance.income') : t('finance.expense')}
                       </Text>
                     </View>
                   </View>
-                  <TouchableOpacity onPress={async () => {
-                    const updated = customCategories.filter(c => c.id !== cat.id);
-                    setCustomCategories(updated);
-                    await setData(STORAGE_KEYS.CUSTOM_CATEGORIES, updated);
-                  }}>
+                  <TouchableOpacity onPress={() => deleteCustomCategory(cat.id)}>
                     <MaterialIcons name="delete" size={20} color={c.red} />
                   </TouchableOpacity>
                 </View>
@@ -466,57 +461,64 @@ export default function FinanceScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  balanceCard: { borderRadius: 20, padding: 20, marginBottom: 16, alignItems: 'center' },
-  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600', marginBottom: 4 },
-  balanceAmount: { color: '#fff', fontSize: 32, fontWeight: '800', marginBottom: 16 },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  balanceItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  balanceItemText: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '700' },
-  balanceDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.3)' },
+  pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
+  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 28, fontWeight: '900' },
+  pageSubtitle: { fontSize: 14, marginTop: 2 },
+  
+  balanceCard: { borderRadius: 24, padding: 24, marginBottom: 20, alignItems: 'center' },
+  balanceLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '800', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
+  balanceAmount: { color: '#fff', fontSize: 36, fontWeight: '900', marginBottom: 20 },
+  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  balanceItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  balanceItemText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  balanceDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.25)' },
 
-  card: { borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  cardTitle: { fontSize: 15, fontWeight: '700' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
+  cardTitle: { fontSize: 16, fontWeight: '800' },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1 },
+  summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  summaryLabel: { fontSize: 14, fontWeight: '700' },
+  summaryValue: { fontSize: 15, fontWeight: '900' },
 
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-  summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  summaryIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  summaryLabel: { fontSize: 13 },
-  summaryValue: { fontSize: 14, fontWeight: '700' },
+  tabRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  tabBtn: { flex: 1, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(150,150,150,0.05)' },
+  tabText: { fontSize: 14, fontWeight: '800' },
 
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabBtn: { flex: 1, minHeight: 44, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  tabText: { fontSize: 13, fontWeight: '700' },
+  txCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, marginBottom: 12 },
+  txIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  txCategory: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  txDesc: { fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  txDate: { fontSize: 11, fontWeight: '700' },
+  txRight: { alignItems: 'flex-end', minWidth: 100 },
+  txAmount: { fontSize: 16, fontWeight: '900' },
 
-  txCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
-  txIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  txCategory: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  txDesc: { fontSize: 12, marginBottom: 2 },
-  txDate: { fontSize: 11 },
-  txRight: { alignItems: 'flex-end', minWidth: 88 },
-  txAmount: { fontSize: 15, fontWeight: '800' },
+  pageBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  paginationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 20, borderTopWidth: 1 },
 
-  pageBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
-  paginationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)' },
+  emptyState: { alignItems: 'center', paddingVertical: 60, opacity: 0.6 },
+  emptyText: { fontSize: 16, fontWeight: '800', marginTop: 16 },
 
-  emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { fontSize: 15, fontWeight: '600', marginTop: 12 },
+  typeRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderColor: 'transparent', backgroundColor: 'rgba(150,150,150,0.05)' },
+  typeBtnText: { fontSize: 15, fontWeight: '800' },
+  typeTabs: { flexDirection: 'row', gap: 10 },
+  typeBtnTab: { flex: 1, height: 50, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
-  typeRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'transparent' },
-  typeBtnText: { fontSize: 14, fontWeight: '700' },
+  inputLabel: { fontSize: 14, fontWeight: '800', marginBottom: 8, marginTop: 16 },
+  dateInput: { borderRadius: 16, padding: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
 
-  inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  input: { borderRadius: 12, padding: 12, fontSize: 15, borderWidth: 1 },
-  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  optionBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: 'transparent' },
-  optionText: { fontSize: 12, fontWeight: '600' },
-
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 20, maxHeight: '85%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '800' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 20 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
-  submitBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+  categoryItem: { width: (Dimensions.get('window').width - 64) / 3, borderRadius: 20, padding: 14, alignItems: 'center', borderWidth: 1 },
+  categoryIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  categoryLabelText: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28, maxHeight: '92%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 24, fontWeight: '900' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 40, marginBottom: 12 },
+  
+  customCatItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 },
 });

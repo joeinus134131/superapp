@@ -3,8 +3,8 @@ import AppShell from "@/components/AppShell";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 export const metadata = {
-  title: "SuperApp — Personal Management Platform",
-  description: "All-in-one platform untuk mengelola tugas, kebiasaan, keuangan, jurnal, kesehatan, dan lebih banyak lagi. Tingkatkan produktivitas dan value diri Anda.",
+  title: "SelfOne — Personal Management Platform",
+  description: "All-in-one platform untuk mengelola tugas, kebiasaan, keuangan, jurnal, kesehatan, dan lebih banyak lagi. Tingkatkan produktivitas dan value diri Anda bersama SelfOne.",
   icons: {
     icon: '/favicon.svg',
     apple: '/favicon.svg',

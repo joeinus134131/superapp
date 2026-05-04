@@ -16,8 +16,8 @@ export function useMobileLayout() {
     topPadding: Math.max(insets.top + 10, 24),
     bottomPadding: Math.max(insets.bottom + 96, 112),
     contentBottomPadding: Math.max(insets.bottom + 32, 40),
-    tabBarHeight: 62 + insets.bottom,
-    tabBarPaddingBottom: Math.max(insets.bottom, 10),
+    tabBarHeight: 72 + insets.bottom,
+    tabBarPaddingBottom: Math.max(insets.bottom + 8, 20),
   }
 }
 

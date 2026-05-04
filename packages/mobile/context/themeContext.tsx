@@ -4,11 +4,13 @@ import { useColorScheme } from 'react-native'
 
 interface ThemeContextType {
   isDark: boolean
+  isChangingTheme: boolean
   toggleTheme: () => Promise<void>
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   isDark: false,
+  isChangingTheme: false,
   toggleTheme: async () => {},
 })
 
@@ -19,6 +21,7 @@ interface ThemeProviderProps {
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const systemColorScheme = useColorScheme()
   const [isDark, setIsDark] = useState(systemColorScheme === 'dark')
+  const [isChangingTheme, setIsChangingTheme] = useState(false)
 
   useEffect(() => {
     // Load saved theme preference
@@ -32,13 +35,17 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   }, [])
 
   const toggleTheme = async (): Promise<void> => {
+    setIsChangingTheme(true)
+    // Artificial delay to show loading effect
+    await new Promise(resolve => setTimeout(resolve, 800))
     const newTheme = !isDark
     setIsDark(newTheme)
     await AsyncStorage.setItem('superapp_theme', newTheme ? 'dark' : 'light')
+    setIsChangingTheme(false)
   }
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDark, isChangingTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   )

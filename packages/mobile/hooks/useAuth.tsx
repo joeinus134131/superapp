@@ -37,6 +37,9 @@ interface AuthContextValue {
   logout: () => Promise<void>
   refreshConnection: () => Promise<ConnectionState>
   consumeAuthRedirect: (url: string) => Promise<AuthResult>
+  resetPassword: (email: string) => Promise<AuthResult>
+  isOnboarded: boolean
+  setOnboarded: (val: boolean) => void
 }
 
 const initialConnection: ConnectionState = {
@@ -73,6 +76,7 @@ function parseUrlParams(url: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isOnboarded, setIsOnboarded] = useState(false)
   const [connection, setConnection] = useState<ConnectionState>(initialConnection)
 
   useEffect(() => {
@@ -129,6 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const bootstrapAsync = async (): Promise<void> => {
     try {
       await refreshConnection()
+      
+      const onboarded = await AsyncStorage.getItem('superapp_onboarded')
+      setIsOnboarded(onboarded === 'true' || onboarded === true)
 
       const initialUrl = await Linking.getInitialURL()
       if (initialUrl) {
@@ -284,6 +291,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const resetPassword = async (email: string): Promise<AuthResult> => {
+    try {
+      const readinessError = await ensureReadyForAuth()
+      if (readinessError) {
+        return { success: false, error: readinessError }
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: Linking.createURL('/auth/callback'),
+      })
+
+      if (error) throw error
+
+      return { success: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Password reset failed'
+      return { success: false, error: message }
+    }
+  }
+
   const logout = async () => {
     try {
       await supabase.auth.signOut()
@@ -296,7 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, connection, login, register, logout, refreshConnection, consumeAuthRedirect }}
+      value={{ user, loading, connection, login, register, logout, refreshConnection, consumeAuthRedirect, resetPassword, isOnboarded, setOnboarded: setIsOnboarded }}
     >
       {children}
     </AuthContext.Provider>

@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   ACHIEVEMENTS: 'superapp_achievements',
   USER_PROFILE: 'superapp_user_profile',
   CUSTOM_CATEGORIES: 'superapp_custom_categories',
+  SETTINGS: 'superapp_settings',
 };
 
 export async function getData(key: string): Promise<any> {

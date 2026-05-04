@@ -1,41 +1,81 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Switch,
-  Alert, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity,
+  Alert, StyleSheet, Image, TextInput, Modal
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { getXP, getCurrentLevel, getXPProgress } from '../../lib/gamification';
-import { clearAll } from '../../lib/storage';
+import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
 import { useAuth } from '../../hooks/useAuth';
-import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
+import { useMobileLayout } from '../../lib/layout';
+import { useLanguage } from '../../context/languageContext';
 
 export default function ProfileScreen() {
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark } = useTheme();
   const c = useColors(isDark);
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile: updateAuthProfile } = useAuth();
   const router = useRouter();
   const layout = useMobileLayout();
+  const { t } = useLanguage();
 
   const [gamData, setGamData] = useState({ totalXP: 0 });
+  const [profile, setProfile] = useState<{ avatarUri?: string, bio?: string }>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(user?.name || '');
 
-  const loadGamData = useCallback(async () => {
-    const xp = await getXP();
+  const loadData = useCallback(async () => {
+    const [xp, prof] = await Promise.all([
+      getXP(),
+      getData(STORAGE_KEYS.USER_PROFILE)
+    ]);
     setGamData(xp);
+    if (prof) setProfile(prof);
   }, []);
 
-  useEffect(() => { loadGamData(); }, [loadGamData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const level = getCurrentLevel(gamData.totalXP);
   const progress = getXPProgress(gamData.totalXP);
 
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      const newProfile = { ...profile, avatarUri: uri };
+      setProfile(newProfile);
+      await setData(STORAGE_KEYS.USER_PROFILE, newProfile);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    if (!newName.trim()) return;
+    try {
+      if (updateAuthProfile) {
+        await updateAuthProfile({ name: newName.trim() });
+      }
+      setIsEditing(false);
+      Alert.alert(`✅ ${t('profile.update_success_title')}`, t('profile.update_success_desc'));
+    } catch (e) {
+      Alert.alert(`❌ ${t('profile.update_fail_title')}`, t('profile.update_fail_desc'));
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert('Keluar', 'Yakin ingin keluar dari akun?', [
-      { text: 'Batal', style: 'cancel' },
+    Alert.alert(t('profile.logout_title'), t('profile.logout_confirm'), [
+      { text: t('tasks.cancel'), style: 'cancel' },
       {
-        text: 'Keluar', style: 'destructive', onPress: async () => {
+        text: t('profile.logout_btn'), style: 'destructive', onPress: async () => {
           await logout();
           router.replace('/(auth)/login');
         }
@@ -43,168 +83,203 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const handleClearData = () => {
-    Alert.alert(
-      '⚠️ Hapus Semua Data',
-      'Semua data lokal (tasks, habits, pomodoro, dll) akan dihapus permanen. Tidak bisa dikembalikan!',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus Semua', style: 'destructive', onPress: async () => {
-            await clearAll();
-            Alert.alert('✅ Selesai', 'Semua data telah dihapus.');
-          }
-        },
-      ]
-    );
-  };
-
-  const settingItems = [
-    {
-      icon: isDark ? 'dark-mode' : 'light-mode',
-      label: 'Mode Gelap',
-      type: 'toggle' as const,
-      value: isDark,
-      onToggle: toggleTheme,
-    },
-  ];
-
-  const dataItems = [
-    { icon: 'delete-sweep', label: 'Hapus Semua Data', color: c.red, onPress: handleClearData },
-  ];
-
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.bgPrimary }]}
-      contentContainerStyle={{ paddingHorizontal: MOBILE_SPACING.screen, paddingTop: layout.topPadding, paddingBottom: layout.bottomPadding }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* User Card */}
-      <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-        <View style={styles.userRow}>
-          <View style={[styles.avatar, { backgroundColor: c.purple + '22' }]}>
-            <MaterialIcons name="person" size={32} color={c.purple} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.userName, { color: c.textPrimary }]}>
-              {user?.name || user?.email || 'Pengguna'}
-            </Text>
-            <Text style={[styles.userEmail, { color: c.textSecondary }]}>
-              {user?.email || 'user@superapp.com'}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* XP / Level Card */}
-      <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-        <View style={styles.xpHeader}>
-          <View style={styles.xpTitleRow}>
-            <Text style={{ fontSize: 22 }}>🏆</Text>
-            <Text style={[styles.xpTitle, { color: c.textPrimary }]}>{level.title}</Text>
-            <View style={[styles.levelBadge, { backgroundColor: level.color + '22' }]}>
-              <Text style={[styles.levelBadgeText, { color: level.color }]}>Lv. {level.level}</Text>
-            </View>
-          </View>
-        </View>
-        <View style={[styles.xpTrack, { backgroundColor: c.border }]}>
-          <View style={[styles.xpFill, { width: `${progress.percent}%`, backgroundColor: level.color }]} />
-        </View>
-        <View style={styles.xpFooter}>
-          <Text style={[styles.xpText, { color: c.textSecondary }]}>{gamData.totalXP} XP Total</Text>
-          <Text style={[styles.xpText, { color: c.textSecondary }]}>
-            {progress.current}/{progress.needed} XP → Lv. {level.level + 1}
-          </Text>
-        </View>
-      </View>
-
-      {/* Settings */}
-      <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-        <View style={styles.sectionTitleRow}>
-          <MaterialIcons name="settings" size={18} color={c.purple} />
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Pengaturan</Text>
+    <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
+      {/* Premium Profile Header */}
+      <View style={[styles.headerBg, { backgroundColor: c.purple + '08', paddingTop: layout.topPadding + 20 }]}>
+        <View style={styles.headerTopActions}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.roundBtn, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+            <MaterialIcons name="arrow-back" size={20} color={c.textPrimary} />
+          </TouchableOpacity>
+          <View />
+          <TouchableOpacity style={[styles.roundBtn, { backgroundColor: c.bgCard, borderColor: c.border }]} onPress={handleLogout}>
+            <MaterialIcons name="logout" size={20} color={c.red} />
+          </TouchableOpacity>
         </View>
 
-        {settingItems.map((item, i) => (
-          <View key={i} style={[styles.settingRow, { borderBottomColor: c.border }]}>
-            <View style={styles.settingLeft}>
-              <MaterialIcons name={item.icon as any} size={20} color={c.textSecondary} />
-              <Text style={[styles.settingLabel, { color: c.textPrimary }]}>{item.label}</Text>
-            </View>
-            {item.type === 'toggle' && (
-              <Switch
-                value={item.value}
-                onValueChange={item.onToggle}
-                trackColor={{ false: c.border, true: c.purple + '66' }}
-                thumbColor={item.value ? c.purple : '#ccc'}
-              />
+        <TouchableOpacity style={styles.avatarWrapper} onPress={handlePickImage} activeOpacity={0.9}>
+          <View style={[styles.avatarGlow, { backgroundColor: level.color + '30' }]} />
+          <View style={[styles.avatar, { backgroundColor: c.bgCard, borderColor: level.color, borderWidth: 3 }]}>
+            {profile.avatarUri ? (
+              <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
+            ) : (
+              <Text style={[styles.avatarInitials, { color: level.color }]}>
+                {(user?.name || 'S').charAt(0).toUpperCase()}
+              </Text>
             )}
           </View>
-        ))}
+          <View style={[styles.editIcon, { backgroundColor: level.color }]}>
+            <MaterialIcons name="camera-alt" size={16} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.nameContainer}>
+          <Text style={[styles.userName, { color: c.textPrimary }]}>{user?.name || 'SelfOne Explorer'}</Text>
+          <View style={[styles.premiumBadge, { backgroundColor: c.purple + '15' }]}>
+            <MaterialIcons name="verified" size={14} color={c.purple} />
+            <Text style={[styles.premiumText, { color: c.purple }]}>PREMIUM</Text>
+          </View>
+        </View>
+        <Text style={[styles.userEmail, { color: c.textMuted }]}>{user?.email || 'explorer@selfone.app'}</Text>
       </View>
 
-      {/* Data Management */}
-      <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-        <View style={styles.sectionTitleRow}>
-          <MaterialIcons name="storage" size={18} color={c.orange} />
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Data</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: layout.bottomPadding + 40 }}
+      >
+        {/* Statistics & Progress Section */}
+        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border, elevation: 4 }]}>
+          <View style={styles.cardHeader}>
+            <MaterialIcons name="insights" size={20} color={c.purple} />
+            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('profile.progress_analysis')}</Text>
+          </View>
+          
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statVal, { color: level.color }]}>{level.level}</Text>
+              <Text style={[styles.statLab, { color: c.textMuted }]}>{t('gamification.level')}</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: c.border }]} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statVal, { color: c.purple }]}>{gamData.totalXP}</Text>
+              <Text style={[styles.statLab, { color: c.textMuted }]}>Total XP</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: c.border }]} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statVal, { color: c.green }]}>{Math.floor(gamData.totalXP / 100)}</Text>
+              <Text style={[styles.statLab, { color: c.textMuted }]}>{t('gamification.points')}</Text>
+            </View>
+          </View>
+
+          <View style={styles.progressSection}>
+            <View style={styles.progressInfo}>
+              <Text style={[styles.progressLabel, { color: c.textSecondary }]}>{t(level.key)}</Text>
+              <Text style={[styles.progressPercent, { color: level.color }]}>{Math.round(progress.percent)}%</Text>
+            </View>
+            <View style={[styles.track, { backgroundColor: c.bgInput }]}>
+              <View style={[styles.fill, { width: `${progress.percent}%`, backgroundColor: level.color }]} />
+            </View>
+            <Text style={[styles.neededText, { color: c.textMuted }]}>
+              {t('gamification.needed_xp').replace('{xp}', (progress.needed - progress.current).toString()).replace('{level}', (level.level + 1).toString())}
+            </Text>
+          </View>
         </View>
 
-        {dataItems.map((item, i) => (
-          <TouchableOpacity key={i} style={[styles.settingRow, { borderBottomColor: c.border }]} onPress={item.onPress}>
+        {/* Identity & Personal Section */}
+        <Text style={[styles.sectionTitle, { color: c.textMuted }]}>{t('profile.public_identity').toUpperCase()}</Text>
+        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => { setNewName(user?.name || ''); setIsEditing(true); }}>
             <View style={styles.settingLeft}>
-              <MaterialIcons name={item.icon as any} size={20} color={item.color} />
-              <Text style={[styles.settingLabel, { color: item.color }]}>{item.label}</Text>
+              <View style={[styles.iconBox, { backgroundColor: c.blue + '15' }]}>
+                <MaterialIcons name="person-outline" size={20} color={c.blue} />
+              </View>
+              <View>
+                <Text style={[styles.settingLabel, { color: c.textPrimary }]}>{t('profile.full_name')}</Text>
+                <Text style={[styles.settingVal, { color: c.textMuted }]}>{user?.name || 'SelfOne Explorer'}</Text>
+              </View>
             </View>
-            <MaterialIcons name="chevron-right" size={20} color={c.textMuted} />
+            <MaterialIcons name="edit" size={18} color={c.purple} />
           </TouchableOpacity>
-        ))}
-      </View>
 
-      {/* Sign Out */}
-      <TouchableOpacity
-        style={[styles.logoutBtn, { backgroundColor: c.red + '15', borderColor: c.red + '44' }]}
-        onPress={handleLogout}
-        activeOpacity={0.7}
-      >
-        <MaterialIcons name="logout" size={20} color={c.red} />
-        <Text style={[styles.logoutText, { color: c.red }]}>Keluar</Text>
-      </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
 
-      {/* Version */}
-      <Text style={[styles.version, { color: c.textMuted }]}>SuperApp Mobile v1.0.0</Text>
-    </ScrollView>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconBox, { backgroundColor: c.green + '15' }]}>
+                <MaterialIcons name="mail-outline" size={20} color={c.green} />
+              </View>
+              <View>
+                <Text style={[styles.settingLabel, { color: c.textPrimary }]}>{t('profile.email_verified')}</Text>
+                <Text style={[styles.settingVal, { color: c.textMuted }]}>{user?.email}</Text>
+              </View>
+            </View>
+            <MaterialIcons name="verified-user" size={18} color={c.green} />
+          </View>
+        </View>
+
+        <Text style={[styles.footerText, { color: c.textMuted }]}>
+          {t('profile.footer_text')}
+        </Text>
+      </ScrollView>
+
+      {/* Edit Name Modal */}
+      <Modal visible={isEditing} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: c.bgCard }]}>
+            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('profile.edit_name_title')}</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
+              value={newName}
+              onChangeText={setNewName}
+              placeholder={t('profile.edit_name_placeholder')}
+              placeholderTextColor={c.textMuted}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => setIsEditing(false)}>
+                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{t('tasks.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: c.purple }]} onPress={handleUpdateName}>
+                <Text style={{ color: '#fff', fontWeight: '800' }}>{t('tasks.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  card: { borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1 },
+  headerBg: { alignItems: 'center', paddingBottom: 40, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
+  headerTopActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingHorizontal: 24, marginBottom: 20 },
+  roundBtn: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  
+  avatarWrapper: { marginBottom: 16, position: 'relative' },
+  avatarGlow: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 44, opacity: 0.3 },
+  avatar: { width: 100, height: 100, borderRadius: 36, alignItems: 'center', justifyContent: 'center', elevation: 10, shadowOpacity: 0.15, shadowRadius: 12, overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarInitials: { fontSize: 40, fontWeight: '900' },
+  editIcon: { position: 'absolute', bottom: -4, right: -4, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
+  
+  nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  userName: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  premiumBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  premiumText: { fontSize: 9, fontWeight: '900' },
+  userEmail: { fontSize: 13, fontWeight: '600', marginTop: 2 },
 
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar: { width: 62, height: 62, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  userName: { fontSize: 20, fontWeight: '900' },
-  userEmail: { fontSize: 14, marginTop: 4 },
+  card: { borderRadius: 28, padding: 20, marginBottom: 20, borderWidth: 1 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
+  cardTitle: { fontSize: 15, fontWeight: '800' },
+  
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  statItem: { flex: 1, alignItems: 'center' },
+  statVal: { fontSize: 20, fontWeight: '900' },
+  statLab: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  statDivider: { width: 1, height: 24, opacity: 0.5 },
 
-  xpHeader: { marginBottom: 14 },
-  xpTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  xpTitle: { fontSize: 18, fontWeight: '800' },
-  levelBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999 },
-  levelBadgeText: { fontSize: 12, fontWeight: '800' },
-  xpTrack: { height: 10, borderRadius: 999, overflow: 'hidden', marginBottom: 10 },
-  xpFill: { height: '100%', borderRadius: 8 },
-  xpFooter: { flexDirection: 'row', justifyContent: 'space-between' },
-  xpText: { fontSize: 13, fontWeight: '600' },
+  progressSection: { gap: 10 },
+  progressInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  progressLabel: { fontSize: 14, fontWeight: '800' },
+  progressPercent: { fontSize: 16, fontWeight: '900' },
+  track: { height: 10, borderRadius: 5, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 5 },
+  neededText: { fontSize: 11, fontWeight: '600', textAlign: 'center', marginTop: 4 },
 
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  sectionTitle: { fontSize: 18, fontWeight: '800' },
+  sectionTitle: { fontSize: 11, fontWeight: '900', marginLeft: 20, marginBottom: 12, letterSpacing: 1.2 },
+  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  iconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  settingLabel: { fontSize: 12, fontWeight: '800', marginBottom: 2 },
+  settingVal: { fontSize: 14, fontWeight: '700' },
+  divider: { height: 1, marginVertical: 4, opacity: 0.3 },
+  footerText: { textAlign: 'center', fontSize: 11, fontWeight: '600', opacity: 0.6, marginTop: 10, marginBottom: 40 },
 
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1 },
-  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  settingLabel: { fontSize: 15, fontWeight: '600' },
-
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 17, borderRadius: 18, borderWidth: 1, marginBottom: 18 },
-  logoutText: { fontSize: 16, fontWeight: '700' },
-
-  version: { textAlign: 'center', fontSize: 12, marginBottom: 20 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalContent: { width: '100%', borderRadius: 24, padding: 24, elevation: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 20 },
+  input: { borderRadius: 12, padding: 14, fontSize: 16, borderWidth: 1, marginBottom: 20 },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
 });

@@ -1,111 +1,62 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, Alert, StyleSheet, RefreshControl,
+  View, Text, ScrollView, TouchableOpacity,
+  Modal, StyleSheet, RefreshControl,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
-import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
-import { generateId, getToday, formatDate } from '../../lib/helpers';
-import { addXP } from '../../lib/gamification';
-import { PageHeader } from '../../components/PageHeader';
+import { getToday, formatDate } from '../../lib/helpers';
+import * as Haptics from 'expo-haptics';
+import { useLanguage } from '../../context/languageContext';
 
-interface Workout {
-  id: string;
-  type: string;
-  duration: number;
-  calories: number;
-  notes: string;
-  date: string;
-}
+import { useHealth, Workout, DailyHealth } from '../../hooks/useHealth';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
 
-interface DailyHealth {
-  date: string;
-  steps: number;
-  water: number;
-  sleep: number;
-  weight: number;
-}
-
-const WORKOUT_TYPES = ['Lari', 'Gym', 'Yoga', 'Renang', 'Bersepeda', 'HIIT', 'Jalan Kaki', 'Lainnya'];
+const WORKOUT_TYPES = ['Run', 'Gym', 'Yoga', 'Swim', 'Cycle', 'HIIT', 'Walk', 'Others'];
 
 export default function HealthScreen() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
   const layout = useMobileLayout();
+  const { t, language } = useLanguage();
 
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [dailyData, setDailyData] = useState<DailyHealth>({ date: today, steps: 0, water: 0, sleep: 0, weight: 0 });
+  const { 
+    workouts, dailyData, dailyHistory, loading, xpToast, 
+    addWorkout, updateDailyData, refreshHealth 
+  } = useHealth();
+
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [xpToast, setXpToast] = useState<string | null>(null);
-  const [form, setForm] = useState({ type: 'Lari', duration: '', calories: '', notes: '' });
   const [showDailyModal, setShowDailyModal] = useState(false);
+  
+  const [form, setForm] = useState({ type: 'Run', duration: '', calories: '', notes: '' });
   const [dailyForm, setDailyForm] = useState({ steps: '', water: '', sleep: '', weight: '' });
 
-  const load = useCallback(async () => {
-    const saved = await getData(STORAGE_KEYS.HEALTH);
-    if (saved) {
-      if (saved.workouts) setWorkouts(saved.workouts);
-      const todayData = saved.daily?.[today] || { date: today, steps: 0, water: 0, sleep: 0, weight: 0 };
-      setDailyData(todayData);
-    }
-  }, [today]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const saveHealth = async (updates: { workouts?: Workout[]; daily?: Record<string, DailyHealth> }) => {
-    const current = await getData(STORAGE_KEYS.HEALTH) || {};
-    const newData = { ...current, ...updates };
-    await setData(STORAGE_KEYS.HEALTH, newData);
-  };
-
-  const addWorkout = async () => {
+  const handleAddWorkout = async () => {
     if (!form.duration) return;
-    const workout: Workout = {
-      id: generateId(), type: form.type,
+    await addWorkout({
+      type: form.type,
       duration: parseInt(form.duration) || 0,
       calories: parseInt(form.calories) || 0,
-      notes: form.notes, date: today,
-    };
-    const updated = [workout, ...workouts];
-    setWorkouts(updated);
-    await saveHealth({ workouts: updated });
+      notes: form.notes,
+    });
     setShowWorkoutModal(false);
-    setForm({ type: 'Lari', duration: '', calories: '', notes: '' });
-    const result = await addXP('WORKOUT');
-    setXpToast(`+${result.xpGained} XP 💪 Workout selesai!`);
-    setTimeout(() => setXpToast(null), 2500);
+    setForm({ type: 'Run', duration: '', calories: '', notes: '' });
   };
 
-  const deleteWorkout = (id: string) => {
-    Alert.alert('Hapus Workout', 'Yakin?', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus', style: 'destructive', onPress: async () => {
-          const updated = workouts.filter(w => w.id !== id);
-          setWorkouts(updated);
-          await saveHealth({ workouts: updated });
-        }
-      },
-    ]);
-  };
-
-  const saveDailyData = async () => {
-    const updated: DailyHealth = {
-      date: today,
+  const handleSaveDaily = async () => {
+    await updateDailyData({
       steps: parseInt(dailyForm.steps) || dailyData.steps,
       water: parseFloat(dailyForm.water) || dailyData.water,
       sleep: parseFloat(dailyForm.sleep) || dailyData.sleep,
       weight: parseFloat(dailyForm.weight) || dailyData.weight,
-    };
-    setDailyData(updated);
-    const current = await getData(STORAGE_KEYS.HEALTH) || {};
-    const daily = { ...(current.daily || {}), [today]: updated };
-    await saveHealth({ daily });
+    });
     setShowDailyModal(false);
   };
 
@@ -119,247 +70,347 @@ export default function HealthScreen() {
     setShowDailyModal(true);
   };
 
-  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const getVisibleDays = (count: number) => {
+    const days = [];
+    for (let i = 0; i < count; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(getToday(d));
+    }
+    return days.reverse();
+  };
 
-  const thisWeekWorkouts = workouts.filter(w => {
-    const d = new Date(w.date);
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    return d >= weekAgo;
-  });
-  const totalCalories = thisWeekWorkouts.reduce((s, w) => s + w.calories, 0);
-  const totalMinutes = thisWeekWorkouts.reduce((s, w) => s + w.duration, 0);
+  const last7Days = useMemo(() => getVisibleDays(7), []);
+  const last30Days = useMemo(() => getVisibleDays(30), []);
+  
+  const maxSteps = useMemo(() => 
+    Math.max(...last7Days.map(d => dailyHistory[d]?.steps || 0), 8000),
+  [last7Days, dailyHistory]);
+
+  const totalCalories = useMemo(() => 
+    workouts
+      .filter(w => {
+        const d = new Date(w.date);
+        const now = new Date();
+        const diff = (now.getTime() - d.getTime()) / (1000 * 3600 * 24);
+        return diff <= 7;
+      })
+      .reduce((s, w) => s + (w.calories || 0), 0),
+  [workouts]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {xpToast && (
-        <View style={[styles.xpToast, { top: layout.insets.top + 12 }]}><Text style={styles.xpToastText}>⚡ {xpToast}</Text></View>
-      )}
-      <PageHeader
-        title="Kesehatan"
-        subtitle="Tracking workout dan kondisi harian."
-        textColor={c.textPrimary}
-        subtextColor={c.textSecondary}
-        borderColor={c.border}
-        backgroundColor={c.bgPrimary}
-        actionColor={c.green}
-        onActionPress={() => setShowWorkoutModal(true)}
-      />
+      {/* Header */}
+      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={[styles.headerIconBox, { backgroundColor: c.green + '15' }]}>
+            <MaterialIcons name="favorite" size={24} color={c.green} />
+          </View>
+          <View>
+            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.health')}</Text>
+            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('health.subtitle')}</Text>
+          </View>
+        </View>
+      </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshHealth} tintColor={c.purple} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: MOBILE_SPACING.screen, paddingTop: 14, paddingBottom: layout.bottomPadding }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: layout.bottomPadding + 100 }}
       >
-        {/* Weekly Stats */}
-        <View style={styles.statsRow}>
+        {/* Daily Stats Summary */}
+        <View style={styles.metricsGrid}>
           {[
-            { label: 'Workout', value: thisWeekWorkouts.length, unit: 'sesi', icon: 'fitness-center' as const, color: c.purple },
-            { label: 'Kalori', value: totalCalories, unit: 'kal', icon: 'local-fire-department' as const, color: c.red },
-            { label: 'Menit', value: totalMinutes, unit: 'min', icon: 'timer' as const, color: c.cyan },
-          ].map((s, i) => (
-            <View key={i} style={[styles.statCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-              <View style={[styles.statIcon, { backgroundColor: s.color + '22' }]}>
-                <MaterialIcons name={s.icon} size={20} color={s.color} />
+            { label: t('health.steps'), value: dailyData.steps.toLocaleString(), icon: 'directions-walk' as const, color: c.green },
+            { label: t('health.water'), value: `${dailyData.water}L`, icon: 'water-drop' as const, color: c.blue },
+            { label: t('health.sleep'), value: `${dailyData.sleep}h`, icon: 'bedtime' as const, color: c.purple },
+            { label: t('health.weight'), value: `${dailyData.weight}kg`, icon: 'monitor-weight' as const, color: c.orange },
+          ].map((m, i) => (
+            <Card 
+              key={i} 
+              style={styles.metricCard} 
+              onPress={openDailyModal}
+            >
+              <View style={[styles.metricIcon, { backgroundColor: m.color + '15' }]}>
+                <MaterialIcons name={m.icon} size={22} color={m.color} />
               </View>
-              <Text style={[styles.statValue, { color: c.textPrimary }]}>{s.value}</Text>
-              <Text style={[styles.statLabel, { color: c.textMuted }]}>{s.unit}</Text>
-              <Text style={[styles.statSubLabel, { color: c.textMuted }]}>{s.label}</Text>
-            </View>
+              <Text style={[styles.metricValue, { color: c.textPrimary }]}>{m.value}</Text>
+              <Text style={[styles.metricLabel, { color: c.textSecondary }]}>{m.label}</Text>
+            </Card>
           ))}
         </View>
 
-        {/* Daily Tracker */}
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-          <View style={styles.cardTitleRow}>
-            <MaterialIcons name="today" size={18} color={c.cyan} />
-            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Data Hari Ini</Text>
-            <TouchableOpacity onPress={openDailyModal} style={styles.editBtn}>
-              <MaterialIcons name="edit" size={16} color={c.purple} />
-              <Text style={[styles.editBtnText, { color: c.purple }]}>Update</Text>
-            </TouchableOpacity>
+        {/* 7-Day Step Trend Chart */}
+        <Card style={{ marginTop: 10, padding: 24 }}>
+          <View style={styles.cardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialIcons name="bar-chart" size={18} color={c.green} />
+              <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('health.trend_steps')}</Text>
+            </View>
+            <Badge label="GOAL: 10K" color={c.green} />
           </View>
-          <View style={styles.dailyGrid}>
-            {[
-              { label: 'Langkah', value: dailyData.steps ? `${dailyData.steps.toLocaleString()}` : '—', unit: 'steps', icon: 'directions-walk' as const, color: c.green },
-              { label: 'Air', value: dailyData.water ? `${dailyData.water}L` : '—', unit: '', icon: 'water-drop' as const, color: c.cyan },
-              { label: 'Tidur', value: dailyData.sleep ? `${dailyData.sleep}j` : '—', unit: '', icon: 'bedtime' as const, color: c.purple },
-              { label: 'Berat', value: dailyData.weight ? `${dailyData.weight}kg` : '—', unit: '', icon: 'monitor-weight' as const, color: c.orange },
-            ].map((item, i) => (
-              <View key={i} style={[styles.dailyItem, { backgroundColor: item.color + '11', borderColor: item.color + '33' }]}>
-                <MaterialIcons name={item.icon} size={22} color={item.color} />
-                <Text style={[styles.dailyValue, { color: c.textPrimary }]}>{item.value}</Text>
-                <Text style={[styles.dailyLabel, { color: c.textMuted }]}>{item.label}</Text>
-              </View>
-            ))}
+          
+          <View style={styles.chartContainer}>
+            {last7Days.map(d => {
+              const val = dailyHistory[d]?.steps || 0;
+              const h = Math.max((val / maxSteps) * 100, 5);
+              const isToday = d === today;
+              return (
+                <View key={d} style={styles.chartBarCol}>
+                  <Text style={[styles.chartValText, { color: c.textMuted }]}>{val > 0 ? (val > 999 ? (val/1000).toFixed(1)+'k' : val) : ''}</Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { height: `${h}%`, backgroundColor: isToday ? c.green : c.green + '30' }]} />
+                  </View>
+                  <Text style={[styles.chartDateText, { color: isToday ? c.green : c.textMuted, fontWeight: isToday ? '900' : '600' }]}>{d.split('-')[2]}</Text>
+                </View>
+              );
+            })}
           </View>
-        </View>
+        </Card>
+
+        {/* 30-Day Heatmap */}
+        <Card style={{ marginTop: 10, padding: 24 }}>
+          <View style={styles.cardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialIcons name="grid-on" size={18} color={c.blue} />
+              <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('health.hydration_history')}</Text>
+            </View>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.heatmapGrid}>
+              {last30Days.map(d => {
+                const val = dailyHistory[d]?.water || 0;
+                const level = Math.min(val / 3, 1);
+                const isToday = d === today;
+                return (
+                  <View key={d} style={styles.heatCol}>
+                    <View style={[
+                      styles.heatCell, 
+                      { backgroundColor: c.bgInput },
+                      val > 0 && { backgroundColor: c.blue, opacity: 0.2 + (level * 0.8) },
+                      isToday && !val && { borderColor: c.blue, borderWidth: 1, borderStyle: 'dashed' }
+                    ]} />
+                    <Text style={[styles.heatLabel, { color: isToday ? c.blue : c.textMuted }]}>{d.split('-')[2]}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </Card>
 
         {/* Workout History */}
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-          <View style={styles.cardTitleRow}>
-            <MaterialIcons name="history" size={18} color={c.purple} />
-            <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Riwayat Workout</Text>
+        <Card style={{ marginTop: 10, padding: 24 }}>
+          <View style={styles.cardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialIcons name="fitness-center" size={18} color={c.purple} />
+              <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('health.workout_activity')}</Text>
+            </View>
+            <Badge label={`7H: ${totalCalories} CAL`} color={c.purple} />
           </View>
           {workouts.length === 0 ? (
             <View style={styles.emptyState}>
               <MaterialIcons name="fitness-center" size={40} color={c.textMuted} />
-              <Text style={[styles.emptyText, { color: c.textMuted }]}>Belum ada workout</Text>
+              <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('health.empty_workout')}</Text>
             </View>
-          ) : workouts.slice(0, 15).map(w => (
-            <View key={w.id} style={[styles.workoutRow, { borderBottomColor: c.border }]}>
-              <View style={[styles.workoutIcon, { backgroundColor: c.purple + '22' }]}>
-                <MaterialIcons name="fitness-center" size={18} color={c.purple} />
+          ) : workouts.slice(0, 5).map(w => (
+            <View key={w.id} style={[styles.workoutItem, { borderBottomColor: c.border + '10' }]}>
+              <View style={[styles.workoutIconBox, { backgroundColor: c.bgInput }]}>
+                <MaterialIcons name="fitness-center" size={20} color={c.purple} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.workoutType, { color: c.textPrimary }]}>{w.type}</Text>
-                <Text style={[styles.workoutMeta, { color: c.textMuted }]}>
-                  {w.duration} min • {w.calories} kal • {formatDate(w.date)}
-                </Text>
-                {w.notes ? <Text style={[styles.workoutNotes, { color: c.textSecondary }]}>{w.notes}</Text> : null}
+                <Text style={[styles.workoutName, { color: c.textPrimary }]}>{t(`health.cat_${w.type.toLowerCase()}`)}</Text>
+                <Text style={[styles.workoutMeta, { color: c.textSecondary }]}>{w.duration} min • {w.calories} cal • {formatDate(w.date, language)}</Text>
               </View>
-              <TouchableOpacity onPress={() => deleteWorkout(w.id)}>
-                <MaterialIcons name="delete-outline" size={18} color={c.textMuted} />
-              </TouchableOpacity>
+              <MaterialIcons name="chevron-right" size={20} color={c.textMuted} />
             </View>
           ))}
-        </View>
+        </Card>
       </ScrollView>
 
-      {/* Add Workout Modal */}
+      <FloatingActionButton onPress={() => setShowWorkoutModal(true)} />
+
+      {/* Workout Modal */}
       <Modal visible={showWorkoutModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>Catat Workout</Text>
-              <TouchableOpacity onPress={() => setShowWorkoutModal(false)}>
-                <MaterialIcons name="close" size={24} color={c.textSecondary} />
-              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.add_activity')}</Text>
+              <TouchableOpacity onPress={() => setShowWorkoutModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
             </View>
+            
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Jenis Olahraga</Text>
-              <View style={styles.optionRow}>
-                {WORKOUT_TYPES.map(t => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.optionBtn, form.type === t && { backgroundColor: c.green + '22', borderColor: c.green }]}
-                    onPress={() => setForm({ ...form, type: t })}
+              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('health.workout_type')}</Text>
+              <View style={styles.optionGrid}>
+                {WORKOUT_TYPES.map(type => (
+                  <TouchableOpacity 
+                    key={type} 
+                    style={[styles.optionChip, { backgroundColor: c.bgInput, borderColor: c.border }, form.type === type && { backgroundColor: c.green + '20', borderColor: c.green }]} 
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setForm({ ...form, type: type }); }}
                   >
-                    <Text style={[styles.optionText, { color: form.type === t ? c.green : c.textSecondary }]}>{t}</Text>
+                    <Text style={[styles.optionChipText, { color: form.type === type ? c.green : c.textSecondary }]}>{t(`health.cat_${type.toLowerCase()}`)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Durasi (menit)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-                value={form.duration} onChangeText={v => setForm({ ...form, duration: v })}
-                placeholder="30" placeholderTextColor={c.textMuted} keyboardType="numeric"
-              />
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Kalori Terbakar (opsional)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-                value={form.calories} onChangeText={v => setForm({ ...form, calories: v })}
-                placeholder="200" placeholderTextColor={c.textMuted} keyboardType="numeric"
-              />
-              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>Catatan</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-                value={form.notes} onChangeText={v => setForm({ ...form, notes: v })}
-                placeholder="Catatan workout..." placeholderTextColor={c.textMuted}
-              />
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={[styles.cancelBtn, { borderColor: c.border }]} onPress={() => setShowWorkoutModal(false)}>
-                  <Text style={{ color: c.textSecondary, fontWeight: '600' }}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.submitBtn, { backgroundColor: c.green }]} onPress={addWorkout}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Simpan</Text>
-                </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', gap: 16, marginTop: 24 }}>
+                <View style={{ flex: 1 }}>
+                  <Input 
+                    label={t('health.duration')}
+                    value={form.duration} 
+                    onChangeText={v => setForm({ ...form, duration: v })} 
+                    keyboardType="numeric" 
+                    placeholder="30"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Input 
+                    label={t('health.calories')}
+                    value={form.calories} 
+                    onChangeText={v => setForm({ ...form, calories: v })} 
+                    keyboardType="numeric" 
+                    placeholder="200"
+                  />
+                </View>
               </View>
+
+              <Input 
+                label={t('health.notes')}
+                value={form.notes} 
+                onChangeText={v => setForm({ ...form, notes: v })} 
+                placeholder={t('health.notes_placeholder')}
+                multiline
+                inputStyle={{ height: 80, textAlignVertical: 'top' }}
+              />
+
+              <Button 
+                label={t('health.save_workout')} 
+                onPress={handleAddWorkout} 
+                variant="primary" 
+                style={{ marginTop: 12, height: 60 }}
+              />
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* Daily Update Modal */}
+      {/* Daily Modal */}
       <Modal visible={showDailyModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>Update Data Harian</Text>
-              <TouchableOpacity onPress={() => setShowDailyModal(false)}>
-                <MaterialIcons name="close" size={24} color={c.textSecondary} />
-              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.update_status')}</Text>
+              <TouchableOpacity onPress={() => setShowDailyModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {[
-                { label: 'Langkah Kaki', key: 'steps', placeholder: '8000', keyboard: 'numeric' as const },
-                { label: 'Minum Air (liter)', key: 'water', placeholder: '2.5', keyboard: 'decimal-pad' as const },
-                { label: 'Jam Tidur', key: 'sleep', placeholder: '8', keyboard: 'decimal-pad' as const },
-                { label: 'Berat Badan (kg)', key: 'weight', placeholder: '65', keyboard: 'decimal-pad' as const },
-              ].map(field => (
-                <View key={field.key}>
-                  <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{field.label}</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-                    value={(dailyForm as any)[field.key]}
-                    onChangeText={v => setDailyForm({ ...dailyForm, [field.key]: v })}
-                    placeholder={field.placeholder}
-                    placeholderTextColor={c.textMuted}
-                    keyboardType={field.keyboard}
+              <View style={styles.inputGroup}>
+                <View style={styles.inputItem}>
+                  <Input 
+                    label={t('health.steps')}
+                    value={dailyForm.steps} 
+                    onChangeText={v => setDailyForm({ ...dailyForm, steps: v })} 
+                    keyboardType="numeric" 
+                    placeholder="0"
                   />
                 </View>
-              ))}
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={[styles.cancelBtn, { borderColor: c.border }]} onPress={() => setShowDailyModal(false)}>
-                  <Text style={{ color: c.textSecondary, fontWeight: '600' }}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.submitBtn, { backgroundColor: c.green }]} onPress={saveDailyData}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Simpan</Text>
-                </TouchableOpacity>
+                <View style={styles.inputItem}>
+                  <Input 
+                    label={`${t('health.water')} (L)`}
+                    value={dailyForm.water} 
+                    onChangeText={v => setDailyForm({ ...dailyForm, water: v })} 
+                    keyboardType="decimal-pad" 
+                    placeholder="0"
+                  />
+                </View>
               </View>
+
+              <View style={styles.inputGroup}>
+                <View style={styles.inputItem}>
+                  <Input 
+                    label={`${t('health.sleep')} (h)`}
+                    value={dailyForm.sleep} 
+                    onChangeText={v => setDailyForm({ ...dailyForm, sleep: v })} 
+                    keyboardType="decimal-pad" 
+                    placeholder="0"
+                  />
+                </View>
+                <View style={styles.inputItem}>
+                  <Input 
+                    label={`${t('health.weight')} (kg)`}
+                    value={dailyForm.weight} 
+                    onChangeText={v => setDailyForm({ ...dailyForm, weight: v })} 
+                    keyboardType="decimal-pad" 
+                    placeholder="0"
+                  />
+                </View>
+              </View>
+
+              <Button 
+                label={t('health.save_daily')} 
+                onPress={handleSaveDaily} 
+                variant="primary"
+                style={{ marginTop: 12, height: 60 }}
+              />
             </ScrollView>
           </View>
         </View>
       </Modal>
+
+      {xpToast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{xpToast}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  xpToast: { position: 'absolute', top: 70, right: 16, zIndex: 999, backgroundColor: '#8b5cf6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  xpToastText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1 },
-  statIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 10 },
-  statSubLabel: { fontSize: 9, marginTop: 1 },
-  card: { borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  cardTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
-  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32, paddingHorizontal: 4 },
-  editBtnText: { fontSize: 12, fontWeight: '600' },
-  dailyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  dailyItem: { width: '47%', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, minHeight: 110, justifyContent: 'center' },
-  dailyValue: { fontSize: 20, fontWeight: '800', marginTop: 6 },
-  dailyLabel: { fontSize: 11, marginTop: 2 },
-  workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1 },
-  workoutIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  workoutType: { fontSize: 14, fontWeight: '700' },
-  workoutMeta: { fontSize: 12, marginTop: 2 },
-  workoutNotes: { fontSize: 11, marginTop: 2 },
-  emptyState: { alignItems: 'center', paddingVertical: 32 },
-  emptyText: { fontSize: 14, marginTop: 8 },
-  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  optionBtn: { minHeight: 40, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'transparent', justifyContent: 'center' },
-  optionText: { fontSize: 12, fontWeight: '600' },
-  inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  input: { borderRadius: 12, padding: 12, fontSize: 15, borderWidth: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 20, maxHeight: '85%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '800' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 20 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
-  submitBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
+  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 28, fontWeight: '900' },
+  pageSubtitle: { fontSize: 14, marginTop: 4 },
+  
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 20, marginBottom: 10 },
+  metricCard: { width: '47%', padding: 20 },
+  metricIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  metricValue: { fontSize: 24, fontWeight: '900' },
+  metricLabel: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+  
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  cardTitle: { fontSize: 16, fontWeight: '900' },
+  
+  chartContainer: { height: 180, width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingTop: 10 },
+  chartBarCol: { alignItems: 'center', gap: 8, flex: 1 },
+  chartValText: { fontSize: 9, fontWeight: '800' },
+  barTrack: { height: 120, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  barFill: { width: 14, borderRadius: 7 },
+  chartDateText: { fontSize: 10 },
+
+  heatmapGrid: { flexDirection: 'row', gap: 8, paddingBottom: 10 },
+  heatCol: { alignItems: 'center', gap: 8 },
+  heatCell: { width: 28, height: 28, borderRadius: 8 },
+  heatLabel: { fontSize: 9, fontWeight: '800' },
+  
+  workoutItem: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, borderBottomWidth: 1 },
+  workoutIconBox: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  workoutName: { fontSize: 16, fontWeight: '800' },
+  workoutMeta: { fontSize: 12, fontWeight: '600', marginTop: 4 },
+  
+  emptyState: { alignItems: 'center', paddingVertical: 40, opacity: 0.5 },
+  emptyText: { fontSize: 14, fontWeight: '800', marginTop: 12 },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
+  modalTitle: { fontSize: 24, fontWeight: '900' },
+  inputLabel: { fontSize: 14, fontWeight: '800', marginBottom: 12 },
+  inputGroup: { flexDirection: 'row', gap: 16 },
+  inputItem: { flex: 1 },
+  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  optionChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1 },
+  optionChipText: { fontSize: 13, fontWeight: '800' },
+  
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+  toastText: { color: '#fff', fontWeight: '800' },
 });

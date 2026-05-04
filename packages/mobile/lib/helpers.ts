@@ -4,27 +4,27 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 }
 
-export function getToday(): string {
-  const d = new Date();
+export function getToday(date?: Date): string {
+  const d = date || new Date();
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string, lang: string = 'id'): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('id-ID', {
+export function formatCurrency(amount: number, lang: string = 'id'): string {
+  return new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', {
     style: 'currency',
-    currency: 'IDR',
+    currency: lang === 'id' ? 'IDR' : 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(lang === 'id' ? amount : amount / 15000); // Simple conversion for demo
 }
 
 export function getRandomQuote(): string {
@@ -50,21 +50,14 @@ export const PRIORITY_COLORS: Record<string, string> = {
   P4: '#9ca3af',
 };
 
-export const PRIORITY_LABELS: Record<string, string> = {
-  P1: 'Urgent',
-  P2: 'High',
-  P3: 'Medium',
-  P4: 'Low',
-};
-
-export const CATEGORIES = ['Personal', 'Kerja', 'Proyek', 'Belajar', 'Lainnya'];
+export const CATEGORIES = ['personal', 'work', 'project', 'learn', 'other'];
 
 export function greetingTime(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Selamat Pagi';
-  if (hour < 17) return 'Selamat Siang';
-  if (hour < 20) return 'Selamat Sore';
-  return 'Selamat Malam';
+  if (hour < 12) return 'dashboard.morning';
+  if (hour < 17) return 'dashboard.afternoon';
+  if (hour < 20) return 'dashboard.evening';
+  return 'dashboard.night';
 }
 
 export function parseRupiahInput(value: string): string {

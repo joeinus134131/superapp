@@ -1,21 +1,54 @@
 import { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
 import { useFonts } from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import { Stack } from 'expo-router'
-import { ThemeProvider } from '../context/themeContext'
+import { ThemeProvider, useTheme } from '../context/themeContext'
 import { PremiumProvider } from '../context/premiumContext'
-import { LanguageProvider } from '../context/languageContext'
+import { LanguageProvider, useLanguage } from '../context/languageContext'
 import { AuthProvider, useAuth } from '../hooks/useAuth'
+import { SecurityProvider, useSecurity } from '../context/securityContext'
+import { LockScreen } from '../components/LockScreen'
+import { BrandLogo } from '../components/BrandLogo'
+import { useColors } from '../lib/theme'
+import { setupNotifications } from '../lib/notifications'
 import { configureSupabaseRuntime } from '@superapp/shared'
 import { getMobileSupabaseConfig } from '../lib/runtimeConfig'
+import { SettingsProvider } from '../context/settingsContext'
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync()
 
 configureSupabaseRuntime(getMobileSupabaseConfig())
 
+function LoadingScreen() {
+  const { isDark } = useTheme();
+  const { t } = useLanguage();
+  const c = useColors(isDark);
+  
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: c.bgPrimary }]}>
+      <View style={styles.loadingMain}>
+        <BrandLogo size={120} textSize={36} />
+        <View style={styles.loadingSpinnerBox}>
+          <ActivityIndicator size="large" color={c.purple} />
+          <Text style={[styles.loadingText, { color: c.textSecondary, marginTop: 16 }]}>
+            {t('login.loading_app')}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.loadingBottom}>
+        <Text style={[styles.loadingVersion, { color: c.textMuted }]}>SelfOne v2.0 • Premium Quality</Text>
+      </View>
+    </View>
+  );
+}
+
 function RootNavigator() {
-  const { user, loading } = useAuth()
+  const { user, loading, isOnboarded } = useAuth()
+  const { isLocked } = useSecurity()
+  const { isChangingTheme } = useTheme()
+  const { isChangingLanguage } = useLanguage()
 
   useEffect(() => {
     if (!loading) {
@@ -23,8 +56,20 @@ function RootNavigator() {
     }
   }, [loading])
 
-  if (loading) {
-    return null
+  if (loading || isChangingTheme || isChangingLanguage) {
+    return <LoadingScreen />
+  }
+
+  if (!isOnboarded) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      </Stack>
+    )
+  }
+
+  if (isLocked) {
+    return <LockScreen />
   }
 
   return (
@@ -52,8 +97,9 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
+        await setupNotifications();
         // Pre-load any assets or fonts here
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await new Promise((resolve) => setTimeout(resolve, 1500))
       } catch (e) {
         console.warn(e)
       } finally {
@@ -65,18 +111,53 @@ export default function RootLayout() {
   }, [])
 
   if (!appIsReady || !fontsLoaded) {
-    return null
+    return null // This will keep the native splash screen until appIsReady is true
   }
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <PremiumProvider>
-          <LanguageProvider>
-            <RootNavigator />
-          </LanguageProvider>
-        </PremiumProvider>
-      </AuthProvider>
+      <SettingsProvider>
+        <SecurityProvider>
+          <AuthProvider>
+            <PremiumProvider>
+              <LanguageProvider>
+                <RootNavigator />
+              </LanguageProvider>
+            </PremiumProvider>
+          </AuthProvider>
+        </SecurityProvider>
+      </SettingsProvider>
     </ThemeProvider>
   )
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  loadingMain: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingSpinnerBox: {
+    marginTop: 60,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  loadingBottom: {
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  loadingVersion: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+});

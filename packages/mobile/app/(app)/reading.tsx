@@ -1,81 +1,53 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, RefreshControl, Alert, ScrollView,
+  Modal, RefreshControl, Alert, ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
-import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
-import { generateId, formatDate } from '../../lib/helpers';
-import { addXP } from '../../lib/gamification';
-import { PageHeader } from '../../components/PageHeader';
+import { formatDate } from '../../lib/helpers';
+import { useLanguage } from '../../context/languageContext';
 
-type ReadingStatus = 'reading' | 'completed' | 'want_to_read' | 'paused';
+import { useReading, Book, ReadingStatus } from '../../hooks/useReading';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
 
-interface Book {
-  id: string;
-  title: string;
-  author: string;
-  totalPages: number;
-  currentPage: number;
-  status: ReadingStatus;
-  genre: string;
-  rating: number;
-  notes: string;
-  startDate: string;
-  finishDate: string;
-  createdAt: string;
-}
-
-const GENRES = ['Fiction', 'Non-Fiction', 'Self-Help', 'Technology', 'Business', 'Science', 'History', 'Biography', 'Other'];
-
-const STATUS_CONFIG: Record<ReadingStatus, { label: string; color: string; icon: string }> = {
-  reading: { label: 'Sedang Baca', color: '#3b82f6', icon: 'menu-book' },
-  completed: { label: 'Selesai', color: '#10b981', icon: 'check-circle' },
-  want_to_read: { label: 'Mau Baca', color: '#f59e0b', icon: 'bookmark' },
-  paused: { label: 'Ditunda', color: '#9ca3af', icon: 'pause-circle-filled' },
+const STATUS_CONFIG: Record<ReadingStatus, { labelKey: string; color: string; icon: string }> = {
+  reading: { labelKey: 'reading.st_reading', color: '#3b82f6', icon: 'menu-book' },
+  completed: { labelKey: 'reading.st_finished', color: '#10b981', icon: 'check-circle' },
+  want_to_read: { labelKey: 'reading.st_want', color: '#f59e0b', icon: 'bookmark' },
+  paused: { labelKey: 'reading.st_paused', color: '#9ca3af', icon: 'pause-circle-filled' },
 };
 
-const EMPTY: Book = {
-  id: '', title: '', author: '', totalPages: 0, currentPage: 0,
-  status: 'want_to_read', genre: 'Other', rating: 0, notes: '',
-  startDate: '', finishDate: '', createdAt: '',
+const EMPTY: Omit<Book, 'id' | 'createdAt'> = {
+  title: '', author: '', totalPages: 0, currentPage: 0,
+  status: 'want_to_read', genre: 'gen_other', rating: 0, notes: '',
+  startDate: '', finishDate: '',
 };
 
 export default function ReadingScreen() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
-  const [books, setBooks] = useState<Book[]>([]);
+  const { t, language } = useLanguage();
+
+  const { 
+    books, loading, xpToast, 
+    addBook, updateBook, deleteBook, updateProgress, refreshBooks 
+  } = useReading();
+
   const [filter, setFilter] = useState<ReadingStatus | 'all'>('all');
   const [modalVisible, setModalVisible] = useState(false);
-  const [form, setForm] = useState<Book>(EMPTY);
+  const [form, setForm] = useState<Omit<Book, 'id' | 'createdAt'>>(EMPTY);
   const [editId, setEditId] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [xpToast, setXpToast] = useState('');
-
-  const load = useCallback(async () => {
-    const data = await getData(STORAGE_KEYS.READING);
-    setBooks(data || []);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
-
-  const showToast = (msg: string) => {
-    setXpToast(msg);
-    setTimeout(() => setXpToast(''), 2500);
-  };
 
   const openAdd = () => {
-    setForm({ ...EMPTY, id: generateId(), createdAt: new Date().toISOString() });
+    setForm(EMPTY);
     setEditId(null);
     setModalVisible(true);
   };
@@ -86,247 +58,221 @@ export default function ReadingScreen() {
     setModalVisible(true);
   };
 
-  const save = async () => {
-    if (!form.title.trim()) { Alert.alert('Judul buku wajib diisi'); return; }
-    const isCompleting = editId
-      ? books.find(b => b.id === editId)?.status !== 'completed' && form.status === 'completed'
-      : form.status === 'completed';
-
-    const updated = editId
-      ? books.map(b => b.id === editId ? { ...form } : b)
-      : [...books, { ...form }];
-    await setData(STORAGE_KEYS.READING, updated);
-    setBooks(updated);
-    setModalVisible(false);
-
-    if (isCompleting) {
-      const result = await addXP('BOOK_COMPLETE');
-      showToast(`+${result.xpGained} XP! Buku selesai!`);
+  const handleSave = async () => {
+    if (!form.title.trim()) { 
+      Alert.alert(t('reading.title_label') + ' ' + (language === 'id' ? 'wajib diisi' : 'is required')); 
+      return; 
     }
+    if (editId) {
+      await updateBook(editId, form);
+    } else {
+      await addBook(form);
+    }
+    setModalVisible(false);
   };
 
-  const deleteBook = (id: string) => {
-    Alert.alert('Hapus Buku', 'Yakin hapus buku ini?', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus', style: 'destructive', onPress: async () => {
-          const updated = books.filter(b => b.id !== id);
-          await setData(STORAGE_KEYS.READING, updated);
-          setBooks(updated);
-        },
-      },
+  const handleDelete = (id: string) => {
+    Alert.alert(t('reading.delete_title'), t('reading.delete_confirm'), [
+      { text: t('tasks.cancel'), style: 'cancel' },
+      { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteBook(id) },
     ]);
   };
 
-  const updatePages = async (book: Book, delta: number) => {
-    const newPage = Math.min(book.totalPages, Math.max(0, book.currentPage + delta));
-    const wasCompleted = book.status === 'completed';
-    const nowCompleted = book.totalPages > 0 && newPage >= book.totalPages;
-    const updated = books.map(b =>
-      b.id === book.id
-        ? { ...b, currentPage: newPage, status: nowCompleted ? 'completed' : (b.status === 'want_to_read' ? 'reading' : b.status) as ReadingStatus }
-        : b
-    );
-    await setData(STORAGE_KEYS.READING, updated);
-    setBooks(updated);
-    if (!wasCompleted && nowCompleted) {
-      const result = await addXP('BOOK_COMPLETE');
-      showToast(`+${result.xpGained} XP! Buku selesai!`);
-    }
-  };
+  const filtered = useMemo(() => 
+    filter === 'all' ? books : books.filter(b => b.status === filter),
+  [books, filter]);
 
-  const filtered = filter === 'all' ? books : books.filter(b => b.status === filter);
-
-  const stats = {
+  const stats = useMemo(() => ({
     total: books.length,
     reading: books.filter(b => b.status === 'reading').length,
     completed: books.filter(b => b.status === 'completed').length,
-    pages: books.filter(b => b.status === 'completed').reduce((s, b) => s + b.totalPages, 0),
-  };
-
-  const s = styles(c, isDark);
+  }), [books]);
 
   return (
-    <View style={s.container}>
-      <PageHeader
-        title="Reading"
-        subtitle="Lacak buku yang sedang, akan, dan sudah dibaca."
-        textColor={c.textPrimary}
-        subtextColor={c.textSecondary}
-        backgroundColor={c.bgPrimary}
-        actionColor={c.purple}
-        onActionPress={openAdd}
-      />
-
-      {/* Stats */}
-      <View style={s.statsRow}>
-        {[
-          { label: 'Total', value: stats.total, icon: 'library-books', color: '#8b5cf6' },
-          { label: 'Dibaca', value: stats.reading, icon: 'menu-book', color: '#3b82f6' },
-          { label: 'Selesai', value: stats.completed, icon: 'check-circle', color: '#10b981' },
-          { label: 'Hal. Selesai', value: stats.pages, icon: 'description', color: '#f59e0b' },
-        ].map(stat => (
-          <View key={stat.label} style={s.statCard}>
-            <MaterialIcons name={stat.icon as any} size={20} color={stat.color} />
-            <Text style={[s.statValue, { color: stat.color }]}>{stat.value}</Text>
-            <Text style={s.statLabel}>{stat.label}</Text>
+    <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
+      {/* Header */}
+      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
+            <MaterialIcons name="menu-book" size={24} color={c.purple} />
           </View>
-        ))}
+          <View>
+            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.reading')}</Text>
+            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('reading.subtitle')}</Text>
+          </View>
+        </View>
       </View>
 
-      {/* Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={[s.filterRow, { paddingHorizontal: MOBILE_SPACING.screen }]}>
-        {(['all', 'reading', 'want_to_read', 'completed', 'paused'] as const).map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[s.filterChip, filter === f && s.filterChipActive]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[s.filterChipText, filter === f && s.filterChipTextActive]}>
-              {f === 'all' ? 'Semua' : STATUS_CONFIG[f].label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Stats Cards - Added margin to fix "nempel" issue */}
+      <View style={styles.statsRow}>
+        <Card style={styles.statCard}>
+          <Text style={[styles.statValue, { color: c.purple }]}>{stats.total}</Text>
+          <Text style={[styles.statLabel, { color: c.textSecondary }]}>{t('reading.stats_collection')}</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={[styles.statValue, { color: c.blue }]}>{stats.reading}</Text>
+          <Text style={[styles.statLabel, { color: c.textSecondary }]}>{t('reading.stats_reading')}</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={[styles.statValue, { color: c.green }]}>{stats.completed}</Text>
+          <Text style={[styles.statLabel, { color: c.textSecondary }]}>{t('reading.stats_completed')}</Text>
+        </Card>
+      </View>
 
-      {/* List */}
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {(['all', 'reading', 'want_to_read', 'completed', 'paused'] as const).map(f => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filterChip, { backgroundColor: filter === f ? c.purple : c.bgInput }]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[styles.filterChipText, { color: filter === f ? '#fff' : c.textSecondary }]}>
+                {f === 'all' ? t('reading.all_categories') : t(STATUS_CONFIG[f].labelKey)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Book List */}
       <FlatList
         data={filtered}
         keyExtractor={item => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
-        contentContainerStyle={[s.listContent, { paddingBottom: layout.bottomPadding }]}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshBooks} tintColor={c.purple} />}
+        contentContainerStyle={[styles.listContent, { paddingBottom: layout.bottomPadding + 100 }]}
         ListEmptyComponent={
-          <View style={s.empty}>
+          <View style={styles.empty}>
             <MaterialIcons name="menu-book" size={48} color={c.textMuted} />
-            <Text style={s.emptyText}>Belum ada buku. Tambah buku pertama!</Text>
+            <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('reading.empty_category')}</Text>
           </View>
         }
         renderItem={({ item }) => {
           const cfg = STATUS_CONFIG[item.status];
-          const progress = item.totalPages > 0 ? item.currentPage / item.totalPages : 0;
+          const progress = item.totalPages > 0 ? (item.currentPage / item.totalPages) * 100 : 0;
           return (
-            <TouchableOpacity style={s.bookCard} onPress={() => openEdit(item)} activeOpacity={0.8}>
-              <View style={[s.bookStatus, { backgroundColor: cfg.color + '20' }]}>
-                <MaterialIcons name={cfg.icon as any} size={22} color={cfg.color} />
+            <Card style={styles.bookCard} onPress={() => openEdit(item)}>
+              <View style={[styles.bookIconBox, { backgroundColor: c.bgInput }]}>
+                <MaterialIcons name={cfg.icon as any} size={24} color={cfg.color} />
               </View>
-              <View style={s.bookInfo}>
-                <Text style={s.bookTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={s.bookAuthor} numberOfLines={1}>{item.author || 'Penulis tidak diketahui'}</Text>
-                <View style={s.bookMeta}>
-                  <Text style={[s.bookStatusBadge, { color: cfg.color }]}>{cfg.label}</Text>
-                  {item.genre ? <Text style={s.bookGenre}>{item.genre}</Text> : null}
+              
+              <View style={styles.bookMainInfo}>
+                <View style={styles.bookHeaderRow}>
+                  <Text style={[styles.bookTitle, { color: c.textPrimary }]} numberOfLines={1}>{item.title}</Text>
+                  <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                    <MaterialIcons name="delete-outline" size={18} color={c.red} />
+                  </TouchableOpacity>
                 </View>
+                
+                <Text style={[styles.bookAuthor, { color: c.textSecondary }]} numberOfLines={1}>{item.author || t('reading.author_anon')}</Text>
+                
+                <View style={styles.bookTagRow}>
+                  <Badge label={t(cfg.labelKey)} color={cfg.color} variant="solid" />
+                  {item.genre && (
+                    <Badge label={t(`reading.${item.genre}`)} color={c.textMuted} variant="outline" />
+                  )}
+                </View>
+
                 {item.totalPages > 0 && (
-                  <View style={s.progressWrap}>
-                    <View style={s.progressBar}>
-                      <View style={[s.progressFill, { width: `${progress * 100}%` as any, backgroundColor: cfg.color }]} />
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressInfo}>
+                      <Text style={[styles.progressPercent, { color: c.textPrimary }]}>{Math.round(progress)}%</Text>
+                      <Text style={[styles.progressPages, { color: c.textMuted }]}>{item.currentPage} / {item.totalPages} {t('reading.unit_pages')}</Text>
                     </View>
-                    <Text style={s.progressText}>{item.currentPage}/{item.totalPages} hal</Text>
-                  </View>
-                )}
-                {item.totalPages > 0 && (
-                  <View style={s.pageControls}>
-                    <TouchableOpacity style={s.pageBtn} onPress={() => updatePages(item, -10)}>
-                      <Text style={s.pageBtnText}>-10</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.pageBtn} onPress={() => updatePages(item, -1)}>
-                      <Text style={s.pageBtnText}>-1</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[s.pageBtn, { backgroundColor: c.purple + '20' }]} onPress={() => updatePages(item, 1)}>
-                      <Text style={[s.pageBtnText, { color: c.purple }]}>+1</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[s.pageBtn, { backgroundColor: c.purple + '20' }]} onPress={() => updatePages(item, 10)}>
-                      <Text style={[s.pageBtnText, { color: c.purple }]}>+10</Text>
-                    </TouchableOpacity>
+                    <View style={[styles.progressBarTrack, { backgroundColor: c.bgInput }]}>
+                      <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: cfg.color }]} />
+                    </View>
+                    <View style={styles.quickControls}>
+                      <TouchableOpacity style={[styles.quickBtn, { backgroundColor: c.bgInput }]} onPress={() => updateProgress(item.id, 1)}>
+                        <Text style={[styles.quickBtnText, { color: c.textPrimary }]}>{t('reading.quick_add').replace('{count}', '1')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.quickBtn, { backgroundColor: c.bgInput }]} onPress={() => updateProgress(item.id, 10)}>
+                        <Text style={[styles.quickBtnText, { color: c.textPrimary }]}>{t('reading.quick_add').replace('{count}', '10')}</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
               </View>
-              <TouchableOpacity style={s.deleteBtn} onPress={() => deleteBook(item.id)}>
-                <MaterialIcons name="delete-outline" size={20} color={c.textMuted} />
-              </TouchableOpacity>
-            </TouchableOpacity>
+            </Card>
           );
         }}
       />
 
+      <FloatingActionButton onPress={openAdd} />
+
       {/* XP Toast */}
-      {xpToast ? (
-        <View style={[s.toast, { bottom: layout.insets.bottom + 84 }]}>
-          <Text style={s.toastText}>{xpToast}</Text>
+      {xpToast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{xpToast} {t('reading.success_toast')}</Text>
         </View>
-      ) : null}
+      )}
 
       {/* Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <View style={s.modalOverlay}>
-          <View style={[s.modalSheet, { paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editId ? 'Edit Buku' : 'Tambah Buku'}</Text>
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(layout.insets.bottom, 20) + 20, backgroundColor: c.bgSecondary }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editId ? t('reading.edit_book') : t('reading.new_book')}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <MaterialIcons name="close" size={24} color={c.textPrimary} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Judul Buku *</Text>
-              <TextInput style={s.input} value={form.title} onChangeText={t => setForm(f => ({ ...f, title: t }))} placeholder="Masukkan judul buku" placeholderTextColor={c.textMuted} />
+              <Input 
+                label={t('reading.title_label')}
+                value={form.title} 
+                onChangeText={t => setForm(f => ({ ...f, title: t }))} 
+                placeholder={t('reading.title_placeholder')} 
+              />
 
-              <Text style={s.label}>Penulis</Text>
-              <TextInput style={s.input} value={form.author} onChangeText={t => setForm(f => ({ ...f, author: t }))} placeholder="Nama penulis" placeholderTextColor={c.textMuted} />
+              <Input 
+                label={t('reading.author_label')}
+                value={form.author} 
+                onChangeText={t => setForm(f => ({ ...f, author: t }))} 
+                placeholder={t('reading.author_placeholder')} 
+              />
 
-              <View style={s.row}>
-                <View style={s.halfField}>
-                  <Text style={s.label}>Total Halaman</Text>
-                  <TextInput style={s.input} value={form.totalPages ? String(form.totalPages) : ''} onChangeText={t => setForm(f => ({ ...f, totalPages: parseInt(t) || 0 }))} placeholder="0" placeholderTextColor={c.textMuted} keyboardType="numeric" />
+              <View style={styles.inputRow}>
+                <View style={{ flex: 1 }}>
+                  <Input 
+                    label={t('reading.pages_total')}
+                    value={form.totalPages ? String(form.totalPages) : ''} 
+                    onChangeText={t => setForm(f => ({ ...f, totalPages: parseInt(t) || 0 }))} 
+                    keyboardType="numeric" 
+                    placeholder="0" 
+                  />
                 </View>
-                <View style={s.halfField}>
-                  <Text style={s.label}>Halaman Saat Ini</Text>
-                  <TextInput style={s.input} value={form.currentPage ? String(form.currentPage) : ''} onChangeText={t => setForm(f => ({ ...f, currentPage: parseInt(t) || 0 }))} placeholder="0" placeholderTextColor={c.textMuted} keyboardType="numeric" />
+                <View style={{ flex: 1 }}>
+                  <Input 
+                    label={t('reading.pages_current')}
+                    value={form.currentPage ? String(form.currentPage) : ''} 
+                    onChangeText={t => setForm(f => ({ ...f, currentPage: parseInt(t) || 0 }))} 
+                    keyboardType="numeric" 
+                    placeholder="0" 
+                  />
                 </View>
               </View>
 
-              <Text style={s.label}>Status</Text>
-              <View style={s.chipRow}>
+              <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('reading.status_label')}</Text>
+              <View style={styles.optionGrid}>
                 {(Object.keys(STATUS_CONFIG) as ReadingStatus[]).map(st => (
                   <TouchableOpacity
                     key={st}
-                    style={[s.chip, form.status === st && { backgroundColor: STATUS_CONFIG[st].color }]}
+                    style={[styles.optionChip, { borderColor: c.border }, form.status === st && { backgroundColor: STATUS_CONFIG[st].color, borderColor: STATUS_CONFIG[st].color }]}
                     onPress={() => setForm(f => ({ ...f, status: st }))}
                   >
-                    <Text style={[s.chipText, form.status === st && { color: '#fff' }]}>{STATUS_CONFIG[st].label}</Text>
+                    <Text style={[styles.optionChipText, { color: form.status === st ? '#fff' : c.textSecondary }]}>{t(STATUS_CONFIG[st].labelKey)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Genre</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={s.chipRow}>
-                  {GENRES.map(g => (
-                    <TouchableOpacity
-                      key={g}
-                      style={[s.chip, form.genre === g && { backgroundColor: c.purple }]}
-                      onPress={() => setForm(f => ({ ...f, genre: g }))}
-                    >
-                      <Text style={[s.chipText, form.genre === g && { color: '#fff' }]}>{g}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-
-              <Text style={s.label}>Rating (0-5)</Text>
-              <View style={s.ratingRow}>
-                {[1, 2, 3, 4, 5].map(r => (
-                  <TouchableOpacity key={r} onPress={() => setForm(f => ({ ...f, rating: r }))}>
-                    <MaterialIcons name={r <= form.rating ? 'star' : 'star-border'} size={32} color="#f59e0b" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={s.label}>Catatan</Text>
-              <TextInput style={[s.input, s.textarea]} value={form.notes} onChangeText={t => setForm(f => ({ ...f, notes: t }))} placeholder="Catatan atau review..." placeholderTextColor={c.textMuted} multiline numberOfLines={3} />
-
-              <TouchableOpacity style={s.saveBtn} onPress={save}>
-                <Text style={s.saveBtnText}>{editId ? 'Simpan Perubahan' : 'Tambah Buku'}</Text>
-              </TouchableOpacity>
+              <Button 
+                label={editId ? t('tasks.save') : t('reading.save_btn')} 
+                onPress={handleSave} 
+                variant="primary"
+                style={{ height: 60, marginTop: 12 }}
+              />
             </ScrollView>
           </View>
         </View>
@@ -335,52 +281,55 @@ export default function ReadingScreen() {
   );
 }
 
-const styles = (c: any, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bgPrimary },
-  statsRow: { flexDirection: 'row', paddingHorizontal: MOBILE_SPACING.screen, gap: 8, marginBottom: 12 },
-  statCard: { flex: 1, backgroundColor: c.bgCard, borderRadius: 12, padding: 10, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 10, color: c.textMuted, fontWeight: '600' },
-  filterScroll: { marginBottom: 8 },
-  filterRow: { gap: 8, paddingVertical: 4 },
-  filterChip: { minHeight: 40, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.bgCard, borderWidth: 1, borderColor: c.border, justifyContent: 'center' },
-  filterChipActive: { backgroundColor: c.purple, borderColor: c.purple },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },
-  filterChipTextActive: { color: '#fff' },
-  listContent: { paddingHorizontal: MOBILE_SPACING.screen, paddingTop: 12, gap: 12 },
-  bookCard: { backgroundColor: c.bgCard, borderRadius: 16, padding: 14, flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderColor: c.border },
-  bookStatus: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  bookInfo: { flex: 1, gap: 4 },
-  bookTitle: { fontSize: 15, fontWeight: '700', color: c.textPrimary },
-  bookAuthor: { fontSize: 13, color: c.textSecondary },
-  bookMeta: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  bookStatusBadge: { fontSize: 12, fontWeight: '600' },
-  bookGenre: { fontSize: 11, color: c.textMuted, backgroundColor: c.bgSecondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  progressBar: { flex: 1, height: 4, backgroundColor: c.border, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
-  progressText: { fontSize: 11, color: c.textMuted, minWidth: 70 },
-  pageControls: { flexDirection: 'row', gap: 6, marginTop: 6 },
-  pageBtn: { minHeight: 34, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: c.bgSecondary, justifyContent: 'center' },
-  pageBtnText: { fontSize: 12, fontWeight: '700', color: c.textSecondary },
-  deleteBtn: { padding: 4, marginTop: 2 },
-  empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { fontSize: 15, color: c.textMuted, textAlign: 'center' },
-  toast: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#10b981', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, elevation: 8 },
-  toastText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  pageHeader: { paddingHorizontal: 24, paddingBottom: 24, borderBottomWidth: 1 },
+  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 28, fontWeight: '900' },
+  pageSubtitle: { fontSize: 14, marginTop: 4 },
+  
+  statsRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginTop: 28, marginBottom: 24 },
+  statCard: { flex: 1, padding: 16, alignItems: 'center' },
+  statValue: { fontSize: 20, fontWeight: '900' },
+  statLabel: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  
+  filterContainer: { marginBottom: 16 },
+  filterRow: { paddingHorizontal: 24, gap: 10, paddingVertical: 4 },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: 'transparent' },
+  filterChipText: { fontSize: 13, fontWeight: '700' },
+  
+  listContent: { paddingHorizontal: 24, paddingTop: 10 },
+  bookCard: { padding: 18, flexDirection: 'row', gap: 16, marginBottom: 16 },
+  bookIconBox: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  bookMainInfo: { flex: 1 },
+  bookHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  bookTitle: { fontSize: 16, fontWeight: '900', flex: 1, marginRight: 8 },
+  bookAuthor: { fontSize: 13, marginBottom: 10 },
+  bookTagRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  
+  progressContainer: { marginTop: 4 },
+  progressInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
+  progressPercent: { fontSize: 14, fontWeight: '900' },
+  progressPages: { fontSize: 11, fontWeight: '600' },
+  progressBarTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 3 },
+  quickControls: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  quickBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  quickBtnText: { fontSize: 11, fontWeight: '700' },
+  
+  empty: { alignItems: 'center', paddingVertical: 80, opacity: 0.5 },
+  emptyText: { fontSize: 15, fontWeight: '700', marginTop: 12 },
+  
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#10b981', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+  toastText: { color: '#fff', fontWeight: '800' },
+  
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: c.bgPrimary, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 20, maxHeight: '90%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: c.textPrimary },
-  label: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: c.bgCard, borderRadius: 12, padding: 12, fontSize: 14, color: c.textPrimary, borderWidth: 1, borderColor: c.border },
-  textarea: { minHeight: 80, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: c.bgCard, borderWidth: 1, borderColor: c.border },
-  chipText: { fontSize: 13, fontWeight: '600', color: c.textSecondary },
-  ratingRow: { flexDirection: 'row', gap: 8, marginVertical: 4 },
-  saveBtn: { backgroundColor: c.purple, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20, marginBottom: 8 },
-  saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  modalSheet: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 24, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 22, fontWeight: '900' },
+  inputLabel: { fontSize: 14, fontWeight: '800', marginBottom: 8, marginTop: 16 },
+  inputRow: { flexDirection: 'row', gap: 12 },
+  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4, marginBottom: 20 },
+  optionChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  optionChipText: { fontSize: 13, fontWeight: '700' },
 });

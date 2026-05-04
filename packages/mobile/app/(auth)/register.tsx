@@ -1,222 +1,235 @@
-import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView } from 'react-native'
+import { useState, useEffect, useRef } from 'react'
+import { 
+  View, Text, TextInput, TouchableOpacity, ActivityIndicator, 
+  ScrollView, KeyboardAvoidingView, StyleSheet, Dimensions,
+  Animated, Easing, Image
+} from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../context/themeContext'
+import { useColors } from '../../lib/theme'
+import { MaterialIcons } from '@expo/vector-icons'
+import { BrandLogo } from '../../components/BrandLogo'
+import { useLanguage } from '../../context/languageContext'
+
+const { width, height } = Dimensions.get('window')
 
 export default function RegisterScreen() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
   const { register, connection, refreshConnection } = useAuth()
   const { isDark } = useTheme()
+  const c = useColors(isDark)
+  const { t } = useLanguage()
+
+  // Animation values using standard Animated
+  const blob1Pos = useRef(new Animated.Value(0)).current
+  const blob2Pos = useRef(new Animated.Value(0)).current
+  const blobScale = useRef(new Animated.Value(1)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(20)).current
+
+  useEffect(() => {
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      })
+    ]).start()
+
+    // Floating and pulsating animations
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blob1Pos, { toValue: 20, duration: 3000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(blob1Pos, { toValue: 0, duration: 3000, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
+      ])
+    ).start()
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blob2Pos, { toValue: -30, duration: 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(blob2Pos, { toValue: 0, duration: 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
+      ])
+    ).start()
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blobScale, { toValue: 1.1, duration: 2500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(blobScale, { toValue: 1, duration: 2500, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
+      ])
+    ).start()
+  }, [])
 
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !password) {
       setError('Please fill in all fields')
       return
     }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
-    }
-
     setLoading(true)
     setError('')
-    setSuccessMessage('')
-
     try {
       const result = await register(email, password, name)
       if (result?.success) {
-        setSuccessMessage('Akun berhasil dibuat. Silakan buka email Anda dan klik link verifikasi untuk masuk di Android.')
-        setTimeout(() => {
-          router.replace('/(auth)/login')
-        }, 1500)
+        setSuccessMessage('Akun berhasil dibuat. Silakan cek email Anda.')
+        setTimeout(() => router.replace('/(auth)/login'), 2000)
       } else {
         setError(result?.error || 'Registration failed')
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred'
-      setError(message)
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
   }
 
-  const bgColor = isDark ? '#1a1a1a' : '#ffffff'
-  const textColor = isDark ? '#ffffff' : '#000000'
-  const borderColor = isDark ? '#333333' : '#e0e0e0'
-
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: bgColor }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
-        <View style={{ marginBottom: 40, alignItems: 'center' }}>
-          <Text style={{ fontSize: 32, fontWeight: 'bold', color: textColor, marginBottom: 10 }}>
-            Create Account
-          </Text>
-          <Text style={{ fontSize: 14, color: '#888', textAlign: 'center' }}>
-            Join SuperApp today
-          </Text>
-        </View>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.bgPrimary }}>
+      {/* Animated Blobs using standard Animated.View */}
+      <Animated.View style={[
+        styles.glowCircle, 
+        { 
+          backgroundColor: c.purple, opacity: 0.1, top: -50, left: -50,
+          transform: [{ translateY: blob1Pos }, { scale: blobScale }] 
+        }
+      ]} />
+      <Animated.View style={[
+        styles.glowCircle, 
+        { 
+          backgroundColor: c.cyan, opacity: 0.08, bottom: height * 0.2, right: -100, width: 300, height: 300, borderRadius: 150,
+          transform: [{ translateX: blob2Pos }, { scale: blobScale }] 
+        }
+      ]} />
+      
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+        <Animated.View style={{ 
+          marginBottom: 32, alignItems: 'center', 
+          opacity: fadeAnim, transform: [{ translateY: slideAnim }] 
+        }}>
+          <BrandLogo size={60} textSize={28} />
+          <Text style={[styles.subtitle, { color: c.textSecondary, marginTop: 8 }]}>{t('login.subtitle')}</Text>
+        </Animated.View>
 
-        {error ? (
-          <View style={{ backgroundColor: '#fee', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f44' }}>
-            <Text style={{ color: '#c00' }}>{error}</Text>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {error ? (
+            <View style={[styles.errorContainer, { backgroundColor: isDark ? '#442222' : '#fee', borderLeftColor: c.red }]}>
+              <MaterialIcons name="error-outline" size={18} color={c.red} style={{ marginRight: 8 }} />
+              <Text style={{ color: isDark ? '#ffaaaa' : '#c00', flex: 1 }}>{error}</Text>
+            </View>
+          ) : null}
+
+          {successMessage ? (
+            <View style={[styles.successContainer, { backgroundColor: isDark ? '#113311' : '#ecfdf3', borderLeftColor: c.green }]}>
+              <MaterialIcons name="check-circle-outline" size={18} color={c.green} style={{ marginRight: 8 }} />
+              <Text style={{ color: isDark ? '#aaffaa' : '#166534', flex: 1 }}>{successMessage}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: c.textPrimary }]}>{t('login.new_user_label')}</Text>
+            <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
+              <MaterialIcons name="person-outline" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
+              <TextInput
+                style={[styles.input, { color: c.textPrimary }]}
+                placeholder={t('login.new_user_placeholder')}
+                placeholderTextColor={c.textMuted}
+                value={name}
+                onChangeText={setName}
+                editable={!loading}
+              />
+            </View>
           </View>
-        ) : null}
 
-        {successMessage ? (
-          <View style={{ backgroundColor: '#ecfdf3', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#16a34a' }}>
-            <Text style={{ color: '#166534' }}>{successMessage}</Text>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: c.textPrimary }]}>{t('login.email')}</Text>
+            <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
+              <MaterialIcons name="alternate-email" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
+              <TextInput
+                style={[styles.input, { color: c.textPrimary }]}
+                placeholder="your@email.com"
+                placeholderTextColor={c.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                editable={!loading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
           </View>
-        ) : null}
 
-        {!connection.ready ? (
-          <View style={{ backgroundColor: '#fff7e6', padding: 12, borderRadius: 8, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
-            <Text style={{ color: '#9a6700', fontWeight: '600', marginBottom: 4 }}>
-              Mobile backend belum siap
-            </Text>
-            <Text style={{ color: '#9a6700', marginBottom: 10 }}>
-              {connection.message}
-            </Text>
-            <TouchableOpacity
-              onPress={() => refreshConnection()}
-              disabled={connection.checking}
-              style={{
-                alignSelf: 'flex-start',
-                backgroundColor: '#f59e0b',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 6,
-                opacity: connection.checking ? 0.6 : 1,
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>
-                {connection.checking ? 'Checking...' : 'Cek Koneksi Lagi'}
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: c.textPrimary }]}>{t('login.password')}</Text>
+            <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
+              <MaterialIcons name="lock-outline" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
+              <TextInput
+                style={[styles.input, { color: c.textPrimary }]}
+                placeholder="••••••••"
+                placeholderTextColor={c.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                editable={!loading}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                <MaterialIcons name={showPassword ? "visibility" : "visibility-off"} size={20} color={c.textMuted} />
+              </TouchableOpacity>
+            </View>
           </View>
-        ) : null}
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Full Name</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: borderColor,
-              borderRadius: 8,
-              padding: 12,
-              color: textColor,
-              backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5',
-            }}
-            placeholder="John Doe"
-            placeholderTextColor="#999"
-            value={name}
-            onChangeText={setName}
-            editable={!loading}
-          />
-        </View>
+          <TouchableOpacity
+            onPress={handleRegister}
+            disabled={loading || connection.checking || !connection.ready}
+            activeOpacity={0.8}
+            style={[
+              styles.registerBtn, 
+              { backgroundColor: c.purple, opacity: (loading || connection.checking || !connection.ready) ? 0.5 : 1 }
+            ]}
+          >
+            {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.registerBtnText}>{t('login.create_account')}</Text>}
+          </TouchableOpacity>
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Email</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: borderColor,
-              borderRadius: 8,
-              padding: 12,
-              color: textColor,
-              backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5',
-            }}
-            placeholder="your@email.com"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
-            editable={!loading}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Password</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: borderColor,
-              borderRadius: 8,
-              padding: 12,
-              color: textColor,
-              backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5',
-            }}
-            placeholder="••••••••"
-            placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
-            editable={!loading}
-            secureTextEntry
-          />
-        </View>
-
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ color: textColor, marginBottom: 8, fontWeight: '600' }}>Confirm Password</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: borderColor,
-              borderRadius: 8,
-              padding: 12,
-              color: textColor,
-              backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5',
-            }}
-            placeholder="••••••••"
-            placeholderTextColor="#999"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            editable={!loading}
-            secureTextEntry
-          />
-        </View>
-
-        <TouchableOpacity
-          onPress={handleRegister}
-          disabled={loading || connection.checking || !connection.ready}
-          style={{
-            backgroundColor: '#8b5cf6',
-            padding: 14,
-            borderRadius: 8,
-            alignItems: 'center',
-            marginBottom: 20,
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>Create Account</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: textColor }}>Already have an account? </Text>
-          <Link href="/(auth)/login" asChild>
-            <TouchableOpacity>
-              <Text style={{ color: '#8b5cf6', fontWeight: 'bold' }}>Sign In</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
+          <View style={styles.footer}>
+            <Link href="/(auth)/login" asChild>
+              <TouchableOpacity>
+                <Text style={{ color: c.textSecondary }}>{t('login.login_link')}</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  title: { fontSize: 28, fontWeight: '900', marginBottom: 4 },
+  subtitle: { fontSize: 14, opacity: 0.6, textAlign: 'center' },
+  logoSmall: { width: 60, height: 60, marginBottom: 12 },
+  glowCircle: { position: 'absolute', width: 250, height: 250, borderRadius: 125 },
+  errorContainer: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, marginBottom: 20, borderLeftWidth: 4 },
+  successContainer: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, marginBottom: 20, borderLeftWidth: 4 },
+  inputGroup: { marginBottom: 16 },
+  label: { fontSize: 14, fontWeight: '700', marginBottom: 8, marginLeft: 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, height: 56 },
+  input: { flex: 1, fontSize: 15, height: '100%' },
+  registerBtn: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 12, marginBottom: 24, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  registerBtnText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }
+})
+
+
+

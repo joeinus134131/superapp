@@ -42,6 +42,8 @@ const NAV_ITEMS = [
   { href: '/settings', icon: <Settings size={18} />, label: 'Pengaturan' },
 ];
 
+import { BrandLogo } from './BrandLogo';
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -72,9 +74,10 @@ export default function Sidebar() {
     setCurrentSyncId(getSyncId());
 
     // Dynamic Title & Favicon
+    document.title = 'SelfOne Personal Management';
+    
     if (user) {
-      document.title = user.appName || 'SuperApp';
-      const emoji = user.appIcon || '⚡';
+      const emoji = '🌳';
       const canvas = document.createElement('canvas');
       canvas.height = 64; canvas.width = 64;
       const ctx = canvas.getContext('2d');
@@ -163,11 +166,7 @@ export default function Sidebar() {
       <div className={`sidebar-overlay ${open ? 'show' : ''}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">{user?.appIcon || '⚡'}</div>
-          <div>
-            <h1>{user?.appName || 'SuperApp'}</h1>
-            <p>{user?.appTagline || 'Asisten Produktivitas & Pertumbuhanmu'}</p>
-          </div>
+          <BrandLogo size={40} textSize="20px" />
         </div>
 
         {/* XP Bar */}

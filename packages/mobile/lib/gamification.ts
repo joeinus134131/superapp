@@ -5,21 +5,22 @@ import { getToday } from './helpers';
 interface Level {
   level: number;
   title: string;
+  key: string;
   minXP: number;
   color: string;
 }
 
 const LEVELS: Level[] = [
-  { level: 1, title: 'Newbie', minXP: 0, color: '#9ca3af' },
-  { level: 2, title: 'Starter', minXP: 100, color: '#10b981' },
-  { level: 3, title: 'Learner', minXP: 300, color: '#3b82f6' },
-  { level: 4, title: 'Achiever', minXP: 600, color: '#8b5cf6' },
-  { level: 5, title: 'Warrior', minXP: 1000, color: '#f59e0b' },
-  { level: 6, title: 'Master', minXP: 1500, color: '#ef4444' },
-  { level: 7, title: 'Grandmaster', minXP: 2200, color: '#ec4899' },
-  { level: 8, title: 'Legend', minXP: 3000, color: '#14b8a6' },
-  { level: 9, title: 'Mythic', minXP: 4000, color: '#f97316' },
-  { level: 10, title: 'Champion', minXP: 5500, color: '#eab308' },
+  { level: 1, title: 'Newbie', key: 'levels.l1', minXP: 0, color: '#9ca3af' },
+  { level: 2, title: 'Starter', key: 'levels.l2', minXP: 100, color: '#10b981' },
+  { level: 3, title: 'Learner', key: 'levels.l3', minXP: 300, color: '#3b82f6' },
+  { level: 4, title: 'Achiever', key: 'levels.l4', minXP: 600, color: '#8b5cf6' },
+  { level: 5, title: 'Warrior', key: 'levels.l5', minXP: 1000, color: '#f59e0b' },
+  { level: 6, title: 'Master', key: 'levels.l6', minXP: 1500, color: '#ef4444' },
+  { level: 7, title: 'Grandmaster', key: 'levels.l7', minXP: 2200, color: '#ec4899' },
+  { level: 8, title: 'Legend', key: 'levels.l8', minXP: 3000, color: '#14b8a6' },
+  { level: 9, title: 'Mythic', key: 'levels.l9', minXP: 4000, color: '#f97316' },
+  { level: 10, title: 'Champion', key: 'levels.l10', minXP: 5500, color: '#eab308' },
 ];
 
 const XP_ACTIONS: Record<string, number> = {

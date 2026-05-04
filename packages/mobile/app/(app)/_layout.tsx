@@ -3,6 +3,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
+import { useLanguage } from '../../context/languageContext';
 
 interface TabBarIconProps {
   color: string;
@@ -12,6 +13,7 @@ export default function AppLayout() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
+  const { t } = useLanguage();
 
   return (
     <Tabs
@@ -55,9 +57,9 @@ export default function AppLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('sidebar.dashboard'),
           headerShown: false,
-          tabBarLabel: 'Home',
+          tabBarLabel: t('sidebar.dashboard'),
           tabBarIcon: ({ color }: TabBarIconProps) => (
             <MaterialIcons name="dashboard" size={24} color={color} />
           ),
@@ -66,9 +68,9 @@ export default function AppLayout() {
       <Tabs.Screen
         name="tasks"
         options={{
-          title: 'Tasks',
+          title: t('sidebar.tasks'),
           headerShown: false,
-          tabBarLabel: 'Tasks',
+          tabBarLabel: t('sidebar.tasks'),
           tabBarIcon: ({ color }: TabBarIconProps) => (
             <MaterialIcons name="checklist" size={24} color={color} />
           ),
@@ -77,10 +79,9 @@ export default function AppLayout() {
       <Tabs.Screen
         name="habits"
         options={{
-          title: 'Habits',
-          tabBarLabel: 'Habits',
-          headerStyle: { backgroundColor: c.bgPrimary, elevation: 0, shadowOpacity: 0 },
-          headerTitleStyle: { fontWeight: '800', color: c.textPrimary },
+          title: t('sidebar.habits'),
+          tabBarLabel: t('sidebar.habits'),
+          headerShown: false,
           tabBarIcon: ({ color }: TabBarIconProps) => (
             <MaterialIcons name="local-fire-department" size={24} color={color} />
           ),
@@ -89,20 +90,30 @@ export default function AppLayout() {
       <Tabs.Screen
         name="pomodoro"
         options={{
-          title: 'Pomodoro',
-          tabBarLabel: 'Focus',
-          headerStyle: { backgroundColor: c.bgPrimary, elevation: 0, shadowOpacity: 0 },
-          headerTitleStyle: { fontWeight: '800', color: c.textPrimary },
+          title: t('sidebar.pomodoro'),
+          tabBarLabel: t('sidebar.pomodoro'),
+          headerShown: false,
           tabBarIcon: ({ color }: TabBarIconProps) => (
             <MaterialIcons name="timer" size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
+        name="finance"
+        options={{
+          title: t('sidebar.finance'),
+          headerShown: false,
+          tabBarLabel: t('sidebar.finance'),
+          tabBarIcon: ({ color }: TabBarIconProps) => (
+            <MaterialIcons name="account-balance-wallet" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="more"
         options={{
-          title: 'More',
-          tabBarLabel: 'More',
+          title: t('sidebar.more'),
+          tabBarLabel: t('sidebar.more'),
           headerShown: false,
           tabBarIcon: ({ color }: TabBarIconProps) => (
             <MaterialIcons name="apps" size={24} color={color} />
@@ -111,8 +122,8 @@ export default function AppLayout() {
       />
 
       {/* ---- Hidden screens (accessible via navigation, not tab bar) ---- */}
-      <Tabs.Screen name="profile" options={{ href: null, title: 'Profile' }} />
-      <Tabs.Screen name="finance" options={{ href: null, title: 'Finance', headerShown: false }} />
+      <Tabs.Screen name="profile" options={{ href: null, title: t('sidebar.settings'), headerShown: false }} />
+      <Tabs.Screen name="social" options={{ href: null, title: 'Social', headerShown: false }} />
       <Tabs.Screen name="goals" options={{ href: null, title: 'Goals', headerShown: false }} />
       <Tabs.Screen name="health" options={{ href: null, title: 'Health', headerShown: false }} />
       <Tabs.Screen name="journal" options={{ href: null, title: 'Journal', headerShown: false }} />
