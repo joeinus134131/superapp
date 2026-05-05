@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: superapp-db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: superapp
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./backend/data/postgres:/var/lib/postgresql/data
+      - ./backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # UI untuk melihat database
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: superapp-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@superapp.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db

@@ -1,0 +1,10 @@
+{
+  "name": "@superapp/backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "go run cmd/api/main.go",
+    "build": "go build -o main cmd/api/main.go",
+    "test": "go test ./..."
+  }
+}

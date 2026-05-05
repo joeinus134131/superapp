@@ -52,5 +52,5 @@ yarn.lock
 next-env.d.ts
 
 # ─── Mobile secrets ─────────────────────────────────────────────
-packages/mobile/google-service-account.json
-packages/mobile/GoogleService-Info.plist
+mobile/google-service-account.json
+mobile/GoogleService-Info.plist

@@ -7,7 +7,7 @@ echo "🚀 SuperApp Mobile - Starting..."
 echo ""
 
 # Go to mobile directory
-cd /Users/user/superapp/packages/mobile
+cd /Users/user/superapp/mobile
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
