@@ -6,6 +6,8 @@ import {
   getSupabaseConfigStatus,
   checkSupabaseConnection,
 } from '@superapp/shared'
+import axios from 'axios'
+import { CONFIG } from '../lib/config'
 
 interface User {
   id: string
@@ -84,9 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const persistSession = async (session: any, dataUser: any) => {
+    // Gunakan key yang sama dengan yang diharapkan oleh SyncService dan Shared Storage
     await AsyncStorage.multiSet([
-      ['superapp_user_id', dataUser.id],
-      ['superapp_token', session.access_token || ''],
+      ['superapp_current_user', dataUser.id],
+      ['superapp_session_token', session.access_token || ''],
       ['superapp_session', JSON.stringify(session)],
     ])
 
@@ -252,6 +255,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.user?.email && data.session) {
         const nextUser = await persistSession(data.session, data.user)
+        
+        // SINKRONISASI KE BACKEND GOLANG
+        try {
+          await axios.post(`${CONFIG.API_URL || 'https://extension-sys-better-explicitly.trycloudflare.com/api/v1'}/users/sync`, {
+            id: data.user.id,
+            email: data.user.email
+          }, {
+            headers: { Authorization: `Bearer ${data.session.access_token}` }
+          });
+          console.log('[Auth] User synced to backend');
+        } catch (syncErr) {
+          console.warn('[Auth] Gagal sinkron user ke backend:', syncErr);
+        }
+
         return { success: true, user: nextUser }
       }
 
@@ -281,7 +298,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error
 
       if (data.user?.email) {
-        return { success: true, user: buildUser(data.user) }
+        const nextUser = buildUser(data.user)
+        
+        // SINKRONISASI KE BACKEND GOLANG (Opsional saat register, atau tunggu login)
+        // Kita coba sync di sini juga
+        try {
+          await axios.post(`${CONFIG.API_URL || 'https://extension-sys-better-explicitly.trycloudflare.com/api/v1'}/users/sync`, {
+            id: data.user.id,
+            email: data.user.email
+          });
+          console.log('[Auth] User registered to backend');
+        } catch (syncErr) {
+          console.warn('[Auth] Gagal register user ke backend:', syncErr);
+        }
+
+        return { success: true, user: nextUser }
       }
 
       return { success: false, error: 'No user returned from Supabase' }

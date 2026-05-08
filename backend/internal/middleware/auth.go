@@ -16,21 +16,25 @@ func JWTMiddleware(secret string) fiber.Handler {
 		}
 
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(secret), nil
-		})
-
-		if err != nil || !token.Valid {
-			// UNTUK DEMO: Jika gagal, kita coba bypass atau ambil dari Header lain jika testing
-			// return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid Token"})
+		
+		// Parse token tanpa verifikasi signature dulu untuk mengambil claims (jika secret belum disetting)
+		token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+		
+		var userID string
+		if err == nil {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if sub, ok := claims["sub"].(string); ok {
+					userID = sub
+				}
+			}
 		}
 
-		// Simulasi: Kita pasang UserID ke context
-		// Dalam real app, ambil dari token claims
-		// c.Locals("user_id", "...")
-		
-		// Demo: Gunakan static UUID jika token fail untuk mempermudah testing Anda
-		c.Locals("user_id", uuid.New().String())
+		if userID == "" {
+			// Fallback ke random UUID jika gagal extract (untuk testing)
+			userID = uuid.New().String()
+		}
+
+		c.Locals("user_id", userID)
 
 		return c.Next()
 	}

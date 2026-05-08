@@ -29,6 +29,9 @@
       "@/*": [
         "./*"
       ],
+      "@superapp/shared": [
+        "../shared/index.js"
+      ],
       "@superapp/shared/*": [
         "../shared/lib/*"
       ]

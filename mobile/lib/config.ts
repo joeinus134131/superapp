@@ -11,6 +11,7 @@ export const CONFIG = {
   EAS_PROJECT_ID: Constants.expoConfig?.extra?.eas?.projectId || '',
   VERSION: Constants.expoConfig?.version || '1.0.0',
   APP_NAME: Constants.expoConfig?.name || 'SelfOne',
+  API_URL: process.env.EXPO_PUBLIC_API_URL || 'https://sample-toward-driven-resolve.trycloudflare.com/api/v1',
 };
 
 export const isDev = __DEV__;

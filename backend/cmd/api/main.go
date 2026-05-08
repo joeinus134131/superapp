@@ -19,6 +19,7 @@ func main() {
 
 	// 2. Repository Layer
 	ctxRepo := repository.NewContextRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
 	// 2a. AI Service
 	aiService := usecase.NewAIService()
@@ -28,6 +29,7 @@ func main() {
 
 	// 3. Usecase Layer
 	ctxUsecase := usecase.NewContextUsecase(ctxRepo, agenticObs)
+	userUsecase := usecase.NewUserUsecase(userRepo)
 
 	// 4. Fiber App Initialization
 	app := fiber.New(fiber.Config{
@@ -42,10 +44,13 @@ func main() {
 	if jwtSecret == "" {
 		jwtSecret = "super-secret-key"
 	}
+	// Middleware di-skip untuk endpoint tertentu jika perlu, 
+	// tapi untuk demo ini kita biarkan di semua route /api/v1
 	app.Use(middleware.JWTMiddleware(jwtSecret))
 
 	// 7. Delivery/Routes Layer
 	http.NewContextHandler(app, ctxUsecase)
+	http.NewUserHandler(app, userUsecase)
 
 	// 8. Health Check
 	app.Get("/health", func(c *fiber.Ctx) error {

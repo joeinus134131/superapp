@@ -2,12 +2,9 @@ import axios from 'axios';
 import * as Network from 'expo-network';
 import NetInfo from '@react-native-community/netinfo';
 import { getData, STORAGE_KEYS, getRawData } from '@superapp/shared/storage';
+import { CONFIG } from './config';
 
-// URL Backend Golang Anda (Ganti dengan IP lokal Anda jika testing di device asli)
-// Ganti dengan URL Cloudflare Tunnel Anda jika sudah dideploy
-// Contoh: const API_URL = 'https://superapp-backend.trycloudflare.com/api/v1';
-// const API_URL = 'http://10.201.59.59:8080/api/v1'; 
-const API_URL = 'https://extension-sys-better-explicitly.trycloudflare.com/api/v1';
+const API_URL = CONFIG.API_URL;
 
 
 export const SyncService = {
@@ -65,12 +62,12 @@ export const SyncService = {
         return;
       }
 
-      console.log('[Sync] Mengumpulkan snapshot...');
+      console.log(`[Sync] Mengumpulkan snapshot...`);
       const items = await this.collectContextSnapshots();
-      console.log(`[Sync] Terkumpul ${items.length} items`);
+      console.log(`[Sync] Terkumpul ${items.length} items:`, items.map(i => i.module_type));
       
       if (items.length === 0) {
-        console.log('[Sync] Tidak ada data baru untuk dikirim');
+        console.log('[Sync] Tidak ada data lokal (Task/Finance/dll) yang ditemukan untuk disinkronkan');
         return;
       }
 
