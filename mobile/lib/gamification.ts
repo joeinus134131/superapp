@@ -70,13 +70,15 @@ export async function getXP(): Promise<{ totalXP: number }> {
   return data || { totalXP: 0 };
 }
 
-export async function addXP(action: string): Promise<{
+export async function addXP(action: string, multiplier: number = 1): Promise<{
   xpGained: number;
   totalXP: number;
   levelUp: boolean;
   newLevel: Level | null;
 }> {
-  const xpGained = XP_ACTIONS[action] || 0;
+  const baseXP = XP_ACTIONS[action] || 0;
+  const xpGained = Math.round(baseXP * multiplier);
+  
   const data = await getXP();
   const oldLevel = getCurrentLevel(data.totalXP);
   data.totalXP += xpGained;

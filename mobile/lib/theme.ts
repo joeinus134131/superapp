@@ -34,18 +34,18 @@ export interface ThemeColors {
 }
 
 export const darkColors: ThemeColors = {
-  bgPrimary: '#0f0f17',
-  bgSecondary: '#1a1a2e',
-  bgCard: '#16213e',
-  bgGlass: 'rgba(22, 33, 62, 0.8)',
-  bgInput: '#1a1a2e',
+  bgPrimary: '#000000', // True Black OLED
+  bgSecondary: '#0a0a0a',
+  bgCard: '#111111',
+  bgGlass: 'rgba(0, 0, 0, 0.8)',
+  bgInput: '#151515',
 
-  textPrimary: '#e8e8ee',
-  textSecondary: '#9ca3b4',
-  textMuted: '#6b7280',
+  textPrimary: '#ffffff',
+  textSecondary: '#a0a0a0',
+  textMuted: '#505050',
 
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.04)',
+  border: 'rgba(255, 255, 255, 0.1)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
 
   purple: '#8b5cf6',
   green: '#10b981',
@@ -56,8 +56,8 @@ export const darkColors: ThemeColors = {
   orange: '#f97316',
   pink: '#ec4899',
 
-  tabBg: '#0f0f17',
-  tabBorder: '#1a1a2e',
+  tabBg: '#000000',
+  tabBorder: '#111111',
 };
 
 export const lightColors: ThemeColors = {

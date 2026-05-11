@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Modal, StyleSheet, RefreshControl,
+  Modal, StyleSheet, RefreshControl, Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
@@ -12,6 +12,7 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useLanguage } from '../../context/languageContext';
 
 import { useJournal, JournalEntry } from '../../hooks/useJournal';
+import { analyzeJournalEntry, processJournalAI } from '../../lib/ai';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -53,6 +54,9 @@ export default function JournalScreen() {
   const [viewEntry, setViewEntry] = useState<JournalEntry | null>(null);
   const [form, setForm] = useState({ title: '', content: '', mood: 'good', tags: [] as string[] });
   const [search, setSearch] = useState('');
+  const [aiReflection, setAiReflection] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const openAdd = () => {
     setEditEntry(null);
@@ -69,11 +73,28 @@ export default function JournalScreen() {
 
   const handleSubmit = async () => {
     if (!form.content.trim()) return;
-    if (editEntry) {
-      await updateEntry(editEntry.id, form);
-    } else {
-      await addEntry(form);
+    setIsSaving(true);
+    
+    let finalMood = form.mood;
+    let reflection = '';
+
+    try {
+      const aiResult = await processJournalAI(form.content);
+      finalMood = aiResult.mood;
+      reflection = aiResult.reflection;
+    } catch (e) {
+      console.warn('AI processing failed during save');
     }
+
+    const payload = { ...form, mood: finalMood, aiReflection: reflection };
+
+    if (editEntry) {
+      await updateEntry(editEntry.id, payload);
+    } else {
+      await addEntry(payload);
+    }
+    
+    setIsSaving(false);
     setShowModal(false);
   };
 
@@ -262,7 +283,13 @@ export default function JournalScreen() {
 
               <View style={styles.modalActions}>
                 <Button label={t('tasks.cancel')} onPress={() => setShowModal(false)} variant="secondary" style={{ flex: 1, height: 60 }} />
-                <Button label={editEntry ? t('tasks.save') : t('journal.write_btn')} onPress={handleSubmit} variant="primary" style={{ flex: 1, height: 60 }} />
+                <Button 
+                  label={isSaving ? 'AI Sedang Menganalisa...' : (editEntry ? t('tasks.save') : t('journal.write_btn'))} 
+                  onPress={handleSubmit} 
+                  variant="primary" 
+                  disabled={isSaving}
+                  style={{ flex: 1, height: 60 }} 
+                />
               </View>
             </ScrollView>
           </View>
@@ -299,6 +326,41 @@ export default function JournalScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {viewEntry.title ? <Text style={[styles.viewEntryTitle, { color: c.textPrimary }]}>{viewEntry.title}</Text> : null}
                 <Text style={[styles.viewEntryContent, { color: c.textPrimary }]}>{viewEntry.content}</Text>
+                
+                {/* AI Reflection Card */}
+                {(viewEntry.aiReflection || aiReflection) && (
+                  <Card style={{ marginTop: 20, backgroundColor: c.purple + '08', borderColor: c.purple + '22', borderStyle: 'dashed' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <MaterialIcons name="auto-awesome" size={16} color={c.purple} />
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>AI COACH REFLECTION</Text>
+                    </View>
+                    <Text style={{ fontSize: 14, color: c.textPrimary, lineHeight: 20 }}>
+                      "{viewEntry.aiReflection || aiReflection}"
+                    </Text>
+                  </Card>
+                )}
+
+                {!viewEntry.aiReflection && !aiReflection && (
+                  <Card style={{ marginTop: 20, backgroundColor: c.purple + '08', borderColor: c.purple + '22', borderStyle: 'dashed' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <MaterialIcons name="auto-awesome" size={16} color={c.purple} />
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>AI COACH REFLECTION</Text>
+                    </View>
+                    {aiLoading ? (
+                      <Text style={{ fontSize: 13, color: c.textSecondary, fontStyle: 'italic' }}>Thinking...</Text>
+                    ) : (
+                      <TouchableOpacity onPress={async () => {
+                        setAiLoading(true);
+                        const res = await analyzeJournalEntry(viewEntry.content);
+                        setAiReflection(res);
+                        setAiLoading(false);
+                      }}>
+                        <Text style={{ fontSize: 13, color: c.purple, fontWeight: '700' }}>Get AI Insight ✨</Text>
+                      </TouchableOpacity>
+                    )}
+                  </Card>
+                )}
+
                 {viewEntry.tags?.length > 0 && (
                   <View style={styles.tagsRow}>
                     {viewEntry.tags.map(tagKey => (

@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   USER_PROFILE: 'superapp_user_profile',
   CUSTOM_CATEGORIES: 'superapp_custom_categories',
   SETTINGS: 'superapp_settings',
+  DAILY_QUEST: 'superapp_daily_quest',
 };
 
 export async function getData(key: string): Promise<any> {

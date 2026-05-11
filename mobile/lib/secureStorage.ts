@@ -75,9 +75,20 @@ export const EncryptedStorage = {
       if (!encryptedValue) return null;
 
       const bytes = CryptoJS.AES.decrypt(encryptedValue, masterKey);
-      const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+      let decryptedString = '';
       
-      if (!decryptedString) return null;
+      try {
+        decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+        if (!decryptedString) throw new Error('Decryption resulted in empty string');
+      } catch (e) {
+        // If decryption fails, it might be legacy plain JSON data from older app version
+        try {
+          return JSON.parse(encryptedValue);
+        } catch {
+          return null;
+        }
+      }
+      
       return JSON.parse(decryptedString);
     } catch (e) {
       console.error(`EncryptedStorage getItem error for key ${key}:`, e);

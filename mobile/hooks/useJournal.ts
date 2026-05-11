@@ -12,6 +12,7 @@ export interface JournalEntry {
   content: string;
   mood: string;
   tags: string[];
+  aiReflection?: string;
   createdAt: string;
 }
 

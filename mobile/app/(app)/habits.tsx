@@ -17,6 +17,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
+import { MicroTimer } from '../../components/MicroTimer';
+import { MomentumHabitCard } from '../../components/MomentumHabitCard';
 
 const HABIT_ICONS = [
   'star', 'fitness-center', 'menu-book', 'self-improvement', 'directions-run', 
@@ -42,6 +44,7 @@ export default function HabitsScreen() {
   const [newHabitName, setNewHabitName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('star');
   const [historyRange, setHistoryRange] = useState(7);
+  const [microModeHabit, setMicroModeHabit] = useState<Habit | null>(null);
 
   const handleAddHabit = async () => {
     if (!newHabitName.trim()) return;
@@ -192,35 +195,22 @@ export default function HabitsScreen() {
             <MaterialIcons name="add-task" size={48} color={c.textMuted} />
             <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('habits.empty_list')}</Text>
           </View>
-        ) : habits.map(h => {
-          const todayDone = h.completedDates?.includes(today);
-          return (
-            <Card 
-              key={h.id} 
-              style={styles.habitItemCard}
-              onPress={() => toggleHabit(h.id)}
-            >
-              <View style={[styles.checkbox, todayDone && { backgroundColor: c.green, borderColor: c.green }]}>
-                {todayDone && <MaterialIcons name="check" size={16} color="#fff" />}
-              </View>
-              <View style={[styles.habitIcon, { backgroundColor: c.bgInput }]}>
-                <MaterialIcons name={h.icon as any} size={24} color={c.purple} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.habitItemName, { color: c.textPrimary, textDecorationLine: todayDone ? 'line-through' : 'none', opacity: todayDone ? 0.6 : 1 }]}>
-                  {h.name}
-                </Text>
-                <View style={styles.habitMeta}>
-                  <MaterialIcons name="local-fire-department" size={14} color={c.red} />
-                  <Text style={[styles.habitItemMeta, { color: c.textSecondary }]}>{h.streak} {t('habits.day_streak')}</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => handleDeleteHabit(h.id)} style={styles.deleteBtn}>
-                <MaterialIcons name="delete-outline" size={20} color={c.textMuted} />
-              </TouchableOpacity>
-            </Card>
-          );
-        })}
+        ) : habits.map(h => (
+          <MomentumHabitCard 
+            key={h.id}
+            habit={h}
+            isDone={h.completedDates?.includes(today)}
+            colors={c}
+            onToggle={toggleHabit}
+            onDelete={id => {
+              Alert.alert(t('habits.delete_title'), t('habits.delete_confirm'), [
+                { text: t('tasks.cancel'), style: 'cancel' },
+                { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteHabit(id) },
+              ]);
+            }}
+            onComplete={id => toggleHabit(id)} // Momentum complete
+          />
+        ))}
       </ScrollView>
 
       <FloatingActionButton onPress={() => setShowModal(true)} />
@@ -286,6 +276,24 @@ export default function HabitsScreen() {
           <Text style={styles.toastText}>{xpToast}</Text>
         </View>
       )}
+
+      {/* Micro Mode Modal */}
+      <Modal visible={!!microModeHabit} animationType="fade" transparent>
+        <View style={styles.microModalOverlay}>
+          <View style={styles.microModalContent}>
+            {microModeHabit && (
+              <MicroTimer 
+                title={microModeHabit.name}
+                onComplete={() => {
+                  toggleHabit(microModeHabit.id);
+                  setMicroModeHabit(null);
+                }}
+                onCancel={() => setMicroModeHabit(null)}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -354,4 +362,8 @@ const styles = StyleSheet.create({
   levelUpBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
   toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
   toastText: { color: '#fff', fontWeight: '800' },
+  microBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginLeft: 8, borderWidth: 1, borderColor: 'rgba(139, 92, 246, 0.3)' },
+  microBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  microModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  microModalContent: { width: '100%', maxWidth: 400 },
 });

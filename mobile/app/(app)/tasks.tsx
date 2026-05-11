@@ -132,19 +132,26 @@ export default function TasksScreen() {
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
       {/* Header */}
       <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
           <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
             <MaterialIcons name="assignment" size={24} color={c.purple} />
           </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.tasks')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('tasks.subtitle')}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.pageTitle, { color: c.textPrimary }]} numberOfLines={1}>
+              {t('sidebar.tasks')}
+            </Text>
+            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]} numberOfLines={1}>
+              {t('tasks.subtitle')}
+            </Text>
           </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 8, marginLeft: 8 }}>
           <TouchableOpacity 
-            style={[styles.viewToggle, { backgroundColor: c.bgInput }]} 
-            onPress={() => setViewMode(viewMode === 'list' ? 'kanban' : 'list')}
+            style={[styles.viewToggle, { backgroundColor: c.bgInput, borderColor: c.border, borderWidth: 1 }]} 
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setViewMode(viewMode === 'list' ? 'kanban' : 'list');
+            }}
           >
             <MaterialIcons name={viewMode === 'list' ? 'dashboard' : 'view-list'} size={20} color={c.textPrimary} />
           </TouchableOpacity>
@@ -154,17 +161,30 @@ export default function TasksScreen() {
       {/* Filter Tabs */}
       <View style={styles.filterWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {['all', ...statuses].map(s => (
-            <TouchableOpacity
-              key={s}
-              style={[styles.filterChip, filter === s && { backgroundColor: c.purple }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(s); }}
-            >
-              <Text style={[styles.filterText, { color: filter === s ? '#fff' : c.textSecondary }]}>
-                {s === 'all' ? t('tasks.all_categories') : t(`tasks.status_${s}`)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {['all', ...statuses].map(s => {
+            const count = s === 'all' ? tasks.length : tasks.filter(t => t.status === s).length;
+            const isActive = filter === s;
+            return (
+              <TouchableOpacity
+                key={s}
+                style={[
+                  styles.filterChip, 
+                  isActive && { backgroundColor: c.purple, borderColor: c.purple },
+                  { borderColor: c.border, borderWidth: 1 }
+                ]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(s); }}
+              >
+                <Text style={[styles.filterText, { color: isActive ? '#fff' : c.textSecondary }]}>
+                  {s === 'all' ? t('tasks.all_categories') : t(`tasks.status_${s}`)}
+                </Text>
+                {count > 0 && (
+                  <View style={[styles.chipBadge, { backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : c.purple + '20' }]}>
+                    <Text style={[styles.chipBadgeText, { color: isActive ? '#fff' : c.purple }]}>{count}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -187,8 +207,16 @@ export default function TasksScreen() {
             refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshTasks} tintColor={c.purple} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <MaterialIcons name="assignment-late" size={64} color={c.textMuted} />
+                <View style={styles.emptyIconCircle}>
+                  <MaterialIcons name="assignment-late" size={48} color={c.textMuted} />
+                </View>
                 <Text style={[styles.emptyText, { color: c.textMuted }]}>{t(`tasks.empty_${filter}`)}</Text>
+                <TouchableOpacity 
+                  style={[styles.emptyBtn, { backgroundColor: c.purple + '15' }]}
+                  onPress={openAdd}
+                >
+                  <Text style={{ color: c.purple, fontWeight: '800' }}>Buat Tugas Baru</Text>
+                </TouchableOpacity>
               </View>
             }
           />
@@ -240,11 +268,17 @@ export default function TasksScreen() {
                         <Text style={[styles.kanbanTaskTitle, { color: c.textPrimary }]} numberOfLines={2}>{task.title}</Text>
                         <View style={styles.kanbanFooter}>
                           <Badge label={t(`tasks.${task.category.toLowerCase().startsWith('cat_') ? task.category.toLowerCase() : 'cat_' + task.category.toLowerCase()}`)} textStyle={{ fontSize: 10 }} />
-                          <TouchableOpacity onPress={() => moveTask(task.id, s === 'done' ? 'todo' : 'done')}>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              const nextStatus = s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
+                              moveTask(task.id, nextStatus);
+                            }}
+                            style={styles.kanbanActionBtn}
+                          >
                             <MaterialIcons 
-                              name={s === 'done' ? 'check-circle' : 'radio-button-unchecked'} 
-                              size={18} 
-                              color={s === 'done' ? c.green : c.textMuted} 
+                              name={s === 'done' ? 'check-circle' : s === 'in_progress' ? 'pending' : 'radio-button-unchecked'} 
+                              size={20} 
+                              color={s === 'done' ? c.green : s === 'in_progress' ? c.blue : c.textMuted} 
                             />
                           </TouchableOpacity>
                         </View>
@@ -382,21 +416,23 @@ export default function TasksScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 24, paddingBottom: 24, borderBottomWidth: 1 },
+  pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 24, borderBottomWidth: 1 },
   headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  pageTitle: { fontSize: 28, fontWeight: '900' },
-  pageSubtitle: { fontSize: 14, marginTop: 4 },
-  viewToggle: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 24, fontWeight: '900' },
+  pageSubtitle: { fontSize: 13, marginTop: 2, opacity: 0.7 },
+  viewToggle: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, marginTop: 8 },
-  sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  statusIndicator: { width: 8, height: 8, borderRadius: 4 },
-  sectionDivider: { flex: 1, height: 1, opacity: 0.5 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, marginTop: 20 },
+  sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  statusIndicator: { width: 4, height: 16, borderRadius: 2 },
+  sectionDivider: { flex: 1, height: 1, opacity: 0.2 },
   
-  filterWrapper: { paddingVertical: 16 },
+  filterWrapper: { paddingVertical: 12 },
   filterScroll: { paddingHorizontal: 24, gap: 10 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(150,150,150,0.1)' },
-  filterText: { fontSize: 13, fontWeight: '700' },
+  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, gap: 8 },
+  filterText: { fontSize: 13, fontWeight: '800' },
+  chipBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, minWidth: 20, alignItems: 'center' },
+  chipBadgeText: { fontSize: 10, fontWeight: '900' },
   
   taskCard: { flexDirection: 'row', marginBottom: 16 },
   priorityTag: { width: 6 },
@@ -408,8 +444,10 @@ const styles = StyleSheet.create({
   deadline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   deadlineText: { fontSize: 11, fontWeight: '600' },
   
-  emptyContainer: { alignItems: 'center', paddingVertical: 80, opacity: 0.5 },
-  emptyText: { fontSize: 15, fontWeight: '700', marginTop: 12 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 100 },
+  emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(150,150,150,0.05)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyText: { fontSize: 14, fontWeight: '600', marginBottom: 24, textAlign: 'center', paddingHorizontal: 40 },
+  emptyBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 16 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28, maxHeight: '90%' },
@@ -442,4 +480,5 @@ const styles = StyleSheet.create({
   kanbanCard: { flexDirection: 'row', marginBottom: 12 },
   kanbanTaskTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
   kanbanFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  kanbanActionBtn: { padding: 4, marginRight: -4 },
 });
