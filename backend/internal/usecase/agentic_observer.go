@@ -75,9 +75,14 @@ func (o *AgenticObserver) UpdateLeaderboard(ctx domain.UserContext) {
 	}
 
 	// 4. Update ke Leaderboard Entry
+	displayName := user.Name
+	if displayName == "" {
+		displayName = user.Email
+	}
+
 	entry := domain.LeaderboardEntry{
 		UserID:   ctx.UserID,
-		Name:     user.Name,
+		Name:     displayName,
 		Level:    level,
 		TotalXP:  gamData.TotalXP,
 		LastSeen: time.Now(),
@@ -86,7 +91,7 @@ func (o *AgenticObserver) UpdateLeaderboard(ctx domain.UserContext) {
 	if err := o.socialRepo.UpdateUserStats(entry); err != nil {
 		log.Printf("[Agentic Social Error] Save leaderboard failed: %v", err)
 	} else {
-		log.Printf("[Agentic Social Success] Leaderboard updated for %s (Lv.%d, %d XP)", user.Name, level, gamData.TotalXP)
+		log.Printf("[Agentic Social Success] Leaderboard updated for %s (Lv.%d, %d XP)", displayName, level, gamData.TotalXP)
 	}
 }
 

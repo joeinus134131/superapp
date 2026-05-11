@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/user/superapp/backend/internal/delivery/http"
+	"github.com/user/superapp/backend/internal/domain"
 	"github.com/user/superapp/backend/internal/middleware"
 	"github.com/user/superapp/backend/internal/repository"
 	"github.com/user/superapp/backend/internal/usecase"
@@ -22,9 +23,23 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	socialRepo := repository.NewSocialRepository(db)
 
-	// 2a. Auto Migrate Models
-	log.Println("[Database] Running AutoMigrate...")
-	db.AutoMigrate(&domain.User{}, &domain.UserContext{}, &domain.LeaderboardEntry{}, &domain.Squad{})
+	// 2a. Auto Migrate Models & Extensions
+	log.Println("[Database] Initializing extensions and running AutoMigrate...")
+	db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
+	
+	// Migrate one by one to avoid one table blocking others
+	models := []interface{}{
+		&domain.User{},
+		&domain.UserContext{},
+		&domain.LeaderboardEntry{},
+		&domain.Squad{},
+	}
+
+	for _, model := range models {
+		if err := db.AutoMigrate(model); err != nil {
+			log.Printf("[Database Warning] Migration for a model failed (non-fatal): %v", err)
+		}
+	}
 
 	// 2a. AI Service
 	aiService := usecase.NewAIService()
