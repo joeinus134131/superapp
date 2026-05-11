@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
+import { useLanguage } from '../context/languageContext';
 import { Card } from './ui/Card';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -19,8 +20,10 @@ interface MomentumHabitCardProps {
 export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
   habit, isDone, colors, onToggle, onDelete, onComplete
 }) => {
+  const { t } = useLanguage();
   const [isPressing, setIsPressing] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
+  const burstAnim = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<any>(null);
 
   const SIZE = 50;
@@ -35,10 +38,11 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
     
     Animated.timing(progress, {
       toValue: 1,
-      duration: 1800, // 1.8 seconds to complete
+      duration: 1800,
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {
+        triggerBurst();
         completeHabit();
       }
     });
@@ -55,6 +59,15 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       }
     }, 150);
+  };
+
+  const triggerBurst = () => {
+    burstAnim.setValue(0);
+    Animated.timing(burstAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
   };
 
   const cancelMomentum = () => {
@@ -82,6 +95,16 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
     outputRange: [CIRCUM, 0],
   });
 
+  const burstScale = burstAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 3],
+  });
+
+  const burstOpacity = burstAnim.interpolate({
+    inputRange: [0, 0.1, 1],
+    outputRange: [0, 0.4, 0],
+  });
+
   return (
     <Card 
       style={[
@@ -96,6 +119,18 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
         onPress={() => onToggle(habit.id)}
         style={styles.content}
       >
+        {/* Burst Effect */}
+        <Animated.View 
+          style={[
+            styles.burst, 
+            { 
+              backgroundColor: colors.purple,
+              transform: [{ scale: burstScale }],
+              opacity: burstOpacity,
+            }
+          ]} 
+        />
+
         {/* Progress Overlay */}
         {isPressing && (
           <View style={styles.svgOverlay}>
@@ -149,7 +184,7 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
             {!isDone && (
               <View style={[styles.microBadge, { backgroundColor: colors.purple + '15' }]}>
                 <Text style={[styles.microBadgeText, { color: colors.purple }]}>
-                  {isPressing ? 'CHARGING...' : 'HOLD FOR MICRO'}
+                  {isPressing ? t('habits.charging') : t('habits.hold_for_micro')}
                 </Text>
               </View>
             )}
@@ -167,6 +202,7 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
 const styles = StyleSheet.create({
   container: { marginBottom: 12, overflow: 'hidden' },
   content: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  burst: { position: 'absolute', left: 26, top: 26, width: 40, height: 40, borderRadius: 20, zIndex: -1 },
   svgOverlay: { position: 'absolute', left: 14, top: 14, zIndex: 10 },
   checkbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 2, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
   habitIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

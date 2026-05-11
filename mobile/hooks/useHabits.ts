@@ -3,6 +3,7 @@ import { getData, setData, STORAGE_KEYS } from '../lib/storage';
 import { generateId, getToday } from '../lib/helpers';
 import { addXP } from '../lib/gamification';
 import * as Haptics from 'expo-haptics';
+import { SyncService } from '../lib/syncService';
 
 export interface Habit {
   id: string;
@@ -45,6 +46,7 @@ export function useHabits() {
   const saveHabits = async (newHabits: Habit[]) => {
     setHabits(newHabits);
     await setData(STORAGE_KEYS.HABITS, newHabits);
+    SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
   };
 
   const addHabit = async (name: string, icon: string) => {

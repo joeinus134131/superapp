@@ -42,6 +42,7 @@ interface AuthContextValue {
   resetPassword: (email: string) => Promise<AuthResult>
   isOnboarded: boolean
   setOnboarded: (val: boolean) => void
+  updateProfile: (data: { name?: string, metadata?: Record<string, any> }) => Promise<AuthResult>
 }
 
 const initialConnection: ConnectionState = {
@@ -352,9 +353,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateProfile = async (data: { name?: string, metadata?: Record<string, any> }): Promise<AuthResult> => {
+    try {
+      const readinessError = await ensureReadyForAuth()
+      if (readinessError) return { success: false, error: readinessError }
+
+      const updateData: any = { data: { ...data.metadata } }
+      if (data.name) {
+        updateData.data.display_name = data.name
+        updateData.data.name = data.name
+      }
+
+      const { data: res, error } = await supabase.auth.updateUser(updateData)
+      if (error) throw error
+
+      if (res.user) {
+        const sessionPayload = await AsyncStorage.getItem('superapp_session')
+        const session = sessionPayload ? JSON.parse(sessionPayload) : {}
+        const nextUser = await persistSession(session, res.user)
+        return { success: true, user: nextUser }
+      }
+      return { success: false, error: 'Failed to update user' }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Update failed'
+      return { success: false, error: message }
+    }
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, connection, login, register, logout, refreshConnection, consumeAuthRedirect, resetPassword, isOnboarded, setOnboarded: setIsOnboarded }}
+      value={{ 
+        user, loading, connection, login, register, logout, 
+        refreshConnection, consumeAuthRedirect, resetPassword, 
+        isOnboarded, setOnboarded: setIsOnboarded, updateProfile 
+      }}
     >
       {children}
     </AuthContext.Provider>

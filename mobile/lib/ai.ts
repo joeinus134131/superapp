@@ -11,6 +11,7 @@ export interface AIInsight {
   msg: string;
   icon: string;
   color: string;
+  type?: 'TASK' | 'HABIT' | 'FINANCE' | 'FOCUS';
   xpMultiplier?: number;
 }
 
@@ -67,8 +68,8 @@ export async function fetchAIInsights(): Promise<AIInsight[]> {
   if (!GROQ_API_KEY) {
     // Fallback if no API key is provided yet
     return [
-      { id: '1', title: 'AI Offline', msg: 'Masukkan Groq API Key di lib/ai.ts untuk mengaktifkan AI Life Coach!', icon: 'error-outline', color: '#f87171' },
-      { id: '2', title: 'Saran Klasik', msg: 'Selesaikan satu tugas prioritas hari ini untuk mulai momentum.', icon: 'bolt', color: '#fbbf24' }
+      { id: '1', title: 'AI Offline', msg: 'Masukkan Groq API Key di folder mobile/.env untuk mengaktifkan AI Life Coach!', icon: 'error', color: '#f87171', type: 'TASK' },
+      { id: '2', title: 'Saran Klasik', msg: 'Selesaikan satu tugas prioritas hari ini untuk mulai momentum.', icon: 'bolt', color: '#fbbf24', type: 'TASK' }
     ];
   }
 
@@ -82,9 +83,10 @@ export async function fetchAIInsights(): Promise<AIInsight[]> {
     1. Predictive Anti-Mager: Look at 'last7Days' in habits. If you see a pattern of 0s on specific days, warn the user and give a 1.5x XP multiplier to break the pattern.
     2. Weekly Context: If it's Sunday, provide a "Weekly Boost/Roast" as one of the insights.
     
-    Format response as a JSON array of objects: { id, title, msg, icon, color, xpMultiplier }.
+    Format response as a JSON array of objects: { id, title, msg, icon, color, type, xpMultiplier }.
+    "type" MUST be one of: "TASK", "HABIT", "FINANCE", "FOCUS" (all caps).
     If an insight is an 'Anti-Mager' boost, add "xpMultiplier": 1.5 to that object.
-    Icons MUST use kebab-case (e.g. 'check-circle', 'access-time', 'fitness-center') from MaterialIcons.
+    Icons MUST use kebab-case (e.g. 'check-circle', 'access-time', 'fitness-center', 'warning', 'info') from MaterialIcons.
     Colors must be Hex codes that look premium.
     Language: Indonesian (Gaul/Gen Z style).
   `;

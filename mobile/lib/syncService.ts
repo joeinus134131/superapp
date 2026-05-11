@@ -22,6 +22,7 @@ export const SyncService = {
       { type: 'JOURNAL', key: STORAGE_KEYS.JOURNAL },
       { type: 'HEALTH', key: STORAGE_KEYS.HEALTH },
       { type: 'GOALS', key: STORAGE_KEYS.GOALS },
+      { type: 'GAMIFICATION', key: STORAGE_KEYS.GAMIFICATION },
     ];
 
     const snapshots = [];

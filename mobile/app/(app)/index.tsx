@@ -21,7 +21,9 @@ import { getXP, getCurrentLevel, getXPProgress, checkDailyLogin, addXP } from '.
 import { BrandLogo } from '../../components/BrandLogo';
 import { RadarChart } from '../../components/RadarChart';
 import { DailyQuestCard } from '../../components/DailyQuestCard';
+import { LevelUpModal } from '../../components/LevelUpModal';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 
 export default function DashboardScreen() {
   const { isDark } = useTheme();
@@ -43,9 +45,14 @@ export default function DashboardScreen() {
     workoutsThisWeek: 0,
   });
   const { tasks, loading, xpToast, addTask, updateTask, deleteTask, moveTask, refreshTasks } = useTasks();
-  const { insights, loading: aiLoading, refreshInsights } = useAIInsights();
+  const { insights, loading: loadingInsights, refreshInsights } = useAIInsights();
   
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [showInsightModal, setShowInsightModal] = useState(false);
+  const [selectedInsight, setSelectedInsight] = useState<any>(null);
+  const [newLevelData, setNewLevelData] = useState<any>(null);
+  const [isMager, setIsMager] = useState(false);
   const [emergencyStep, setEmergencyStep] = useState<'menu' | 'mission'>('menu');
   const [selectedEmergency, setSelectedEmergency] = useState<any>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -118,21 +125,42 @@ export default function DashboardScreen() {
     RNAnimated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
   }, [today, tasks]);
 
+  const handleAddXP = async (action: string) => {
+    const result = await addXP(action);
+    setGamData({ totalXP: result.totalXP });
+    
+    // Sync to cloud immediately so leaderboard is updated
+    const { SyncService } = require('../../lib/syncService');
+    SyncService.runSync().catch((e: any) => console.warn('[Sync] XP sync failed:', e));
+
+    if (result.levelUp) {
+      setNewLevelData(result.newLevel);
+      setShowLevelUpModal(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  useEffect(() => {
+    const checkMager = () => {
+      const hour = new Date().getHours();
+      // Logic: After 9 AM, if no tasks and no habits done, you are MAGER
+      const isActuallyMager = hour >= 9 && stats.tasksCompleted === 0 && stats.habitsToday === 0;
+      
+      if (isActuallyMager && !isMager) {
+        setIsMager(true);
+        sendImmediateNotification("🚨 DARURAT MAGER!", "Sistem ngeliat lo belum gerak nih. Mau bantuan?");
+      } else if (!isActuallyMager && isMager) {
+        setIsMager(false);
+      }
+    };
+    checkMager();
+  }, [stats.tasksCompleted, stats.habitsToday]);
+
   useEffect(() => {
     loadData();
     checkDailyLogin();
     registerForPushNotificationsAsync();
   }, [loadData]);
-
-  // Proactive Notification Trigger when AI detects Predictive Anti-Mager
-  useEffect(() => {
-    if (insights && insights.length > 0) {
-      const antiMager = insights.find(i => i.xpMultiplier && i.xpMultiplier > 1);
-      if (antiMager) {
-        sendImmediateNotification(`⚠️ AI ALERT: ${antiMager.title}`, antiMager.msg);
-      }
-    }
-  }, [insights]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -196,6 +224,12 @@ export default function DashboardScreen() {
                 <View style={[styles.levelBadge, { backgroundColor: level.color + '22' }]}>
                   <Text style={[styles.levelBadgeText, { color: level.color }]}>Lv. {level.level}</Text>
                 </View>
+                {insights.some(i => i.xpMultiplier && i.xpMultiplier > 1) && (
+                  <View style={[styles.boostBadge, { backgroundColor: c.purple }]}>
+                    <MaterialIcons name="bolt" size={12} color="#fff" />
+                    <Text style={styles.boostBadgeText}>{t('dashboard.xp_boost')}</Text>
+                  </View>
+                )}
               </View>
             </View>
             <View style={[styles.xpTrack, { backgroundColor: c.border }]}>
@@ -219,57 +253,67 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        <RNAnimated.View style={{ transform: [{ scale: pulseAnim }] }}>
-          <TouchableOpacity 
-            style={[styles.emergencyBtn, { backgroundColor: c.red }]} 
-            onPress={() => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              setShowEmergencyModal(true);
-              setEmergencyStep('menu');
-            }}
-            activeOpacity={0.9}
-          >
-            <View style={styles.emergencyIconBox}>
-              <MaterialIcons name="offline-bolt" size={24} color="#fff" />
-            </View>
-            <Text style={styles.emergencyBtnText}>DARURAT MAGER</Text>
-            <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" style={{ marginLeft: 'auto', opacity: 0.7 }} />
-          </TouchableOpacity>
-        </RNAnimated.View>
+        {isMager && (
+          <RNAnimated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <TouchableOpacity 
+              style={[styles.emergencyBtn, { backgroundColor: c.red, marginBottom: 24 }]} 
+              onPress={() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                setShowEmergencyModal(true);
+                setEmergencyStep('menu');
+              }}
+              activeOpacity={0.9}
+            >
+              <View style={styles.emergencyIconBox}>
+                <MaterialIcons name="offline-bolt" size={24} color="#fff" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.emergencyBtnText}>DARURAT MAGER</Text>
+                <Text style={styles.emergencySubtitle}>AI deteksi hambatan produktivitas lo!</Text>
+              </View>
+              <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" style={{ opacity: 0.7 }} />
+            </TouchableOpacity>
+          </RNAnimated.View>
+        )}
 
         <DailyQuestCard />
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: c.textPrimary, marginBottom: 0 }]}>Smart Insights</Text>
-          <TouchableOpacity onPress={() => refreshInsights(true)} disabled={aiLoading}>
-            <MaterialIcons name="refresh" size={18} color={c.purple} style={{ opacity: aiLoading ? 0.3 : 1 }} />
-          </TouchableOpacity>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('insights.title')}</Text>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.insightsScroll}>
-          {aiLoading ? (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.insightsScroll}
+        >
+          {loadingInsights ? (
             [1, 2].map((i) => (
-              <View key={i} style={[styles.insightCard, { backgroundColor: c.bgCard, borderColor: c.border, opacity: 0.5 }]}>
-                <View style={[styles.insightIcon, { backgroundColor: c.border }]} />
+              <View key={i} style={[styles.skeletonCard, { backgroundColor: c.bgSecondary }]}>
+                <View style={[styles.skeletonCircle, { backgroundColor: c.bgInput }]} />
                 <View style={{ flex: 1, gap: 8 }}>
-                  <View style={{ height: 12, backgroundColor: c.border, borderRadius: 6, width: '60%' }} />
-                  <View style={{ height: 10, backgroundColor: c.border, borderRadius: 5, width: '90%' }} />
+                  <View style={[styles.skeletonLineShort, { backgroundColor: c.bgInput }]} />
+                  <View style={[styles.skeletonLineLong, { backgroundColor: c.bgInput }]} />
                 </View>
               </View>
             ))
           ) : (
             insights.map((insight) => (
-              <TouchableOpacity
-                key={insight.id}
-                style={[styles.insightCard, { backgroundColor: c.bgCard, borderColor: c.border }]}
-                activeOpacity={0.7}
+              <TouchableOpacity 
+                key={insight.id} 
+                style={[styles.insightCard, { backgroundColor: c.bgSecondary }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setSelectedInsight(insight);
+                  setShowInsightModal(true);
+                }}
               >
                 <View style={[styles.insightIcon, { backgroundColor: insight.color + '15' }]}>
-                  <MaterialIcons name={insight.icon as any} size={20} color={insight.color} />
+                  <MaterialIcons name={insight.icon as any} size={22} color={insight.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.insightTitle, { color: c.textPrimary }]}>{insight.title}</Text>
-                  <Text style={[styles.insightMsg, { color: c.textSecondary }]} numberOfLines={2}>{insight.msg}</Text>
+                  <Text style={[styles.insightMsg, { color: c.textSecondary }]} numberOfLines={1}>{insight.msg}</Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -319,9 +363,10 @@ export default function DashboardScreen() {
       </View>
 
       {/* Emergency Modal */}
-      <Modal visible={showEmergencyModal} animationType="slide" transparent>
+      <Modal visible={showEmergencyModal} animationType="fade" transparent>
         <View style={styles.emergencyOverlay}>
-          <View style={[styles.emergencyContent, { backgroundColor: c.bgSecondary }]}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.emergencyContent, { backgroundColor: c.bgSecondary + 'EE' }]}>
             <View style={styles.emergencyHeader}>
               <Text style={[styles.emergencyTitle, { color: c.textPrimary }]}>
                 {emergencyStep === 'menu' ? 'Kenapa lo stuck, brok?' : selectedEmergency?.title}
@@ -391,7 +436,9 @@ export default function DashboardScreen() {
 
                 <View style={styles.missionContent}>
                   <Text style={[styles.stepNumber, { color: selectedEmergency?.color }]}>
-                    STEP {currentStepIndex + 1}/{selectedEmergency?.steps.length}
+                    {t('dashboard.step_count')
+                      .replace('{current}', String(currentStepIndex + 1))
+                      .replace('{total}', String(selectedEmergency?.steps.length))}
                   </Text>
                   <Text style={[styles.missionAction, { color: c.textPrimary }]}>
                     {selectedEmergency?.steps[currentStepIndex]}
@@ -407,7 +454,7 @@ export default function DashboardScreen() {
                     } else {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       setShowEmergencyModal(false);
-                      addXP('TASK_COMPLETE');
+                      handleAddXP('TASK_COMPLETE');
                     }
                   }}
                 >
@@ -424,7 +471,8 @@ export default function DashboardScreen() {
       {/* DNA Detail Modal */}
       <Modal visible={showDNAModal} animationType="slide" transparent>
         <View style={styles.emergencyOverlay}>
-          <View style={[styles.dnaDetailContent, { backgroundColor: c.bgSecondary }]}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.dnaDetailContent, { backgroundColor: c.bgSecondary + 'EE' }]}>
             <View style={styles.emergencyHeader}>
               <View>
                 <Text style={[styles.emergencyTitle, { color: c.textPrimary }]}>LIFE SCORE DNA</Text>
@@ -477,6 +525,48 @@ export default function DashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* AI Insight Detail Modal */}
+      <Modal visible={showInsightModal} transparent animationType="fade">
+        <View style={styles.emergencyOverlay}>
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.insightDetailContent, { backgroundColor: c.bgSecondary + 'EE' }]}>
+            <View style={[styles.insightDetailIcon, { backgroundColor: selectedInsight?.color + '22' }]}>
+              <MaterialIcons name={selectedInsight?.icon as any} size={32} color={selectedInsight?.color} />
+            </View>
+            <Text style={[styles.insightDetailTitle, { color: c.textPrimary }]}>{selectedInsight?.title}</Text>
+            <Text style={[styles.insightDetailMsg, { color: c.textSecondary }]}>{selectedInsight?.msg}</Text>
+            
+            <View style={styles.insightActionRow}>
+              <TouchableOpacity 
+                style={[styles.insightCloseBtn, { backgroundColor: c.bgInput }]} 
+                onPress={() => setShowInsightModal(false)}
+              >
+                <Text style={[styles.insightCloseBtnText, { color: c.textPrimary }]}>TUTUP</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.insightGoBtn, { backgroundColor: c.purple }]} 
+                onPress={() => {
+                  setShowInsightModal(false);
+                  const routeMap: any = { 
+                    'HABIT': 'habits', 
+                    'TASK': 'tasks', 
+                    'FINANCE': 'finance', 
+                    'FOCUS': 'pomodoro' 
+                  };
+                  const target = routeMap[selectedInsight?.type as any];
+                  if (target) {
+                    router.push(target as any);
+                  }
+                }}
+              >
+                <Text style={styles.insightGoBtnText}>GAS SEKARANG</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -495,25 +585,86 @@ const styles = StyleSheet.create({
   xpTitle: { fontSize: 18, fontWeight: '900' },
   levelBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10 },
   levelBadgeText: { fontSize: 11, fontWeight: '900' },
-  xpTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  xpTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  boostBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+    gap: 2,
+  },
+  boostBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
   xpFill: { height: '100%', borderRadius: 4 },
   xpText: { fontSize: 12, fontWeight: '700' },
 
   dnaContainer: { 
     alignItems: 'center', 
     justifyContent: 'center',
-    width: 130, // Fixed width to ensure labels have space
+    width: 130,
     marginLeft: 8,
   },
   radialLabel: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.5, opacity: 0.6 },
 
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingRight: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: '900', marginLeft: 4 },
+  sectionHeader: { marginBottom: 16, paddingLeft: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '900' },
   insightsScroll: { gap: 12, paddingBottom: 24, paddingLeft: 4 },
-  insightCard: { width: 280, padding: 16, borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  insightIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  insightTitle: { fontSize: 14, fontWeight: '900', marginBottom: 2 },
-  insightMsg: { fontSize: 12, fontWeight: '600', lineHeight: 18 },
+  
+  insightCard: {
+    width: 240,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    marginRight: 12,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  skeletonCard: {
+    width: 240,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    marginRight: 12,
+    gap: 12,
+    opacity: 0.5,
+  },
+  skeletonCircle: { width: 44, height: 44, borderRadius: 22 },
+  skeletonLineShort: { width: '40%', height: 12, borderRadius: 6 },
+  skeletonLineLong: { width: '80%', height: 10, borderRadius: 5 },
+  insightIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  insightTitle: { fontSize: 13, fontWeight: '900', marginBottom: 2 },
+  insightMsg: { fontSize: 11, fontWeight: '600', lineHeight: 16 },
+
+  insightDetailContent: {
+    width: '85%',
+    padding: 24,
+    borderRadius: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: Dimensions.get('window').height * 0.2, // Centerish
+  },
+  insightDetailIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  insightDetailTitle: { fontSize: 18, fontWeight: '900', marginBottom: 12, textAlign: 'center' },
+  insightDetailMsg: { fontSize: 14, fontWeight: '600', lineHeight: 22, textAlign: 'center', marginBottom: 24 },
+  insightActionRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  insightCloseBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  insightCloseBtnText: { fontWeight: '900', fontSize: 14 },
+  insightGoBtn: { flex: 1.5, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  insightGoBtnText: { color: '#fff', fontWeight: '900', fontSize: 14 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: MOBILE_SPACING.gap, marginBottom: 24 },
   phase3Stat: { borderRadius: 24, padding: 20, borderWidth: 1, justifyContent: 'center' },
@@ -555,6 +706,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  emergencySubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
   },
   emergencyOverlay: {
     flex: 1,

@@ -187,7 +187,9 @@ export const DICTIONARIES = {
       of_habits: "dari",
       total: "Total",
       page: "Halaman",
-      of: "dari"
+      of: "dari",
+      hold_for_micro: "TAHAN UNTUK MICRO",
+      charging: "MENGISI..."
     },
     pomodoro: {
       title: "Timer Pomodoro",
@@ -655,7 +657,9 @@ export const DICTIONARIES = {
       add_task: "Tambah Tugas",
       write_journal: "Tulis Jurnal",
       start_focus: "Mulai Fokus",
-      view_achievements: "Lihat Pencapaian"
+      view_achievements: "Lihat Pencapaian",
+      xp_boost: "BOOST x1.5",
+      step_count: "LANGKAH {current}/{total}"
     },
     levels: {
       l1: "Pemula",
@@ -865,7 +869,9 @@ export const DICTIONARIES = {
       of_habits: "of",
       total: "Total",
       page: "Page",
-      of: "of"
+      of: "of",
+      hold_for_micro: "HOLD FOR MICRO",
+      charging: "CHARGING..."
     },
     pomodoro: {
       title: "Pomodoro Timer",
@@ -1333,7 +1339,9 @@ export const DICTIONARIES = {
       add_task: "Add Task",
       write_journal: "Write Journal",
       start_focus: "Start Focus",
-      view_achievements: "View Achievements"
+      view_achievements: "View Achievements",
+      xp_boost: "BOOST x1.5",
+      step_count: "STEP {current}/{total}"
     },
     levels: {
       l1: "Newbie",

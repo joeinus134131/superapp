@@ -21,6 +21,8 @@ export const STORAGE_KEYS = {
   CUSTOM_CATEGORIES: 'superapp_custom_categories',
   SETTINGS: 'superapp_settings',
   DAILY_QUEST: 'superapp_daily_quest',
+  SESSION_TOKEN: 'superapp_session_token',
+  CURRENT_USER: 'superapp_current_user',
 };
 
 export async function getData(key: string): Promise<any> {

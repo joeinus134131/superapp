@@ -10,15 +10,17 @@ import { useMobileLayout } from '../../lib/layout';
 import { formatDate, PRIORITY_COLORS, CATEGORIES } from '../../lib/helpers';
 import { useLanguage } from '../../context/languageContext';
 import * as Haptics from 'expo-haptics';
+import { useWindowDimensions } from 'react-native';
 
 import { useTasks, Task } from '../../hooks/useTasks';
+import { LevelUpModal } from '../../components/LevelUpModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 
-const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language }: { task: Task, onEdit: (t: Task) => void, onToggle: (id: string, s: string) => void, c: any, t: any, language: string }) => {
+const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }: { task: Task, onEdit: (t: Task) => void, onToggle: (id: string, s: string) => void, c: any, t: any, language: string, isSmall?: boolean }) => {
   return (
     <Card
       style={styles.taskCard}
@@ -27,7 +29,7 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language }: { task:
       <View style={[styles.priorityTag, { backgroundColor: PRIORITY_COLORS[task.priority] }]} />
       <View style={styles.taskContent}>
         <View style={styles.taskHeader}>
-          <Text style={[styles.taskTitle, { color: c.textPrimary }, task.status === 'done' && { textDecorationLine: 'line-through', opacity: 0.5 }]}>
+          <Text style={[isSmall ? styles.taskTitleSmall : styles.taskTitle, { color: c.textPrimary }, task.status === 'done' && { textDecorationLine: 'line-through', opacity: 0.5 }]} numberOfLines={1}>
             {task.title}
           </Text>
           <TouchableOpacity onPress={() => onToggle(task.id, task.status === 'done' ? 'todo' : 'done')}>
@@ -39,7 +41,7 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language }: { task:
           </TouchableOpacity>
         </View>
         {task.description ? (
-          <Text style={[styles.taskDesc, { color: c.textSecondary }]} numberOfLines={2}>{task.description}</Text>
+          <Text style={[isSmall ? styles.taskDescSmall : styles.taskDesc, { color: c.textSecondary }]} numberOfLines={1}>{task.description}</Text>
         ) : null}
         <View style={styles.taskFooter}>
           <Badge label={t(`tasks.${task.category.toLowerCase().startsWith('cat_') ? task.category.toLowerCase() : 'cat_' + task.category.toLowerCase()}`)} />
@@ -58,10 +60,15 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language }: { task:
 export default function TasksScreen() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
+  const { width } = useWindowDimensions();
+  const isSmall = width < 380;
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
 
-  const { tasks, loading, xpToast, addTask, updateTask, deleteTask, moveTask, refreshTasks } = useTasks();
+  const { 
+    tasks, loading, xpToast, setXpToast, levelUpData, setLevelUpData,
+    addTask, updateTask, deleteTask, moveTask, refreshTasks 
+  } = useTasks();
   
   const [filter, setFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -125,8 +132,9 @@ export default function TasksScreen() {
       c={c} 
       t={t} 
       language={language} 
+      isSmall={isSmall}
     />
-  ), [openEdit, moveTask, c, t, language]);
+  ), [openEdit, moveTask, c, t, language, isSmall]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
@@ -174,7 +182,7 @@ export default function TasksScreen() {
                 ]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(s); }}
               >
-                <Text style={[styles.filterText, { color: isActive ? '#fff' : c.textSecondary }]}>
+                <Text style={[isSmall ? styles.filterTextSmall : styles.filterText, { color: isActive ? '#fff' : c.textSecondary }]}>
                   {s === 'all' ? t('tasks.all_categories') : t(`tasks.status_${s}`)}
                 </Text>
                 {count > 0 && (
@@ -298,6 +306,12 @@ export default function TasksScreen() {
       )}
 
       <FloatingActionButton onPress={openAdd} />
+
+      <LevelUpModal 
+        visible={!!levelUpData} 
+        level={levelUpData} 
+        onClose={() => setLevelUpData(null)} 
+      />
 
       {/* Task Modal */}
       <Modal visible={Boolean(showModal)} animationType="slide" transparent>
@@ -431,6 +445,7 @@ const styles = StyleSheet.create({
   filterScroll: { paddingHorizontal: 24, gap: 10 },
   filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, gap: 8 },
   filterText: { fontSize: 13, fontWeight: '800' },
+  filterTextSmall: { fontSize: 11, fontWeight: '800' },
   chipBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, minWidth: 20, alignItems: 'center' },
   chipBadgeText: { fontSize: 10, fontWeight: '900' },
   
@@ -439,7 +454,9 @@ const styles = StyleSheet.create({
   taskContent: { flex: 1, padding: 18 },
   taskHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   taskTitle: { fontSize: 16, fontWeight: '800', flex: 1, marginRight: 10 },
+  taskTitleSmall: { fontSize: 14, fontWeight: '800', flex: 1, marginRight: 8 },
   taskDesc: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  taskDescSmall: { fontSize: 11, lineHeight: 16, marginBottom: 10 },
   taskFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   deadline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   deadlineText: { fontSize: 11, fontWeight: '600' },

@@ -63,6 +63,7 @@ export default function FinanceScreen() {
   const ITEMS_PER_PAGE = 10;
   
   const [showCatModal, setShowCatModal] = useState(false);
+  const [showCatSelect, setShowCatSelect] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [newCat, setNewCat] = useState({ label: '', emoji: '✨', color: '#8b5cf6', type: 'expense' as 'income' | 'expense' });
 
@@ -285,48 +286,24 @@ export default function FinanceScreen() {
               />
 
               <Text style={[styles.inputLabel, { color: c.textSecondary, marginBottom: 12 }]}>{t('finance.category')}</Text>
-              <View style={styles.categoryGrid}>
-                {(form.type === 'income' 
-                  ? [...INCOME_CATS, ...customCategories.filter(cat => cat.type === 'income').map(cat => cat.label)] 
-                  : [...EXPENSE_CATS, ...customCategories.filter(cat => cat.type === 'expense').map(cat => cat.label)]
-                ).map(catLabel => {
-                  const isCustom = customCategories.find(cat => cat.label === catLabel);
-                  const config = CATEGORY_CONFIG[catLabel] || { icon: 'star', color: c.purple };
-                  const isSelected = form.category === catLabel;
-                  
-                  return (
-                    <TouchableOpacity
-                      key={catLabel}
-                      style={[
-                        styles.categoryItem, 
-                        { backgroundColor: c.bgInput, borderColor: c.border },
-                        isSelected && { backgroundColor: config.color + '15', borderColor: config.color, borderWidth: 2 }
-                      ]}
-                      onPress={() => setForm({ ...form, category: catLabel })}
-                    >
-                      <View style={[styles.categoryIcon, { backgroundColor: isSelected ? config.color : c.textMuted + '22' }]}>
-                        {isCustom ? (
-                          <Text style={{ fontSize: 18 }}>{isCustom.emoji}</Text>
-                        ) : (
-                          <MaterialIcons name={config.icon as any} size={20} color={isSelected ? '#fff' : c.textSecondary} />
-                        )}
-                      </View>
-                      <Text style={[styles.categoryLabelText, { color: isSelected ? c.textPrimary : c.textSecondary }]} numberOfLines={1}>
-                        {translateCategory(catLabel)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity
-                  style={[styles.categoryItem, { borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent' }]}
-                  onPress={() => { setShowModal(false); setShowCatModal(true); }}
-                >
-                  <View style={[styles.categoryIcon, { backgroundColor: c.bgInput }]}>
-                    <MaterialIcons name="add" size={20} color={c.textMuted} />
+              <TouchableOpacity 
+                style={[styles.selectBtn, { backgroundColor: c.bgInput, borderColor: c.border }]}
+                onPress={() => setShowCatSelect(true)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={[styles.miniIcon, { backgroundColor: (CATEGORY_CONFIG[form.category]?.color || c.purple) }]}>
+                    <MaterialIcons 
+                      name={(CATEGORY_CONFIG[form.category]?.icon || 'star') as any} 
+                      size={14} 
+                      color="#fff" 
+                    />
                   </View>
-                  <Text style={[styles.categoryLabelText, { color: c.textMuted }]}>{t('finance.category')}</Text>
-                </TouchableOpacity>
-              </View>
+                  <Text style={{ color: c.textPrimary, fontSize: 15, fontWeight: '700' }}>
+                    {translateCategory(form.category)}
+                  </Text>
+                </View>
+                <MaterialIcons name="unfold-more" size={20} color={c.textMuted} />
+              </TouchableOpacity>
 
               <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('finance.date')}</Text>
               <TouchableOpacity
@@ -455,6 +432,73 @@ export default function FinanceScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Category Selection Modal (Bottom Sheet Style) */}
+      <Modal visible={showCatSelect} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowCatSelect(false)} />
+          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, height: '70%', borderTopLeftRadius: 36, borderTopRightRadius: 36 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('finance.category')}</Text>
+              <TouchableOpacity onPress={() => setShowCatSelect(false)}>
+                <MaterialIcons name="close" size={24} color={c.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.categoryGrid}>
+                {(form.type === 'income' 
+                  ? [...INCOME_CATS, ...customCategories.filter(cat => cat.type === 'income').map(cat => cat.label)] 
+                  : [...EXPENSE_CATS, ...customCategories.filter(cat => cat.type === 'expense').map(cat => cat.label)]
+                ).map(catLabel => {
+                  const isCustom = customCategories.find(cat => cat.label === catLabel);
+                  const config = CATEGORY_CONFIG[catLabel] || { icon: 'star', color: c.purple };
+                  const isSelected = form.category === catLabel;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={catLabel}
+                      style={[
+                        styles.gridItem, 
+                        { backgroundColor: c.bgInput },
+                        isSelected && { backgroundColor: config.color + '22', borderColor: config.color, borderWidth: 1.5 }
+                      ]}
+                      onPress={() => {
+                        setForm({ ...form, category: catLabel });
+                        setShowCatSelect(false);
+                      }}
+                    >
+                      <View style={[styles.gridIcon, { backgroundColor: isSelected ? config.color : config.color + '15' }]}>
+                        {isCustom ? (
+                          <Text style={{ fontSize: 20 }}>{isCustom.emoji}</Text>
+                        ) : (
+                          <MaterialIcons name={config.icon as any} size={20} color={isSelected ? '#fff' : config.color} />
+                        )}
+                      </View>
+                      <Text 
+                        style={[styles.gridLabel, { color: isSelected ? c.textPrimary : c.textSecondary }]}
+                        numberOfLines={1}
+                      >
+                        {translateCategory(catLabel)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                
+                <TouchableOpacity
+                  style={[styles.gridItem, { borderStyle: 'dashed', borderColor: c.border, borderWidth: 1.5 }]}
+                  onPress={() => { setShowCatSelect(false); setShowCatModal(true); }}
+                >
+                  <View style={[styles.gridIcon, { backgroundColor: c.border }]}>
+                    <MaterialIcons name="add" size={24} color={c.textMuted} />
+                  </View>
+                  <Text style={[styles.gridLabel, { color: c.textMuted }]}>Tambah</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -509,16 +553,30 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 14, fontWeight: '800', marginBottom: 8, marginTop: 16 },
   dateInput: { borderRadius: 16, padding: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
 
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  categoryItem: { width: (Dimensions.get('window').width - 64) / 3, borderRadius: 20, padding: 14, alignItems: 'center', borderWidth: 1 },
-  categoryIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  categoryLabelText: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  
+  categoryScroll: { gap: 10, paddingBottom: 8 },
+  categoryChip: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    borderRadius: 100, 
+    borderWidth: 1 
+  },
+  miniIcon: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  categoryChipText: { fontSize: 14, fontWeight: '800' },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28, maxHeight: '92%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 24, fontWeight: '900' },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 40, marginBottom: 12 },
   
+  selectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 40 },
+  gridItem: { width: (Dimensions.get('window').width - 72) / 3, alignItems: 'center', padding: 16, borderRadius: 20, gap: 10 },
+  gridIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  gridLabel: { fontSize: 11, fontWeight: '800', textAlign: 'center' },
+
   customCatItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 },
 });

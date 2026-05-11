@@ -18,6 +18,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { useLanguage } from '../../context/languageContext';
+import { LevelUpModal } from '../../components/LevelUpModal';
 
 interface PomodoroSession {
   date: string;
@@ -66,6 +67,7 @@ export default function PomodoroScreen() {
   const [showTips, setShowTips] = useState(false);
   const [selectedTip, setSelectedTip] = useState<string | null>(null);
   const [soundscapes, setSoundscapes] = useState<Soundscape[]>(DEFAULT_SOUNDSCAPES);
+  const [levelUpData, setLevelUpData] = useState<any>(null);
   
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -133,6 +135,7 @@ export default function PomodoroScreen() {
       await setData(STORAGE_KEYS.POMODORO, { ...currentData, sessions: newSessions });
 
       const result = await addXP('POMODORO_SESSION');
+      if (result.levelUp) setLevelUpData(result.newLevel);
       setXpToast(`+${result.xpGained} XP 🎉 ${t('pomodoro.session_complete')}`);
       setTimeout(() => setXpToast(null), 3000);
 
@@ -459,6 +462,12 @@ export default function PomodoroScreen() {
           <Text style={styles.toastText}>{xpToast}</Text>
         </View>
       )}
+
+      <LevelUpModal 
+        visible={!!levelUpData} 
+        level={levelUpData} 
+        onClose={() => setLevelUpData(null)} 
+      />
     </View>
   );
 }

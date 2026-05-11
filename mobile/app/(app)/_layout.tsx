@@ -4,6 +4,7 @@ import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
 import { useLanguage } from '../../context/languageContext';
+import { useWindowDimensions } from 'react-native';
 
 interface TabBarIconProps {
   color: string;
@@ -14,6 +15,8 @@ export default function AppLayout() {
   const c = useColors(isDark);
   const layout = useMobileLayout();
   const { t } = useLanguage();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
 
   return (
     <Tabs
@@ -23,23 +26,24 @@ export default function AppLayout() {
         tabBarStyle: {
           backgroundColor: c.tabBg,
           borderTopColor: c.tabBorder,
-          height: layout.tabBarHeight,
+          height: isSmallDevice ? 64 + layout.insets.bottom : 72 + layout.insets.bottom,
           paddingBottom: layout.tabBarPaddingBottom,
-          paddingTop: 10,
-          paddingHorizontal: 10,
+          paddingTop: isSmallDevice ? 6 : 10,
+          paddingHorizontal: isSmallDevice ? 4 : 10,
           elevation: 0,
           shadowOpacity: 0,
           borderTopWidth: 1,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
+          fontSize: isSmallDevice ? 9 : 11,
+          fontWeight: '700',
+          marginTop: isSmallDevice ? 0 : 2,
         },
         tabBarItemStyle: {
-          paddingVertical: 4,
+          paddingVertical: isSmallDevice ? 2 : 4,
           borderRadius: 14,
         },
+        tabBarHideOnKeyboard: true,
         headerStyle: {
           backgroundColor: c.bgPrimary,
           elevation: 0,

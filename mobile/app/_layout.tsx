@@ -11,7 +11,7 @@ import { SecurityProvider, useSecurity } from '../context/securityContext'
 import { LockScreen } from '../components/LockScreen'
 import { BrandLogo } from '../components/BrandLogo'
 import { useColors } from '../lib/theme'
-import { setupNotifications } from '../lib/notifications'
+import { registerForPushNotificationsAsync } from '../lib/notifications'
 import { configureSupabaseRuntime } from '@superapp/shared'
 import { getMobileSupabaseConfig } from '../lib/runtimeConfig'
 import { SettingsProvider } from '../context/settingsContext'
@@ -102,7 +102,7 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        await setupNotifications();
+        await registerForPushNotificationsAsync();
         // Pre-load any assets or fonts here
         await new Promise((resolve) => setTimeout(resolve, 1500))
       } catch (e) {

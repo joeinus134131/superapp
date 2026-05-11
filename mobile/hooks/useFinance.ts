@@ -3,6 +3,7 @@ import { STORAGE_KEYS } from '../lib/storage';
 import { EncryptedStorage } from '../lib/secureStorage';
 import { generateId, parseRupiahInput } from '../lib/helpers';
 import * as Haptics from 'expo-haptics';
+import { SyncService } from '../lib/syncService';
 
 export interface Transaction {
   id: string;
@@ -52,6 +53,7 @@ export function useFinance() {
   const saveTransactions = async (newTransactions: Transaction[]) => {
     setTransactions(newTransactions);
     await EncryptedStorage.setItem(STORAGE_KEYS.TRANSACTIONS, newTransactions);
+    SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
   };
 
   const addTransaction = async (form: Omit<Transaction, 'id'>) => {
@@ -78,6 +80,7 @@ export function useFinance() {
     const updated = [...customCategories, newCat];
     setCustomCategories(updated);
     await EncryptedStorage.setItem(STORAGE_KEYS.CUSTOM_CATEGORIES, updated);
+    SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
     return newCat;
   };
 

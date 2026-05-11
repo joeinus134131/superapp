@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Alert, StyleSheet, RefreshControl, Modal
+  Alert, StyleSheet, RefreshControl, Modal, useWindowDimensions
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useHabits, Habit } from '../../hooks/useHabits';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { LevelUpModal } from '../../components/LevelUpModal';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -34,6 +35,8 @@ export default function HabitsScreen() {
   const today = getToday();
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const { width } = useWindowDimensions();
+  const isSmall = width < 380;
 
   const { 
     habits, loading, xpToast, levelUpData, setLevelUpData, 
@@ -77,24 +80,26 @@ export default function HabitsScreen() {
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
       {/* Header */}
       <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
           <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
             <MaterialIcons name="local-fire-department" size={24} color={c.purple} />
           </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.habits')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('habits.subtitle')}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[isSmall ? styles.pageTitleSmall : styles.pageTitle, { color: c.textPrimary }]} numberOfLines={1}>{t('sidebar.habits')}</Text>
+            <Text style={[isSmall ? styles.pageSubtitleSmall : styles.pageSubtitle, { color: c.textSecondary }]} numberOfLines={1}>{t('habits.subtitle')}</Text>
           </View>
         </View>
         <TouchableOpacity 
-          style={[styles.historyToggle, { backgroundColor: c.purple + '15', borderColor: c.purple + '30', borderWidth: 1 }]} 
+          style={[styles.historyToggle, { backgroundColor: c.purple + '15', borderColor: c.purple + '30', borderWidth: 1, marginLeft: 12 }]} 
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setHistoryRange(r => r === 7 ? 30 : 7);
           }}
         >
           <MaterialIcons name="event" size={16} color={c.purple} />
-          <Text style={{ color: c.purple, fontWeight: '800', marginLeft: 6 }}>{historyRange} {t('habits.day')}</Text>
+          <Text style={{ color: c.purple, fontWeight: '800', marginLeft: isSmall ? 4 : 6, fontSize: isSmall ? 11 : 13 }}>
+            {historyRange} {isSmall ? '' : t('habits.day')}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -215,6 +220,12 @@ export default function HabitsScreen() {
 
       <FloatingActionButton onPress={() => setShowModal(true)} />
 
+      <LevelUpModal 
+        visible={!!levelUpData} 
+        level={levelUpData} 
+        onClose={() => setLevelUpData(null)} 
+      />
+
       {/* Add Modal */}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -300,10 +311,19 @@ export default function HabitsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
+  pageHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 24, 
+    paddingBottom: 20, 
+    borderBottomWidth: 1 
+  },
   headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
+  pageTitleSmall: { fontSize: 22, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 2 },
+  pageSubtitleSmall: { fontSize: 12, marginTop: 1 },
   historyToggle: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
   
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },

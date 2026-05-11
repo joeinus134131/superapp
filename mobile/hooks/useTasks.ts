@@ -3,6 +3,7 @@ import { getData, setData, STORAGE_KEYS } from '../lib/storage';
 import { generateId } from '../lib/helpers';
 import { addXP } from '../lib/gamification';
 import * as Haptics from 'expo-haptics';
+import { SyncService } from '../lib/syncService';
 
 export interface Task {
   id: string;
@@ -19,6 +20,7 @@ export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [xpToast, setXpToast] = useState<string | null>(null);
+  const [levelUpData, setLevelUpData] = useState<any>(null);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -41,11 +43,14 @@ export function useTasks() {
   const saveTasks = async (newTasks: Task[]) => {
     setTasks(newTasks);
     await setData(STORAGE_KEYS.TASKS, newTasks);
+    // Trigger Cloud Sync in background
+    SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
   };
 
   const rewardXP = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const result = await addXP('TASK_COMPLETE');
+    if (result.levelUp) setLevelUpData(result.newLevel);
     setXpToast(`+${result.xpGained} XP 🎉`);
     setTimeout(() => setXpToast(null), 3000);
   };
@@ -94,6 +99,8 @@ export function useTasks() {
     loading,
     xpToast,
     setXpToast,
+    levelUpData,
+    setLevelUpData,
     addTask,
     updateTask,
     deleteTask,
