@@ -9,6 +9,7 @@ import Svg, { Circle, G, Text as SvgText, Defs, LinearGradient, Stop } from 'rea
 import { useTheme } from '../../context/themeContext';
 import { useTasks, Task } from '../../hooks/useTasks';
 import { useAIInsights } from '../../hooks/useAIInsights';
+import { registerForPushNotificationsAsync, sendImmediateNotification } from '../../lib/notifications';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useColors } from '../../lib/theme';
 import { useLanguage } from '../../context/languageContext';
@@ -120,7 +121,18 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadData();
     checkDailyLogin();
+    registerForPushNotificationsAsync();
   }, [loadData]);
+
+  // Proactive Notification Trigger when AI detects Predictive Anti-Mager
+  useEffect(() => {
+    if (insights && insights.length > 0) {
+      const antiMager = insights.find(i => i.xpMultiplier && i.xpMultiplier > 1);
+      if (antiMager) {
+        sendImmediateNotification(`⚠️ AI ALERT: ${antiMager.title}`, antiMager.msg);
+      }
+    }
+  }, [insights]);
 
   const onRefresh = async () => {
     setRefreshing(true);
