@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useUser, AVATAR_OPTIONS } from '@/lib/auth';
-import { setRawData, getRawData } from '@/lib/storage';
+import { setData, getData } from '@/lib/storage';
 import {
   Settings, CheckCircle2, Key, Check, Copy, User, Tag,
   Camera, Upload, Trash2, Smile, Save, Globe, Shield
@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const fileRef = useRef(null);
 
   useEffect(() => {
-    getRawData('SYNC_PASSWORD').then(val => {
+    getData('SYNC_PASSWORD').then(val => {
       if (val) setSyncPassword(val);
     });
   }, []);
@@ -56,7 +56,7 @@ export default function SettingsPage() {
       appTagline: appTagline.trim(),
       appIcon: appIcon,
     });
-    await setRawData('SYNC_PASSWORD', syncPassword);
+    await setData('SYNC_PASSWORD', syncPassword);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

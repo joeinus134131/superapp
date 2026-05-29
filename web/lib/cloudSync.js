@@ -2,8 +2,13 @@ import { supabase } from './supabaseClient';
 import CryptoJS from 'crypto-js';
 
 const SYNC_KEY = 'superapp_sync_id';
-// Use env secret if available, otherwise fallback. (In production, never use hardcoded, but for demo this secures the row payload).
-const ENCRYPTION_SECRET = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'superapp_secure_vault_2026';
+const DEFAULT_SECRET = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'superapp_secure_vault_2026';
+
+function getEncryptionSecret() {
+  if (typeof window === 'undefined') return DEFAULT_SECRET;
+  const userPass = localStorage.getItem('SYNC_PASSWORD');
+  return userPass ? userPass : DEFAULT_SECRET;
+}
 
 function getSyncId() {
   if (typeof window === 'undefined') return null;
@@ -72,7 +77,8 @@ export async function pushToCloud() {
 
   try {
     // Encrypt the entire payload.data and specific fields before sending to Supabase
-    const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(payload.data), ENCRYPTION_SECRET).toString();
+    const secret = getEncryptionSecret();
+    const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(payload.data), secret).toString();
 
     const { data: result, error } = await supabase
       .from('user_sync_data')
@@ -121,7 +127,8 @@ export async function pullFromCloud(syncId) {
 
     // Check if it's the new encrypted format
     if (parsedData.encrypted_payload) {
-      const bytes = CryptoJS.AES.decrypt(parsedData.encrypted_payload, ENCRYPTION_SECRET);
+      const secret = getEncryptionSecret();
+      const bytes = CryptoJS.AES.decrypt(parsedData.encrypted_payload, secret);
       const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
       
       if (!decryptedString) {
