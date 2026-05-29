@@ -15,6 +15,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useMobileLayout } from '../../lib/layout';
 import { useLanguage } from '../../context/languageContext';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export default function ProfileScreen() {
   const { isDark } = useTheme();
   const c = useColors(isDark);
@@ -27,17 +29,28 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<{ avatarUri?: string, bio?: string }>({});
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user?.name || '');
+  const [syncPassword, setSyncPassword] = useState('');
 
   const loadData = useCallback(async () => {
-    const [xp, prof] = await Promise.all([
+    const [xp, prof, savedPwd] = await Promise.all([
       getXP(),
-      getData(STORAGE_KEYS.USER_PROFILE)
+      getData(STORAGE_KEYS.USER_PROFILE),
+      AsyncStorage.getItem('SYNC_PASSWORD')
     ]);
     setGamData(xp);
     if (prof) setProfile(prof);
+    if (savedPwd) setSyncPassword(savedPwd);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleSaveSyncPassword = async () => {
+    try {
+      await AsyncStorage.setItem('SYNC_PASSWORD', syncPassword);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const level = getCurrentLevel(gamData.totalXP);
   const progress = getXPProgress(gamData.totalXP);
@@ -186,7 +199,7 @@ export default function ProfileScreen() {
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
               <View style={[styles.iconBox, { backgroundColor: c.green + '15' }]}>
-                <MaterialIcons name="mail-outline" size={20} color={c.green} />
+                <MaterialIcons name="verified-user" size={20} color={c.green} />
               </View>
               <View>
                 <Text style={[styles.settingLabel, { color: c.textPrimary }]}>{t('profile.email_verified')}</Text>
@@ -194,6 +207,31 @@ export default function ProfileScreen() {
               </View>
             </View>
             <MaterialIcons name="verified-user" size={18} color={c.green} />
+          </View>
+        </View>
+
+        {/* Security & Encryption Section */}
+        <Text style={[styles.sectionTitle, { color: c.textMuted }]}>KEAMANAN & PRIVASI</Text>
+        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+          <View style={[styles.settingRow, { paddingVertical: 8, flexDirection: 'column', alignItems: 'flex-start' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+              <View style={[styles.iconBox, { backgroundColor: c.green + '15' }]}>
+                <MaterialIcons name="security" size={20} color={c.green} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingLabel, { color: c.textPrimary }]}>Enkripsi E2E Cloud Sync</Text>
+                <Text style={[styles.settingVal, { color: c.textMuted, fontSize: 11 }]}>Password untuk enkripsi data sebelum sync ke cloud</Text>
+              </View>
+            </View>
+            <TextInput
+              style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border, width: '100%', marginBottom: 0, paddingVertical: 10 }]}
+              placeholder="Masukkan password E2E"
+              placeholderTextColor={c.textMuted}
+              secureTextEntry
+              value={syncPassword}
+              onChangeText={setSyncPassword}
+              onBlur={() => handleSaveSyncPassword()}
+            />
           </View>
         </View>
 

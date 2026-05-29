@@ -14,6 +14,7 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { getData, STORAGE_KEYS } from '../../lib/storage';
 import { CONFIG } from '../../lib/config';
+import { useRouter } from 'expo-router';
 import axios from 'axios';
 
 const { width } = Dimensions.get('window');
@@ -88,6 +89,7 @@ export default function SocialScreen() {
   const c = useColors(isDark);
   const layout = useMobileLayout();
   const { t } = useLanguage();
+  const router = useRouter();
   
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'squads'>('leaderboard');
@@ -284,21 +286,23 @@ export default function SocialScreen() {
             {squads.length > 0 ? (
               <View style={styles.listWrapper}>
                 {squads.map((squad) => (
-                  <Card key={squad.id} style={styles.friendCard}>
-                    <View style={[styles.avatarMini, { backgroundColor: c.blue + '15' }]}>
-                      <MaterialIcons name="groups" size={24} color={c.blue} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.friendName, { color: c.textPrimary }]}>{squad.name}</Text>
-                      <Text style={[styles.friendTask, { color: c.textMuted }]} numberOfLines={1}>
-                        {squad.description || 'No description'}
-                      </Text>
-                    </View>
-                    <View style={styles.friendStats}>
-                      <Text style={[styles.friendXP, { color: c.blue }]}>{squad.member_count}</Text>
-                      <Text style={[styles.friendLevel, { color: c.textMuted }]}>Members</Text>
-                    </View>
-                  </Card>
+                  <TouchableOpacity key={squad.id} activeOpacity={0.8} onPress={() => router.push(`/squad/${squad.id}`)}>
+                    <Card style={styles.friendCard}>
+                      <View style={[styles.avatarMini, { backgroundColor: c.blue + '15' }]}>
+                        <MaterialIcons name="groups" size={24} color={c.blue} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.friendName, { color: c.textPrimary }]}>{squad.name}</Text>
+                        <Text style={[styles.friendTask, { color: c.textMuted }]} numberOfLines={1}>
+                          {squad.description || 'No description'}
+                        </Text>
+                      </View>
+                      <View style={styles.friendStats}>
+                        <Text style={[styles.friendXP, { color: c.blue }]}>{squad.member_count}</Text>
+                        <Text style={[styles.friendLevel, { color: c.textMuted }]}>Members</Text>
+                      </View>
+                    </Card>
+                  </TouchableOpacity>
                 ))}
                 <TouchableOpacity 
                   style={[styles.createBtn, { backgroundColor: c.purple, marginTop: 20, width: '100%' }]}

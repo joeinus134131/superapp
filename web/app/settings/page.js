@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useUser, AVATAR_OPTIONS } from '@/lib/auth';
+import { setRawData, getRawData } from '@/lib/storage';
 import {
   Settings, CheckCircle2, Key, Check, Copy, User, Tag,
-  Camera, Upload, Trash2, Smile, Save, Globe
+  Camera, Upload, Trash2, Smile, Save, Globe, Shield
 } from 'lucide-react';
 import { useLanguage } from '@/lib/language';
 
@@ -20,7 +21,14 @@ export default function SettingsPage() {
   const [appIcon, setAppIcon] = useState(user?.appIcon || '⚡');
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [syncPassword, setSyncPassword] = useState('');
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    getRawData('SYNC_PASSWORD').then(val => {
+      if (val) setSyncPassword(val);
+    });
+  }, []);
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -38,7 +46,7 @@ export default function SettingsPage() {
     e.target.value = '';
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) return;
     updateProfile({
       name: name.trim(),
@@ -48,6 +56,7 @@ export default function SettingsPage() {
       appTagline: appTagline.trim(),
       appIcon: appIcon,
     });
+    await setRawData('SYNC_PASSWORD', syncPassword);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -280,6 +289,27 @@ export default function SettingsPage() {
                 {emoji}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* E2E Encryption Settings */}
+        <div className="card card-padding mb-3" style={{ border: '1px solid var(--accent-green)' }}>
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green)' }}>
+            <Shield size={16} /> Keamanan & Privasi (E2E Encryption)
+          </label>
+          <p className="text-sm text-secondary mb-3">
+            Atur password untuk mengenkripsi data kamu sebelum dikirim ke Cloud Sync. 
+            Data kamu tidak akan bisa dibaca oleh siapa pun (termasuk server) tanpa password ini. 
+            <strong>Jangan sampai lupa!</strong> Karena tidak ada fitur reset password.
+          </p>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <input
+              type="password"
+              className="form-input"
+              value={syncPassword}
+              onChange={(e) => setSyncPassword(e.target.value)}
+              placeholder="Masukkan password enkripsi E2E"
+            />
           </div>
         </div>
 

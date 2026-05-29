@@ -137,6 +137,7 @@ export default function AppLayout() {
       <Tabs.Screen name="reading" options={{ href: null, title: 'Reading', headerShown: false }} />
       <Tabs.Screen name="calendar" options={{ href: null, title: 'Kalender', headerShown: false }} />
       <Tabs.Screen name="achievements" options={{ href: null, title: 'Pencapaian', headerShown: false }} />
+      <Tabs.Screen name="squad/[id]" options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }

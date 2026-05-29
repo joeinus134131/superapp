@@ -14,7 +14,7 @@ import {
   LayoutDashboard, Trophy, CheckSquare, Flame, Timer, Target,
   Wallet, Dumbbell, NotebookPen, BookMarked, CalendarDays,
   Gem, Bell, Settings, DownloadCloud, UploadCloud, Cloud, LogOut,
-  Menu, X, Coffee, TreePalm, Database, Copy, HelpCircle, MessageSquare
+  Menu, X, Coffee, TreePalm, Database, Copy, HelpCircle, MessageSquare, Users
 } from 'lucide-react';
 import OnboardingModal from '@/components/OnboardingModal';
 import FeedbackModal from '@/components/FeedbackModal';
@@ -36,6 +36,7 @@ const NAV_ITEMS = [
   { section: 'Pertumbuhan Diri' },
   { href: '/reading', icon: <BookMarked size={18} />, label: 'Buku & Bacaan' },
   { href: '/calendar', icon: <CalendarDays size={18} />, label: 'Kalender' },
+  { href: '/squads', icon: <Users size={18} />, label: 'Squads' },
   { section: 'Sistem' },
   { href: '/premium', icon: <Gem size={18} />, label: 'Premium' },
   { href: '/notifications', icon: <Bell size={18} />, label: 'Notifikasi' },
