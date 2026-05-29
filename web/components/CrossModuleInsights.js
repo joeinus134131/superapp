@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Sparkles, BrainCircuit } from 'lucide-react';
+import { API_URL } from '@/lib/apiConfig';
 
 export default function CrossModuleInsights() {
   const [insights, setInsights] = useState([]);
@@ -14,7 +15,7 @@ export default function CrossModuleInsights() {
   const fetchInsights = async () => {
     try {
       const token = localStorage.getItem('token') || '';
-      const res = await fetch('http://localhost:8080/api/v1/insights', {
+      const res = await fetch(`${API_URL}/insights`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -32,7 +33,7 @@ export default function CrossModuleInsights() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token') || '';
-      await fetch('http://localhost:8080/api/v1/insights/generate', {
+      await fetch(`${API_URL}/insights/generate`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

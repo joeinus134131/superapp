@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { API_URL } from '@/lib/apiConfig';
 
 export default function QuickCapture() {
   const [isOpen, setIsOpen] = useState(false);
@@ -40,7 +41,7 @@ export default function QuickCapture() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token') || '';
-      const res = await fetch('http://localhost:8080/api/v1/parse', {
+      const res = await fetch(`${API_URL}/parse`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

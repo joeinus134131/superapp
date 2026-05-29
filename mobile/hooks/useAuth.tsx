@@ -259,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // SINKRONISASI KE BACKEND GOLANG
         try {
-          await axios.post(`${CONFIG.API_URL || 'https://extension-sys-better-explicitly.trycloudflare.com/api/v1'}/users/sync`, {
+          await axios.post(`${CONFIG.API_URL}/users/sync`, {
             id: data.user.id,
             email: data.user.email
           }, {
@@ -304,7 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // SINKRONISASI KE BACKEND GOLANG (Opsional saat register, atau tunggu login)
         // Kita coba sync di sini juga
         try {
-          await axios.post(`${CONFIG.API_URL || 'https://extension-sys-better-explicitly.trycloudflare.com/api/v1'}/users/sync`, {
+          await axios.post(`${CONFIG.API_URL}/users/sync`, {
             id: data.user.id,
             email: data.user.email
           });

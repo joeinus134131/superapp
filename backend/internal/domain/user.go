@@ -12,7 +12,8 @@ type User struct {
 	Name         string    `json:"name"`
 	Avatar       string    `json:"avatar"`
 	PasswordHash string    `json:"-"`
-	CreatedAt    time.Time `json:"created_at"`
+	CreatedAt    time.Time `gorm:"column:createdAt;autoCreateTime" json:"created_at"`
+	UpdatedAt    time.Time `gorm:"column:updatedAt;autoUpdateTime" json:"updated_at"`
 	LastLogin    time.Time `json:"last_login"`
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Bot, X } from 'lucide-react';
+import { API_URL } from '@/lib/apiConfig';
 
 export default function AICoachPopup() {
   const [message, setMessage] = useState(null);
@@ -12,7 +13,7 @@ export default function AICoachPopup() {
     const fetchMessages = async () => {
       try {
         const token = localStorage.getItem('token') || '';
-        const res = await fetch('http://localhost:8080/api/v1/coach/messages', {
+        const res = await fetch(`${API_URL}/coach/messages`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -50,7 +51,7 @@ export default function AICoachPopup() {
     // Mark as read in backend
     try {
       const token = localStorage.getItem('token') || '';
-      await fetch('http://localhost:8080/api/v1/coach/messages/read', {
+      await fetch(`${API_URL}/coach/messages/read`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,

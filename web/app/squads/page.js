@@ -5,6 +5,7 @@ import { useUser } from '@/lib/auth';
 import { getData, STORAGE_KEYS } from '@/lib/storage';
 import { useLanguage } from '@/lib/language';
 import { Users, Plus, Trophy, Target, TrendingUp, Users as UsersIcon } from 'lucide-react';
+import { API_URL } from '@/lib/apiConfig';
 
 export default function SquadsPage() {
   const { user } = useUser();
@@ -17,7 +18,7 @@ export default function SquadsPage() {
   const fetchSquads = useCallback(async () => {
     try {
       const token = await getData(STORAGE_KEYS.SESSION_TOKEN);
-      const res = await fetch(`http://localhost:8080/api/v1/social/squads`, {
+      const res = await fetch(`${API_URL}/social/squads`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -41,7 +42,7 @@ export default function SquadsPage() {
     setLoading(true);
     try {
       const token = await getData(STORAGE_KEYS.SESSION_TOKEN);
-      const res = await fetch(`http://localhost:8080/api/v1/social/squads`, {
+      const res = await fetch(`${API_URL}/social/squads`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
