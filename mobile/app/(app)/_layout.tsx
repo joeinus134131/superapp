@@ -5,6 +5,7 @@ import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
 import { useLanguage } from '../../context/languageContext';
 import { useWindowDimensions } from 'react-native';
+import { useAICoach } from '../../hooks/useAICoach';
 
 interface TabBarIconProps {
   color: string;
@@ -17,6 +18,8 @@ export default function AppLayout() {
   const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const isSmallDevice = width < 380;
+
+  useAICoach();
 
   return (
     <Tabs

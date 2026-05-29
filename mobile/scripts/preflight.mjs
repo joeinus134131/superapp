@@ -57,8 +57,16 @@ function checkInstalledDependencies() {
     try {
       require.resolve(name, { paths: [rootDir] });
       return false;
-    } catch {
-      return true;
+    } catch (e) {
+      if (e.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+        return false;
+      }
+      try {
+        require.resolve(`${name}/package.json`, { paths: [rootDir] });
+        return false;
+      } catch {
+        return true;
+      }
     }
   });
 

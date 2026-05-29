@@ -8,19 +8,20 @@ interface Level {
   key: string;
   minXP: number;
   color: string;
+  narrative?: string;
 }
 
 const LEVELS: Level[] = [
-  { level: 1, title: 'Newbie', key: 'levels.l1', minXP: 0, color: '#9ca3af' },
-  { level: 2, title: 'Starter', key: 'levels.l2', minXP: 100, color: '#10b981' },
-  { level: 3, title: 'Learner', key: 'levels.l3', minXP: 300, color: '#3b82f6' },
-  { level: 4, title: 'Achiever', key: 'levels.l4', minXP: 600, color: '#8b5cf6' },
-  { level: 5, title: 'Warrior', key: 'levels.l5', minXP: 1000, color: '#f59e0b' },
-  { level: 6, title: 'Master', key: 'levels.l6', minXP: 1500, color: '#ef4444' },
-  { level: 7, title: 'Grandmaster', key: 'levels.l7', minXP: 2200, color: '#ec4899' },
-  { level: 8, title: 'Legend', key: 'levels.l8', minXP: 3000, color: '#14b8a6' },
-  { level: 9, title: 'Mythic', key: 'levels.l9', minXP: 4000, color: '#f97316' },
-  { level: 10, title: 'Champion', key: 'levels.l10', minXP: 5500, color: '#eab308' },
+  { level: 1, title: 'Chapter 1: The Awakening', key: 'gamification.level1', minXP: 0, color: '#6b7280', narrative: 'Kamu mulai memperhatikan hidupmu. Langkah pertama selalu yang terberat, tapi kamu telah mengambilnya. Kesadaran adalah awal dari perubahan.' },
+  { level: 2, title: 'Chapter 2: Building Foundations', key: 'gamification.level2', minXP: 100, color: '#10b981', narrative: 'Kebiasaan baik mulai terbentuk. Kamu sedang meletakkan batu bata pertama untuk masa depanmu. Pertahankan konsistensi ini.' },
+  { level: 3, title: 'Chapter 3: The Grind', key: 'gamification.level3', minXP: 300, color: '#3b82f6', narrative: 'Di sinilah kebanyakan orang menyerah. Tapi kamu tidak. Kamu terus mendorong diri melewati batas zona nyaman.' },
+  { level: 4, title: 'Chapter 4: Breaking Through', key: 'gamification.level4', minXP: 600, color: '#8b5cf6', narrative: 'Perubahan nyata mulai terlihat. Disiplin bukan lagi paksaan, melainkan bagian dari identitasmu.' },
+  { level: 5, title: 'Chapter 5: Relentless', key: 'gamification.level5', minXP: 1000, color: '#f59e0b', narrative: 'Tantangan tidak lagi menakutkan, melainkan menjadi bahan bakar untuk berkembang. Kamu tak terhentikan.' },
+  { level: 6, title: 'Chapter 6: Mastery', key: 'gamification.level6', minXP: 1500, color: '#ef4444', narrative: 'Apa yang dulunya sulit kini menjadi keahlian. Kamu telah menguasai dirimu sendiri.' },
+  { level: 7, title: 'Chapter 7: The Architect', key: 'gamification.level7', minXP: 2200, color: '#ec4899', narrative: 'Kamu tidak hanya bereaksi terhadap hidup, kamu merancangnya. Kamu adalah arsitek masa depanmu sendiri.' },
+  { level: 8, title: 'Chapter 8: Luminary', key: 'gamification.level8', minXP: 3000, color: '#f97316', narrative: 'Orang-orang mulai memperhatikan perubahanmu. Energimu menginspirasi mereka yang ada di sekitarmu.' },
+  { level: 9, title: 'Chapter 9: Legend', key: 'gamification.level9', minXP: 4000, color: '#14b8a6', narrative: 'Perjalananmu adalah bukti nyata bahwa dedikasi tak pernah mengkhianati hasil. Pencapaian luar biasa.' },
+  { level: 10, title: 'Chapter 10: Apex', key: 'gamification.level10', minXP: 5500, color: '#a855f7', narrative: 'Puncak gunung bukan akhir perjalanan, melainkan tempat melihat gunung lain yang lebih tinggi. Ini baru permulaan.' },
 ];
 
 const XP_ACTIONS: Record<string, number> = {

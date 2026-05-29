@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"errors"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/user/superapp/backend/internal/domain"
 )
@@ -41,4 +43,48 @@ func (u *socialUsecase) CreateNewSquad(userID uuid.UUID, name, desc string) (*do
 	}
 
 	return squad, nil
+}
+
+func (u *socialUsecase) CreateChallenge(squadID uuid.UUID, title, challengeType string, target, stakeXP int, startDate, endDate time.Time) (*domain.Challenge, error) {
+	if title == "" {
+		return nil, errors.New("judul challenge tidak boleh kosong")
+	}
+
+	challenge := &domain.Challenge{
+		ID:        uuid.New(),
+		SquadID:   squadID,
+		Title:     title,
+		Type:      challengeType,
+		Target:    target,
+		StakeXP:   stakeXP,
+		StartDate: startDate,
+		EndDate:   endDate,
+	}
+
+	if err := u.repo.CreateChallenge(challenge); err != nil {
+		return nil, err
+	}
+
+	return challenge, nil
+}
+
+func (u *socialUsecase) GetSquadChallenges(squadID uuid.UUID) ([]domain.Challenge, error) {
+	return u.repo.GetChallengesBySquad(squadID)
+}
+
+func (u *socialUsecase) UpdateProgress(challengeID, userID uuid.UUID, increment int) (*domain.ChallengeProgress, error) {
+	// Simple update logic. In a real app we'd fetch current progress, add increment, and check if target is met.
+	// We'll just do a basic implementation here for Phase 5 initial setup.
+	progress := &domain.ChallengeProgress{
+		ChallengeID: challengeID,
+		UserID:      userID,
+		Current:     increment, // In reality, we'd add to existing
+		IsCompleted: false,
+	}
+
+	if err := u.repo.UpdateChallengeProgress(progress); err != nil {
+		return nil, err
+	}
+
+	return progress, nil
 }

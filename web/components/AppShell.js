@@ -13,6 +13,9 @@ import { initWebStorage } from '@/lib/storageAdapter';
 
 initWebStorage();
 
+import QuickCapture from '@/components/QuickCapture';
+import AICoachPopup from '@/components/AICoachPopup';
+
 export default function AppShell({ children }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const pathname = usePathname();
@@ -46,6 +49,8 @@ export default function AppShell({ children }) {
                   {children}
                 </main>
                 <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
+                <QuickCapture />
+                <AICoachPopup />
               </div>
             </AuthGuard>
           </PomodoroProvider>

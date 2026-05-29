@@ -24,6 +24,8 @@ import { DailyQuestCard } from '../../components/DailyQuestCard';
 import { LevelUpModal } from '../../components/LevelUpModal';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import { QuickCaptureModal } from '../../components/QuickCaptureModal';
+import { CrossModuleInsights } from '../../components/CrossModuleInsights';
 
 export default function DashboardScreen() {
   const { isDark } = useTheme();
@@ -57,6 +59,7 @@ export default function DashboardScreen() {
   const [selectedEmergency, setSelectedEmergency] = useState<any>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showDNAModal, setShowDNAModal] = useState(false);
+  const [showQuickCapture, setShowQuickCapture] = useState(false);
 
   const fadeAnim = useRef(new RNAnimated.Value(0)).current;
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
@@ -193,8 +196,9 @@ export default function DashboardScreen() {
   ];
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.bgPrimary }]}
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: c.bgPrimary }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
       showsVerticalScrollIndicator={false}
     >
@@ -220,10 +224,8 @@ export default function DashboardScreen() {
           <View style={{ flex: 1 }}>
             <View style={styles.xpHeader}>
               <View style={styles.xpTitleRow}>
-                <Text style={[styles.xpTitle, { color: c.textPrimary }]}>{t(level.key)}</Text>
-                <View style={[styles.levelBadge, { backgroundColor: level.color + '22' }]}>
-                  <Text style={[styles.levelBadgeText, { color: level.color }]}>Lv. {level.level}</Text>
-                </View>
+                <Text style={{ fontSize: 18 }}>📖</Text>
+                <Text style={[styles.xpTitle, { color: c.textPrimary }]}>{level.title}</Text>
                 {insights.some(i => i.xpMultiplier && i.xpMultiplier > 1) && (
                   <View style={[styles.boostBadge, { backgroundColor: c.purple }]}>
                     <MaterialIcons name="bolt" size={12} color="#fff" />
@@ -236,7 +238,7 @@ export default function DashboardScreen() {
               <View style={[styles.xpFill, { width: `${progress.percent}%`, backgroundColor: level.color }]} />
             </View>
             <Text style={[styles.xpText, { color: c.textSecondary, marginTop: 8 }]}>
-              {gamData.totalXP} XP • {progress.percent}% {t('gamification.to_next')} Lv. {level.level + 1}
+              {gamData.totalXP} XP • {progress.percent}% {t('gamification.to_next')} Chapter {level.level + 1}
             </Text>
           </View>
           
@@ -282,43 +284,7 @@ export default function DashboardScreen() {
           <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('insights.title')}</Text>
         </View>
 
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.insightsScroll}
-        >
-          {loadingInsights ? (
-            [1, 2].map((i) => (
-              <View key={i} style={[styles.skeletonCard, { backgroundColor: c.bgSecondary }]}>
-                <View style={[styles.skeletonCircle, { backgroundColor: c.bgInput }]} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <View style={[styles.skeletonLineShort, { backgroundColor: c.bgInput }]} />
-                  <View style={[styles.skeletonLineLong, { backgroundColor: c.bgInput }]} />
-                </View>
-              </View>
-            ))
-          ) : (
-            insights.map((insight) => (
-              <TouchableOpacity 
-                key={insight.id} 
-                style={[styles.insightCard, { backgroundColor: c.bgSecondary }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setSelectedInsight(insight);
-                  setShowInsightModal(true);
-                }}
-              >
-                <View style={[styles.insightIcon, { backgroundColor: insight.color + '15' }]}>
-                  <MaterialIcons name={insight.icon as any} size={22} color={insight.color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.insightTitle, { color: c.textPrimary }]}>{insight.title}</Text>
-                  <Text style={[styles.insightMsg, { color: c.textSecondary }]} numberOfLines={1}>{insight.msg}</Text>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
+        <CrossModuleInsights isDark={isDark} />
 
         {/* Stats Grid - Phase 3 Design */}
         <View style={styles.statsGrid}>
@@ -567,7 +533,39 @@ export default function DashboardScreen() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+      
+      <TouchableOpacity 
+        style={{
+          position: 'absolute',
+          bottom: layout.bottomPadding + 20,
+          right: 20,
+          backgroundColor: c.purple,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 5,
+          elevation: 5,
+        }}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowQuickCapture(true);
+        }}
+      >
+        <Text style={{ fontSize: 24, color: '#fff' }}>🔮</Text>
+      </TouchableOpacity>
+
+      <QuickCaptureModal 
+        visible={showQuickCapture} 
+        onClose={() => setShowQuickCapture(false)} 
+        isDark={isDark} 
+      />
+    </View>
   );
 }
 

@@ -3,6 +3,7 @@
  * Synchronizes local data with the Golang PostgreSQL backend.
  */
 import { getData, STORAGE_KEYS, getRawData } from './storage';
+import { encryptData, decryptData } from './encryption';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
@@ -12,6 +13,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 export async function pushToCloud() {
   const userId = await getRawData(STORAGE_KEYS.AUTH_USER);
   if (!userId) return;
+
+  // Retrieve sync password if set
+  const syncPassword = await getRawData('SYNC_PASSWORD');
 
   // List of modules to sync
   const modules = [
@@ -27,13 +31,16 @@ export async function pushToCloud() {
     for (const mod of modules) {
       const data = await getData(mod.key);
       if (data) {
+        // Encrypt the payload before sending
+        const encryptedPayload = encryptData(data, syncPassword);
+        
         await fetch(`${API_URL}/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: userId,
             module_type: mod.type,
-            data_payload: data
+            data_payload: encryptedPayload
           })
         });
       }
@@ -51,6 +58,8 @@ export async function pullFromCloud() {
   const userId = await getRawData(STORAGE_KEYS.AUTH_USER);
   if (!userId) return;
 
+  const syncPassword = await getRawData('SYNC_PASSWORD');
+
   try {
     const response = await fetch(`${API_URL}/sync?user_id=${userId}`);
     const cloudData = await response.json();
@@ -65,12 +74,14 @@ export async function pullFromCloud() {
       'GOALS': STORAGE_KEYS.GOALS,
     };
 
-    for (const [modType, data] of Object.entries(cloudData)) {
+    for (const [modType, encryptedData] of Object.entries(cloudData)) {
       const localKey = keyMap[modType];
       if (localKey) {
-        // Here we would use setData, but we need to be careful with building keys
-        // For simplicity, we'll assume the storage layer handles it
-        import('./storage').then(s => s.setData(localKey, data));
+        // Decrypt data before saving locally
+        const decryptedData = decryptData(encryptedData, syncPassword);
+        if (decryptedData) {
+          import('./storage').then(s => s.setData(localKey, decryptedData));
+        }
       }
     }
     

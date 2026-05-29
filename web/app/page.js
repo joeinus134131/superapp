@@ -16,7 +16,7 @@ import {
   Target, BookOpen, NotebookPen, Dumbbell, Rocket
 } from 'lucide-react';
 import Link from 'next/link';
-import ProInsights from '@/components/ProInsights';
+import CrossModuleInsights from '@/components/CrossModuleInsights';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -34,6 +34,13 @@ export default function Dashboard() {
     tasks: [], habits: [], transactions: [], pomodoro: { sessions: [] },
     goals: [], books: [], journal: [], health: { workouts: [] }
   });
+
+  const timeContext = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 10) return 'morning';
+    if (hour >= 10 && hour < 17) return 'work';
+    return 'evening';
+  }, [refreshTrigger]);
 
   // Fetch from async localforage
   useEffect(() => {
@@ -159,7 +166,7 @@ export default function Dashboard() {
       </div>
 
       {/* AI Smart Insights (Pro Feature) - Top Hierarchy */}
-      <ProInsights stats={stats} />
+      <CrossModuleInsights />
 
       {/* New Achievements */}
       {newAchievements.length > 0 && (
@@ -176,15 +183,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* XP Progress - Integrated Champion Badge */}
+      {/* XP Progress - Narrative Chapter Badge */}
       <div className="card card-padding mb-4" style={{ background: 'var(--bg-glass)', border: '1px solid var(--border-color)', position: 'relative', overflow: 'hidden' }}>
         <div className="flex justify-between items-center mb-3">
            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <span style={{ fontSize: '24px' }}>🏆</span>
+             <span style={{ fontSize: '24px' }}>📖</span>
              <span className="font-bold" style={{ color: 'var(--text-primary)', fontSize: '18px' }}>{level.title}</span>
-             <span style={{ background: level.color + '22', color: level.color, padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', marginLeft: '4px' }}>Lv. {level.level}</span>
            </div>
-           <Link href="/achievements" style={{ fontSize: '12px', color: 'var(--accent-purple)', textDecoration: 'none', fontWeight: 600 }}>Lihat Detail</Link>
+           <Link href="/achievements" style={{ fontSize: '12px', color: 'var(--accent-purple)', textDecoration: 'none', fontWeight: 600 }}>Lihat Perjalanan</Link>
         </div>
         
         <div className="xp-bar-track" style={{ background: 'rgba(0,0,0,0.1)', height: '10px', borderRadius: '8px', marginBottom: '8px' }}>
@@ -193,123 +199,132 @@ export default function Dashboard() {
         
         <div className="flex justify-between items-center" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
           <span style={{ fontWeight: 500 }}>{gamData.totalXP} XP <span style={{ opacity: 0.6, fontWeight: 'normal' }}>Total</span></span>
-          <span><span style={{ fontWeight: 600 }}>{progress.percent}%</span> menuju Lv. {level.level + 1} ({progress.current} / {progress.needed} XP)</span>
+          <span><span style={{ fontWeight: 600 }}>{progress.percent}%</span> menuju Chapter {level.level + 1} ({progress.current} / {progress.needed} XP)</span>
         </div>
       </div>
 
-      {/* Main Stats */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><CheckSquare size={28} /></div>
-          <div className="stat-info">
-            <h3>{stats.tasksCompleted}<span className="text-sm text-muted">/{stats.tasksTotal}</span></h3>
-            <p>{t('dashboard.tasks_completed')}</p>
+      {(() => {
+        const mainStats = (
+          <div className="stats-grid mb-3" key="main">
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><CheckSquare size={28} /></div>
+              <div className="stat-info">
+                <h3>{stats.tasksCompleted}<span className="text-sm text-muted">/{stats.tasksTotal}</span></h3>
+                <p>{t('dashboard.tasks_completed')}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><Flame size={28} /></div>
+              <div className="stat-info">
+                <h3>{stats.streak}</h3>
+                <p>{t('dashboard.longest_streak')}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><Wallet size={28} /></div>
+              <div className="stat-info">
+                <h3 className="text-lg">{formatCurrency(stats.totalIncome - stats.totalExpense)}</h3>
+                <p>{t('dashboard.net_balance')}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}><Timer size={28} /></div>
+              <div className="stat-info">
+                <h3>{stats.focusSessions}</h3>
+                <p>{t('dashboard.focus_sessions')}</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><Flame size={28} /></div>
-          <div className="stat-info">
-            <h3>{stats.streak}</h3>
-            <p>{t('dashboard.longest_streak')}</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><Wallet size={28} /></div>
-          <div className="stat-info">
-            <h3 className="text-lg">{formatCurrency(stats.totalIncome - stats.totalExpense)}</h3>
-            <p>{t('dashboard.net_balance')}</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}><Timer size={28} /></div>
-          <div className="stat-info">
-            <h3>{stats.focusSessions}</h3>
-            <p>{t('dashboard.focus_sessions')}</p>
-          </div>
-        </div>
-      </div>
+        );
 
-      {/* Secondary Stats */}
-      <div className="grid-2 mb-3">
-        <div className="card card-padding">
-          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><TrendingUp size={20} /> {t('dashboard.todays_progress')}</div>
-          <div className="flex flex-col gap-2">
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm text-secondary">{t('dashboard.habits_completed')}</span>
-                <span className="text-sm font-semibold">{stats.habitsToday}/{stats.habitsTotal}</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill green" style={{width: stats.habitsTotal > 0 ? `${(stats.habitsToday / stats.habitsTotal) * 100}%` : '0%'}} />
+        const secondaryStats = (
+          <div className="grid-2 mb-3" key="sec">
+            <div className="card card-padding">
+              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><TrendingUp size={20} /> {timeContext === 'morning' ? 'Target Hari Ini' : t('dashboard.todays_progress')}</div>
+              <div className="flex flex-col gap-2">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm text-secondary">{t('dashboard.habits_completed')}</span>
+                    <span className="text-sm font-semibold">{stats.habitsToday}/{stats.habitsTotal}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill green" style={{width: stats.habitsTotal > 0 ? `${(stats.habitsToday / stats.habitsTotal) * 100}%` : '0%'}} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm text-secondary">{t('dashboard.tasks_completed')}</span>
+                    <span className="text-sm font-semibold">{stats.tasksCompleted}/{stats.tasksTotal}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{width: stats.tasksTotal > 0 ? `${(stats.tasksCompleted / stats.tasksTotal) * 100}%` : '0%'}} />
+                  </div>
+                </div>
               </div>
             </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm text-secondary">{t('dashboard.tasks_completed')}</span>
-                <span className="text-sm font-semibold">{stats.tasksCompleted}/{stats.tasksTotal}</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{width: stats.tasksTotal > 0 ? `${(stats.tasksCompleted / stats.tasksTotal) * 100}%` : '0%'}} />
+            <div className="card card-padding">
+              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Trophy size={20} /> {timeContext === 'evening' ? 'Refleksi Diri' : t('dashboard.quick_stats')}</div>
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={16} /> {t('dashboard.active_goals')}</span>
+                  <span className="font-semibold">{stats.goalsActive}</span>
+                </div>
+                <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> {t('dashboard.reading')}</span>
+                  <span className="font-semibold">{stats.booksReading}</span>
+                </div>
+                <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><NotebookPen size={16} /> {t('dashboard.total_journals')}</span>
+                  <span className="font-semibold">{stats.journalEntries}</span>
+                </div>
+                <div className="flex justify-between items-center" style={{ padding: '6px 0' }}>
+                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Dumbbell size={16} /> {t('dashboard.workouts_week')}</span>
+                  <span className="font-semibold">{stats.workoutsThisWeek}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div className="card card-padding">
-          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Trophy size={20} /> {t('dashboard.quick_stats')}</div>
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={16} /> {t('dashboard.active_goals')}</span>
-              <span className="font-semibold">{stats.goalsActive}</span>
-            </div>
-            <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> {t('dashboard.reading')}</span>
-              <span className="font-semibold">{stats.booksReading}</span>
-            </div>
-            <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><NotebookPen size={16} /> {t('dashboard.total_journals')}</span>
-              <span className="font-semibold">{stats.journalEntries}</span>
-            </div>
-            <div className="flex justify-between items-center" style={{ padding: '6px 0' }}>
-              <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Dumbbell size={16} /> {t('dashboard.workouts_week')}</span>
-              <span className="font-semibold">{stats.workoutsThisWeek}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+        );
 
-      {/* Finance Summary */}
-      <div className="grid-2">
-        <div className="card card-padding">
-          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={20} /> {t('dashboard.finance')}</div>
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
-              <span className="text-sm text-secondary">{t('dashboard.income')}</span>
-              <span className="font-semibold text-green">{formatCurrency(stats.totalIncome)}</span>
+        const financeSummary = (
+          <div className="grid-2" key="fin">
+            <div className="card card-padding">
+              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={20} /> {t('dashboard.finance')}</div>
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
+                  <span className="text-sm text-secondary">{t('dashboard.income')}</span>
+                  <span className="font-semibold text-green">{formatCurrency(stats.totalIncome)}</span>
+                </div>
+                <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
+                  <span className="text-sm text-secondary">{t('dashboard.expense')}</span>
+                  <span className="font-semibold text-red">{formatCurrency(stats.totalExpense)}</span>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold">{t('dashboard.balance')}</span>
+                    <span className="font-bold text-lg" style={{ color: stats.totalIncome - stats.totalExpense >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {formatCurrency(stats.totalIncome - stats.totalExpense)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
-              <span className="text-sm text-secondary">{t('dashboard.expense')}</span>
-              <span className="font-semibold text-red">{formatCurrency(stats.totalExpense)}</span>
-            </div>
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold">{t('dashboard.balance')}</span>
-                <span className="font-bold text-lg" style={{ color: stats.totalIncome - stats.totalExpense >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                  {formatCurrency(stats.totalIncome - stats.totalExpense)}
-                </span>
+            <div className="card card-padding">
+              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Rocket size={20} /> {t('dashboard.quick_actions')}</div>
+              <div className="flex flex-col gap-2">
+                <a href="/tasks" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><CheckSquare size={16} /> {t('dashboard.add_task')}</a>
+                <a href="/journal" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><NotebookPen size={16} /> {t('dashboard.write_journal')}</a>
+                <a href="/pomodoro" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Timer size={16} /> {t('dashboard.start_focus')}</a>
+                <a href="/achievements" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Trophy size={16} /> {t('dashboard.view_achievements')}</a>
               </div>
             </div>
           </div>
-        </div>
-        <div className="card card-padding">
-          <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Rocket size={20} /> {t('dashboard.quick_actions')}</div>
-          <div className="flex flex-col gap-2">
-            <a href="/tasks" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><CheckSquare size={16} /> {t('dashboard.add_task')}</a>
-            <a href="/journal" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><NotebookPen size={16} /> {t('dashboard.write_journal')}</a>
-            <a href="/pomodoro" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Timer size={16} /> {t('dashboard.start_focus')}</a>
-            <a href="/achievements" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Trophy size={16} /> {t('dashboard.view_achievements')}</a>
-          </div>
-        </div>
-      </div>
+        );
+
+        if (timeContext === 'morning') return [secondaryStats, mainStats, financeSummary];
+        if (timeContext === 'work') return [mainStats, secondaryStats, financeSummary];
+        return [secondaryStats, financeSummary, mainStats];
+      })()}
     </div>
   );
 }

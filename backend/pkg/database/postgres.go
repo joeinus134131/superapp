@@ -16,7 +16,10 @@ func NewPostgresConn() *gorm.DB {
 		dsn = "host=127.0.0.1 user=user password=password dbname=superapp port=5433 sslmode=disable"
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // Disable implicit prepared statement usage
+	}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 

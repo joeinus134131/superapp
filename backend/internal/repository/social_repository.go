@@ -41,3 +41,26 @@ func (r *socialRepository) GetSquadsByUserID(userID uuid.UUID) ([]domain.Squad, 
 func (r *socialRepository) CreateSquad(squad *domain.Squad) error {
 	return r.db.Create(squad).Error
 }
+
+func (r *socialRepository) CreateChallenge(challenge *domain.Challenge) error {
+	return r.db.Create(challenge).Error
+}
+
+func (r *socialRepository) GetChallengesBySquad(squadID uuid.UUID) ([]domain.Challenge, error) {
+	var challenges []domain.Challenge
+	err := r.db.Where("squad_id = ?", squadID).Find(&challenges).Error
+	return challenges, err
+}
+
+func (r *socialRepository) UpdateChallengeProgress(progress *domain.ChallengeProgress) error {
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "challenge_id"}, {Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"current", "is_completed", "updated_at"}),
+	}).Create(progress).Error
+}
+
+func (r *socialRepository) GetChallengeProgress(challengeID uuid.UUID) ([]domain.ChallengeProgress, error) {
+	var progress []domain.ChallengeProgress
+	err := r.db.Where("challenge_id = ?", challengeID).Find(&progress).Error
+	return progress, err
+}

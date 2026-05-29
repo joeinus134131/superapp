@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/user/superapp/backend/internal/delivery/http"
 	"github.com/user/superapp/backend/internal/domain"
@@ -14,7 +17,36 @@ import (
 	"github.com/user/superapp/backend/pkg/database"
 )
 
+func loadEnv(filepath string) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		log.Printf("[Env Warning] Could not open %s: %v", filepath, err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+			if os.Getenv(key) == "" {
+				os.Setenv(key, val)
+			}
+		}
+	}
+	log.Println("[Env] Loaded environment variables from", filepath)
+}
+
 func main() {
+	// Load .env variables before any other service starts
+	loadEnv(".env")
+
 	// 1. Database Connection
 	db := database.NewPostgresConn()
 
@@ -22,6 +54,8 @@ func main() {
 	ctxRepo := repository.NewContextRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	socialRepo := repository.NewSocialRepository(db)
+	insightRepo := repository.NewInsightRepository(db)
+	coachRepo := repository.NewCoachRepository(db)
 
 	// 2a. Auto Migrate Models & Extensions
 	log.Println("[Database] Initializing extensions and running AutoMigrate...")
@@ -33,6 +67,10 @@ func main() {
 		&domain.UserContext{},
 		&domain.LeaderboardEntry{},
 		&domain.Squad{},
+		&domain.Insight{},
+		&domain.CoachMessage{},
+		&domain.Challenge{},
+		&domain.ChallengeProgress{},
 	}
 
 	for _, model := range models {
@@ -51,6 +89,8 @@ func main() {
 	ctxUsecase := usecase.NewContextUsecase(ctxRepo, agenticObs)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	socialUsecase := usecase.NewSocialUsecase(socialRepo)
+	correlationEngine := usecase.NewCorrelationEngine(aiService, ctxRepo, insightRepo)
+	coachEngine := usecase.NewCoachEngine(aiService, ctxRepo, coachRepo)
 
 	// 4. Fiber App Initialization
 	app := fiber.New(fiber.Config{
@@ -59,6 +99,7 @@ func main() {
 
 	// 5. Global Middleware
 	app.Use(logger.New())
+	app.Use(cors.New())
 
 	// 6. Auth Middleware
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -73,6 +114,9 @@ func main() {
 	http.NewContextHandler(app, ctxUsecase)
 	http.NewUserHandler(app, userUsecase)
 	http.NewSocialHandler(app, socialUsecase)
+	http.NewParseHandler(app, aiService)
+	http.NewInsightHandler(app, correlationEngine, insightRepo)
+	http.NewCoachHandler(app, coachEngine, coachRepo)
 
 	// 8. Health Check
 	app.Get("/health", func(c *fiber.Ctx) error {
