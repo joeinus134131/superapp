@@ -54,3 +54,6 @@ next-env.d.ts
 # ─── Mobile secrets ─────────────────────────────────────────────
 mobile/google-service-account.json
 mobile/GoogleService-Info.plist
+
+# ─── Database ───────────────────────────────────────────────────
+backend/data/postgres/

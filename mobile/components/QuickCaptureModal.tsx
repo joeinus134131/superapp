@@ -34,8 +34,6 @@ export function QuickCaptureModal({ visible, onClose, isDark }: QuickCaptureModa
     Keyboard.dismiss();
     try {
       const token = await getData(STORAGE_KEYS.SESSION_TOKEN) || 'dummy-token';
-      console.log(CONFIG.API_URL);
-      console.log(token)
       const res = await fetch(`${CONFIG.API_URL}/parse`, {
         method: 'POST',
         headers: {
