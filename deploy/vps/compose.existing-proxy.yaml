@@ -1,0 +1,18 @@
+# Use with: docker compose -f compose.yaml -f compose.existing-proxy.yaml up -d
+services:
+  proxy:
+    profiles: [standalone-proxy]
+  api:
+    networks:
+      default: {}
+      existing_proxy:
+        aliases: [whenya-edge-api]
+  web:
+    networks:
+      default: {}
+      existing_proxy:
+        aliases: [whenya-edge-web]
+networks:
+  existing_proxy:
+    external: true
+    name: ${CADDY_NETWORK:-n8n_default}

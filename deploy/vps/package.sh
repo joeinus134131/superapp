@@ -18,6 +18,6 @@ docker compose --env-file .env.example -f compose.yaml config \
       process.stdout.write(JSON.stringify(config, null, 2) + "\n");
     });
   ' > "$stage/whenya/compose.yaml"
-cp .env.example api.env.example web.env.example Caddyfile README.md "$stage/whenya/"
+cp .env.example api.env.example web.env.example Caddyfile compose.existing-proxy.yaml Caddyfile.existing-proxy.example README.md "$stage/whenya/"
 tar -czf "$output" -C "$stage" whenya
 printf 'Installer: %s\n' "$output"

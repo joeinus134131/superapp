@@ -188,3 +188,40 @@ A database restore needs a planned maintenance window and the correct backup.
 
 Implementation references: [Next.js standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output)
 and [Compose startup order](https://docs.docker.com/compose/how-tos/startup-order/).
+
+## Reuse an existing Caddy (for example n8n)
+
+If `n8n-caddy-1` already publishes ports 80/443 on network `n8n_default`, use
+`compose.existing-proxy.yaml`. It puts only API/web on that external network
+with unique aliases and disables the bundled proxy by default. The database
+stays on the Whenya network. Set `CADDY_NETWORK` in `.env` if the name differs.
+Keep `ACME_EMAIL` populated because the base Compose still interpolates it;
+certificate settings in this mode are controlled by the existing Caddy.
+
+From `deploy/vps`, remove only the failed bundled proxy and recreate API/web:
+
+```sh
+docker compose stop proxy
+docker compose rm -f proxy
+docker compose -f compose.yaml -f compose.existing-proxy.yaml config --quiet
+docker compose -f compose.yaml -f compose.existing-proxy.yaml up -d
+```
+
+Back up the existing Caddyfile. Append the block from
+`Caddyfile.existing-proxy.example`, replacing `app.example.com` with the exact
+`APP_DOMAIN` configured at web build time. Preserve existing n8n/other site blocks.
+For the host mount `/home/ubuntu/n8n/Caddyfile`:
+
+```sh
+sudo cp -p /home/ubuntu/n8n/Caddyfile /home/ubuntu/n8n/Caddyfile.before-whenya
+sudo nano /home/ubuntu/n8n/Caddyfile
+sudo docker exec n8n-caddy-1 caddy validate --config /etc/caddy/Caddyfile
+# Run only after validation succeeds:
+sudo docker exec n8n-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+```
+
+If a backup already exists, give the next backup a distinct name. Check
+`https://YOUR_DOMAIN/api/health`, then login and authenticated storage access.
+Always include both Compose files for subsequent up/build/update operations;
+running the base file alone would try to start the bundled proxy again.
+The existing Caddy deployment must retain this external network when recreated.

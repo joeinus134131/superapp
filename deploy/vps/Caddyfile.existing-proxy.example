@@ -1,0 +1,16 @@
+# Append this site block to the existing Caddyfile. Replace the hostname with
+# the exact APP_DOMAIN used to build Whenya. Keep all existing site blocks.
+app.example.com {
+ encode zstd gzip
+ handle /api/health {
+  rewrite * /health
+  reverse_proxy whenya-edge-api:8080
+ }
+ @whenya_backend path /api/v1 /api/v1/*
+ handle @whenya_backend {
+  reverse_proxy whenya-edge-api:8080
+ }
+ handle {
+  reverse_proxy whenya-edge-web:3000
+ }
+}
