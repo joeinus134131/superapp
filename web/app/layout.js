@@ -3,6 +3,7 @@ import "./whenya.css";
 import "./login.css";
 import AppShell from "@/components/AppShell";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { ThemeProvider } from "@/lib/themeContext";
 
 export const metadata = {
   title: "Whenya — Your Life, In Sync.",
@@ -21,7 +22,9 @@ export default function RootLayout({ children }) {
       </head>
       <body suppressHydrationWarning={true}>
         <ErrorBoundary>
-          <AppShell>{children}</AppShell>
+          <ThemeProvider>
+            <AppShell>{children}</AppShell>
+          </ThemeProvider>
         </ErrorBoundary>
       </body>
     </html>

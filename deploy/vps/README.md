@@ -34,6 +34,33 @@ so use hexadecimal rather than URI-reserved characters. Never use a Supabase
 service-role key for the public key. Optional AI secrets go in `api.env`;
 server-side Midtrans credentials go in `web.env`.
 
+## Missing SUPABASE_URL during Compose interpolation
+
+Compose reads installation settings from `deploy/vps/.env`. The container's
+`api.env`, the repository root `.env`, and `web/.env.local` do not supply these
+interpolation values automatically. Set these names in the installation `.env`:
+
+```dotenv
+SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_OR_PUBLISHABLE_KEY
+```
+
+Use the actual values from the same Supabase project used by the clients. Existing
+web configuration calls them `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`; copy their values under the names above. Do not
+include `/auth/v1` in `SUPABASE_URL`; Compose appends the authentication paths.
+
+From the repository root, explicitly select both the Compose file and env file:
+
+```sh
+docker compose --env-file deploy/vps/.env -f deploy/vps/compose.yaml config --quiet
+docker compose --env-file deploy/vps/.env -f deploy/vps/compose.yaml up -d --build
+```
+
+An exported empty shell variable can override a populated env-file entry. If that
+happens, run `unset SUPABASE_URL SUPABASE_ANON_KEY` and retry. Do not print rendered
+Compose configuration in shared logs; use `config --quiet` to validate it.
+
 ## First installation from source
 
 Run at `deploy/vps` inside the repository:
