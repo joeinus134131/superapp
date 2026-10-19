@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#f97316', '#a855f7'];
+const COLORS = ['#52745a', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#f97316', '#a855f7'];
 const PARTICLE_COUNT = 80;
 
 function randomBetween(a, b) { return a + Math.random() * (b - a); }
@@ -40,23 +40,21 @@ export default function Confetti({ active, onDone }) {
 
   return (
     <div className="confetti-container">
-      {particles.map(p => (
-        <div
-          key={p.id}
-          className="confetti-piece"
-          style={{
-            left: `${p.x}%`,
-            backgroundColor: p.color,
-            width: p.shape === 'rect' ? `${p.size}px` : `${p.size}px`,
-            height: p.shape === 'rect' ? `${p.size * 0.5}px` : `${p.size}px`,
-            borderRadius: p.shape === 'circle' ? '50%' : '2px',
-            '--fall-x': `${p.dx * 30}px`,
-            '--fall-rotation': `${p.rotation + p.dr * 30}deg`,
-            animationDuration: `${randomBetween(2, 3.5)}s`,
-            animationDelay: `${randomBetween(0, 0.5)}s`,
-          }}
-        />
-      ))}
+      {particles.map(p => {
+        /** @type {any} */
+        const style = {
+          left: `${p.x}%`,
+          backgroundColor: p.color,
+          width: p.shape === 'rect' ? `${p.size}px` : `${p.size}px`,
+          height: p.shape === 'rect' ? `${p.size * 0.5}px` : `${p.size}px`,
+          borderRadius: p.shape === 'circle' ? '50%' : '2px',
+          animationDuration: `${randomBetween(2, 3.5)}s`,
+          animationDelay: `${randomBetween(0, 0.5)}s`,
+          '--fall-x': `${p.dx * 30}px`,
+          '--fall-rotation': `${p.rotation + p.dr * 30}deg`,
+        };
+        return <div key={p.id} className="confetti-piece" style={style} />;
+      })}
     </div>
   );
 }

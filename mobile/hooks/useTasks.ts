@@ -1,3 +1,5 @@
+import { normalizeTasks } from '@superapp/shared/tasks';
+import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '../lib/storage';
 import { generateId } from '../lib/helpers';
@@ -26,9 +28,7 @@ export function useTasks() {
     setLoading(true);
     try {
       const saved = await getData(STORAGE_KEYS.TASKS);
-      if (saved && Array.isArray(saved)) {
-        setTasks(saved);
-      }
+      setTasks(normalizeTasks(saved));
     } catch (e) {
       console.error('Failed to load tasks:', e);
     } finally {
@@ -38,6 +38,8 @@ export function useTasks() {
 
   useEffect(() => {
     loadTasks();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadTasks);
+    return () => subscription.remove();
   }, [loadTasks]);
 
   const saveTasks = async (newTasks: Task[]) => {

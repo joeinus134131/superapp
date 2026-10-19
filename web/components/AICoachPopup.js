@@ -2,30 +2,41 @@
 
 import { useState, useEffect } from 'react';
 import { Bot, X } from 'lucide-react';
+import { useLanguage } from '@superapp/shared/language';
 import { API_URL } from '@/lib/apiConfig';
 
 export default function AICoachPopup() {
+  const { tx: translateCopy } = useLanguage();
   const [message, setMessage] = useState(null);
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Poll every 30 seconds for new unread coach messages
+    let intervalId = null;
+
     const fetchMessages = async () => {
       try {
-        const token = localStorage.getItem('token') || '';
+        const token = localStorage.getItem('superapp_session_token');
+        if (!token) return; // Do not poll if user has no session token
+
         const res = await fetch(`${API_URL}/coach/messages`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (res.status === 401) {
+          if (intervalId) clearInterval(intervalId);
+          return;
+        }
+
         if (res.ok) {
           const json = await res.json();
           if (json.data && json.data.length > 0) {
             const latestMsg = json.data[json.data.length - 1]; // Get the newest
             setMessage(latestMsg);
             setShow(true);
-            
+
             // Trigger browser notification if allowed
             if (Notification.permission === "granted") {
-              new Notification(`SelfOne Coach: ${latestMsg.title}`, {
+              new Notification(`Whenya Coach: ${latestMsg.title}`, {
                 body: latestMsg.body,
                 icon: '/favicon.svg'
               });
@@ -40,25 +51,29 @@ export default function AICoachPopup() {
     };
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, 30000);
-    return () => clearInterval(interval);
+    intervalId = setInterval(fetchMessages, 60000); // 60s instead of aggressive 30s
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   const handleDismiss = async () => {
     setShow(false);
     if (!message) return;
-    
+
     // Mark as read in backend
     try {
-      const token = localStorage.getItem('token') || '';
-      await fetch(`${API_URL}/coach/messages/read`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message_ids: [message.id] })
-      });
+      const token = localStorage.getItem('superapp_session_token');
+      if (token) {
+        await fetch(`${API_URL}/coach/messages/read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ message_ids: [message.id] })
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -88,7 +103,7 @@ export default function AICoachPopup() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: borderColor }}>
           <Bot size={20} />
-          <strong style={{ fontSize: '14px' }}>AI Coach</strong>
+          <strong style={{ fontSize: '14px' }}>{translateCopy("AI Coach")}</strong>
         </div>
         <button onClick={handleDismiss} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
           <X size={18} />

@@ -1,0 +1,10 @@
+.env*
+data/
+main
+api
+*.txt
+*.md
+.git
+
+**/*.env
+**/*.pem

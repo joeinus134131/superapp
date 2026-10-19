@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePremium } from '@/lib/premium';
-import { useUser } from '@/lib/auth';
+import { usePremium } from '@superapp/shared/premium';
+import { useUser } from '@superapp/shared/auth';
 import {
   Gem, Star, Gift, Package, Sparkles, History, ShoppingCart, Unlock,
   Flame, Cloud, BarChart2, Palette, RefreshCw, HardDrive, AlertCircle
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 const PACKAGE_ICONS = {
   starter: <Star size={48} color="var(--accent-green)" />,
@@ -24,6 +24,8 @@ const FEATURE_ICONS = {
 };
 
 export default function PremiumStore() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
     const {
         tokenData, isPremium, balance, storageLimitMB,
         buyPackage, claimDaily, checkFeature,
@@ -70,24 +72,14 @@ export default function PremiumStore() {
                     packageName: pkg.name,
                     price: pkg.price,
                     userId: user?.id || 'guest',
-                    userName: user?.name || 'Guest User'
+                    userName: user?.name || translateCopy("Guest User")
                 }),
             });
 
             const data = await response.json();
 
-            if (!response.ok) throw new Error(data.error || 'Server Error');
+            if (!response.ok) throw new Error(data.error || translateCopy("Server Error"));
 
-            // --- BACKDOOR BYPASS ---
-            if (data.isBackdoor) {
-                const res = buyPackage(pkg.id);
-                if (res.success) {
-                    showToast(`🔓 [BACKDOOR] ${t('premium.toast_success')} ${res.package.name} (+${res.package.tokens} ${t('premium.token')})`);
-                }
-                setIsLoading(false);
-                return;
-            }
-            // -----------------------
 
             // Trigger Midtrans Snap
             window.snap.pay(data.token, {
@@ -124,7 +116,7 @@ export default function PremiumStore() {
         }
     };
 
-    if (!tokenData) return <div className="p-4">Loading Token Data...</div>;
+    if (!tokenData) return <div className="p-4">{translateCopy("Loading Token Data...")}</div>;
 
     return (
         <div>
@@ -177,7 +169,7 @@ export default function PremiumStore() {
                 <p className="text-sm text-secondary mb-3">
                     {t('premium.payment_info')}
                 </p>
-                
+
                 <div className="p-3 rounded text-sm flex items-start gap-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', marginTop: '12px' }}>
                     <div style={{ color: 'var(--accent-red)', marginTop: '2px' }}><AlertCircle size={18} /></div>
                     <div>
@@ -266,7 +258,7 @@ export default function PremiumStore() {
                                     ) : feat.type === 'auto' ? (
                                         <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>{t('premium.auto')}</span>
                                     ) : (
-                                        <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(139, 92, 246, 0.2)', color: 'var(--accent-purple)' }}>{feat.cost} {t('premium.token')}</span>
+                                        <span className="text-xs font-semibold px-2 py-1 rounded" style={{ background: 'rgba(25, 63, 48, 0.2)', color: 'var(--accent-purple)' }}>{feat.cost} {t('premium.token')}</span>
                                     )}
                                 </div>
                                 <p className="text-xs text-secondary mt-1">{feat.desc}</p>
@@ -283,7 +275,7 @@ export default function PremiumStore() {
                 ) : (
                     <div className="flex flex-col gap-2">
                         {[...tokenData.purchaseHistory.map(p => ({ ...p, type: 'in' })), ...tokenData.spendHistory.map(s => ({ ...s, type: 'out' }))]
-                            .sort((a, b) => new Date(b.date) - new Date(a.date))
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                             .slice(0, 10)
                             .map((item, i) => (
                                 <div key={i} className="flex justify-between items-center" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
@@ -291,10 +283,10 @@ export default function PremiumStore() {
                                         <div className="text-sm font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             {item.type === 'in' ? (item.price === 0 ? <><Gift size={14} color="var(--accent-green)" /> {t('premium.daily_claim')}</> : <><ShoppingCart size={14} color="var(--accent-green)" /> {t('premium.buy')} {item.packageName}</>) : <><Unlock size={14} color="var(--accent-yellow)" /> {t('premium.unlock')} {item.label}</>}
                                         </div>
-                                        <div className="text-xs text-secondary">{new Date(item.date).toLocaleString('id-ID')}</div>
+                                        <div className="text-xs text-secondary">{new Date(item.date).toLocaleString(uiLanguage === 'id' ? 'id-ID' : 'en-US')}</div>
                                     </div>
                                     <div className={`font-bold ${item.type === 'in' ? 'text-green' : 'text-red'}`} style={{ color: item.type === 'in' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                                        {item.type === 'in' ? '+' : '-'}{item.type === 'in' ? item.tokens : item.amount} {t('premium.token')}
+                                        {item.type === 'in' ? '+' : translateCopy("-")}{item.type === 'in' ? item.tokens : item.amount} {t('premium.token')}
                                     </div>
                                 </div>
                             ))}

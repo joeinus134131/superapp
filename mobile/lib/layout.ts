@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 export const MOBILE_SPACING = {
   screen: 20,
   gap: 14,
-  cardRadius: 20,
+  cardRadius: 16,
   cardPadding: 18,
 }
 

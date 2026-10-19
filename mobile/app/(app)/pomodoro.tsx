@@ -1,9 +1,11 @@
+import { HeaderText } from '../../components/HeaderText';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Dimensions, AppState, Modal, Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import Svg, { Circle } from 'react-native-svg';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -15,8 +17,9 @@ import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
 import { getToday } from '../../lib/helpers';
 import { addXP } from '../../lib/gamification';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Audio } from 'expo-av';
+import { initAudioMode, playAmbientSound, stopAmbientSound } from '../../lib/soundPlayer';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import { useLanguage } from '../../context/languageContext';
 import { LevelUpModal } from '../../components/LevelUpModal';
 
@@ -39,11 +42,11 @@ interface Soundscape {
 const DEFAULT_SOUNDSCAPES: Soundscape[] = [
   { id: 'rain', nameKey: 'pomodoro.sound_rain', icon: 'water-drop', color: '#3b82f6', url: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Files-Demo/master/mp3/rain.mp3' },
   { id: 'cafe', nameKey: 'pomodoro.sound_cafe', icon: 'local-cafe', color: '#f59e0b', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-  { id: 'lofi', nameKey: 'pomodoro.sound_lofi', icon: 'music-note', color: '#8b5cf6', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+  { id: 'lofi', nameKey: 'pomodoro.sound_lofi', icon: 'music-note', color: '#52745a', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
 ];
 
 const MODES = {
-  focus: { duration: 25 * 60, labelKey: 'pomodoro.mode_focus', color: '#8b5cf6' },
+  focus: { duration: 25 * 60, labelKey: 'pomodoro.mode_focus', color: '#52745a' },
   break: { duration: 5 * 60, labelKey: 'pomodoro.mode_break', color: '#10b981' },
   longBreak: { duration: 15 * 60, labelKey: 'pomodoro.mode_long_break', color: '#06b6d4' },
 };
@@ -51,11 +54,15 @@ const MODES = {
 type ModeKey = keyof typeof MODES;
 
 export default function PomodoroScreen() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
   const [mode, setMode] = useState<ModeKey>('focus');
   const [timeLeft, setTimeLeft] = useState(MODES.focus.duration);
@@ -68,10 +75,8 @@ export default function PomodoroScreen() {
   const [selectedTip, setSelectedTip] = useState<string | null>(null);
   const [soundscapes, setSoundscapes] = useState<Soundscape[]>(DEFAULT_SOUNDSCAPES);
   const [levelUpData, setLevelUpData] = useState<any>(null);
-  
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  
   useKeepAwake();
 
   const load = useCallback(async () => {
@@ -84,22 +89,15 @@ export default function PomodoroScreen() {
       }));
       setSoundscapes([...DEFAULT_SOUNDSCAPES, ...migratedCustom]);
     }
-    
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
-    });
+
+    await initAudioMode();
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      stopAmbientSound();
     };
   }, []);
 
@@ -130,7 +128,7 @@ export default function PomodoroScreen() {
       };
       const newSessions = [...sessions, newSession];
       setSessions(newSessions);
-      
+
       const currentData = await getData(STORAGE_KEYS.POMODORO) || {};
       await setData(STORAGE_KEYS.POMODORO, { ...currentData, sessions: newSessions });
 
@@ -172,13 +170,8 @@ export default function PomodoroScreen() {
 
   const playSound = async (soundId: string) => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
       if (activeSound === soundId) {
+        await stopAmbientSound();
         setActiveSound(null);
         return;
       }
@@ -186,12 +179,15 @@ export default function PomodoroScreen() {
       const s = soundscapes.find(x => x.id === soundId);
       if (!s) return;
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: s.url },
-        { isLooping: true, shouldPlay: true, volume: 0.5 }
-      );
-      soundRef.current = sound;
-      setActiveSound(soundId);
+      const success = await playAmbientSound(s.url, 0.5);
+      if (success) {
+        setActiveSound(soundId);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        setActiveSound(null);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert(t('pomodoro.fail_play'), t('pomodoro.fail_play_desc'));
+      }
     } catch (e) {
       console.warn('Failed to play sound', e);
       Alert.alert(t('pomodoro.fail_play'), t('pomodoro.fail_play_desc'));
@@ -219,12 +215,12 @@ export default function PomodoroScreen() {
 
         const updatedCustom = soundscapes.filter(s => s.isCustom);
         const newCustomList = [...updatedCustom, newSound];
-        
+
         setSoundscapes([...DEFAULT_SOUNDSCAPES, ...newCustomList]);
-        
+
         const currentData = await getData(STORAGE_KEYS.POMODORO) || {};
         await setData(STORAGE_KEYS.POMODORO, { ...currentData, customSoundscapes: newCustomList });
-        
+
         Alert.alert(t('profile.update_success_title'), t('pomodoro.success_custom'));
       }
     } catch (e) {
@@ -241,10 +237,10 @@ export default function PomodoroScreen() {
   const calculateStreak = () => {
     const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
     if (dates.length === 0) return 0;
-    
+
     let streak = 0;
     let checkDate = new Date();
-    
+
     for (let i = 0; i < 365; i++) {
       const dateStr = getToday(checkDate);
       if (dates.includes(dateStr)) {
@@ -270,28 +266,36 @@ export default function PomodoroScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Header */}
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
-            <MaterialIcons name="timer" size={24} color={c.purple} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.pomodoro')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('pomodoro.subtitle')}</Text>
-          </View>
-        </View>
-        <TouchableOpacity 
-          style={[styles.streakBadge, { backgroundColor: c.orange + '15', borderColor: c.orange + '30', borderWidth: 1 }]} 
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowTips(true);
-          }}
-        >
-          <MaterialIcons name="local-fire-department" size={20} color={c.orange} />
-          <Text style={[styles.streakText, { color: c.orange }]}>{streakValue} {t('pomodoro.streak')}</Text>
-        </TouchableOpacity>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.pomodoro')}
+        subtitle={t('pomodoro.subtitle')}
+        showBack={router.canGoBack()}
+        rightSlot={
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: '#FDF6E9',
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 14,
+            }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowTips(true);
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={translateCopy("Tips Fokus")}
+          >
+            <MaterialIcons name="local-fire-department" size={16} color="#B45309" />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#B45309' }}>
+              {streakValue} {t('pomodoro.streak')}
+            </Text>
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -324,8 +328,8 @@ export default function PomodoroScreen() {
 
         {/* Controls */}
         <View style={styles.controlRow}>
-          <TouchableOpacity 
-            style={[styles.controlBtn, isRunning ? { backgroundColor: c.red } : { backgroundColor: MODES[mode].color }]} 
+          <TouchableOpacity
+            style={[styles.controlBtn, isRunning ? { backgroundColor: c.red } : { backgroundColor: MODES[mode].color }]}
             onPress={toggleTimer}
           >
             <MaterialIcons name={isRunning ? 'pause' : 'play-arrow'} size={40} color="#fff" />
@@ -336,8 +340,8 @@ export default function PomodoroScreen() {
         </View>
 
         {/* Auto Start Toggle */}
-        <TouchableOpacity 
-          style={styles.autoStartRow} 
+        <TouchableOpacity
+          style={styles.autoStartRow}
           onPress={() => { setAutoStart(!autoStart); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
         >
           <View style={[styles.checkbox, { borderColor: c.purple, backgroundColor: autoStart ? c.purple : 'transparent' }]}>
@@ -370,8 +374,8 @@ export default function PomodoroScreen() {
                 {s.isCustom ? s.customName : t(s.nameKey)}
               </Text>
               {s.isCustom && (
-                <TouchableOpacity 
-                  style={styles.deleteSound} 
+                <TouchableOpacity
+                  style={styles.deleteSound}
                   onPress={async () => {
                     const filtered = soundscapes.filter(x => x.id !== s.id);
                     setSoundscapes(filtered);
@@ -463,10 +467,10 @@ export default function PomodoroScreen() {
         </View>
       )}
 
-      <LevelUpModal 
-        visible={!!levelUpData} 
-        level={levelUpData} 
-        onClose={() => setLevelUpData(null)} 
+      <LevelUpModal
+        visible={!!levelUpData}
+        level={levelUpData}
+        onClose={() => setLevelUpData(null)}
       />
     </View>
   );
@@ -475,38 +479,39 @@ export default function PomodoroScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 2 },
   streakBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
   streakText: { fontSize: 14, fontWeight: '800', marginLeft: 6 },
-  
+
   modeContainer: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 24, marginBottom: 32 },
   modeButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'transparent' },
   modeText: { fontSize: 13, fontWeight: '800' },
-  
+
   timerWrapper: { alignSelf: 'center', position: 'relative', marginBottom: 40 },
   timerContent: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
   timerValue: { fontSize: 64, fontWeight: '900', letterSpacing: -2 },
   timerMode: { fontSize: 14, fontWeight: '700', marginTop: 8 },
-  
+
   controlRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, marginBottom: 32 },
   controlBtn: { width: 84, height: 84, borderRadius: 32, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowOpacity: 0.3, shadowRadius: 10 },
   resetBtn: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  
+
   autoStartRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 },
   checkbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   autoStartText: { fontSize: 14, fontWeight: '700' },
-  
+
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, marginTop: 10 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  
+
   soundScroll: { gap: 12, paddingBottom: 10 },
   soundCard: { width: 100, height: 120, borderRadius: 24, padding: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   soundIconBox: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   soundName: { fontSize: 12, fontWeight: '800' },
   deleteSound: { position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center' },
-  
+
   statsScroll: { gap: 12, paddingBottom: 10 },
   dayCard: { width: 85, borderRadius: 24, padding: 16, alignItems: 'center', borderWidth: 1 },
   dayName: { fontSize: 11, fontWeight: '800', marginBottom: 10 },
@@ -514,7 +519,7 @@ const styles = StyleSheet.create({
   dayDate: { fontSize: 15, fontWeight: '900' },
   sessionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   sessionBadgeText: { fontSize: 10, fontWeight: '900' },
-  
+
   tipsCard: { borderRadius: 28, padding: 20, marginTop: 20, borderWidth: 1 },
   tipsHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
   tipIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -522,7 +527,7 @@ const styles = StyleSheet.create({
   tipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tipChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   tipChipText: { fontSize: 13, fontWeight: '800' },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   tipModal: { borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 28 },
   tipModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -531,7 +536,7 @@ const styles = StyleSheet.create({
   tipModalContent: { fontSize: 16, lineHeight: 26, fontWeight: '600' },
   closeTipBtn: { height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   closeTipBtnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
-  
-  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#52745a', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
   toastText: { color: '#fff', fontWeight: '800' },
 });

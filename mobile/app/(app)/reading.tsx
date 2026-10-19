@@ -1,14 +1,17 @@
+import { HeaderText } from '../../components/HeaderText';
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, RefreshControl, Alert, ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
 import { formatDate } from '../../lib/helpers';
 import { useLanguage } from '../../context/languageContext';
+import { useRouter } from 'expo-router';
 
 import { useReading, Book, ReadingStatus } from '../../hooks/useReading';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
@@ -17,10 +20,11 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 
-const STATUS_CONFIG: Record<ReadingStatus, { labelKey: string; color: string; icon: string }> = {
+const STATUS_CONFIG: Record<string, { labelKey: string; color: string; icon: string }> = {
   reading: { labelKey: 'reading.st_reading', color: '#3b82f6', icon: 'menu-book' },
   completed: { labelKey: 'reading.st_finished', color: '#10b981', icon: 'check-circle' },
   want_to_read: { labelKey: 'reading.st_want', color: '#f59e0b', icon: 'bookmark' },
+  wishlist: { labelKey: 'reading.st_want', color: '#f59e0b', icon: 'bookmark' },
   paused: { labelKey: 'reading.st_paused', color: '#9ca3af', icon: 'pause-circle-filled' },
 };
 
@@ -31,14 +35,16 @@ const EMPTY: Omit<Book, 'id' | 'createdAt'> = {
 };
 
 export default function ReadingScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
-  const { 
-    books, loading, xpToast, 
-    addBook, updateBook, deleteBook, updateProgress, refreshBooks 
+  const {
+    books, loading, xpToast,
+    addBook, updateBook, deleteBook, updateProgress, refreshBooks
   } = useReading();
 
   const [filter, setFilter] = useState<ReadingStatus | 'all'>('all');
@@ -59,9 +65,9 @@ export default function ReadingScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { 
-      Alert.alert(t('reading.title_label') + ' ' + (language === 'id' ? 'wajib diisi' : 'is required')); 
-      return; 
+    if (!form.title.trim()) {
+      Alert.alert(t('reading.title_label') + ' ' + (language === 'id' ? translateCopy("wajib diisi") : translateCopy("is required")));
+      return;
     }
     if (editId) {
       await updateBook(editId, form);
@@ -78,7 +84,7 @@ export default function ReadingScreen() {
     ]);
   };
 
-  const filtered = useMemo(() => 
+  const filtered = useMemo(() =>
     filter === 'all' ? books : books.filter(b => b.status === filter),
   [books, filter]);
 
@@ -90,50 +96,33 @@ export default function ReadingScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Header */}
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
-            <MaterialIcons name="menu-book" size={24} color={c.purple} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.reading')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('reading.subtitle')}</Text>
-          </View>
-        </View>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.reading')}
+        subtitle={t('reading.subtitle')}
+        showBack={router.canGoBack()}
+        tabs={['all', 'reading', 'want_to_read', translateCopy("completed"), 'paused'].map(f => ({
+          key: f,
+          label: f === 'all' ? t('reading.all_categories') : t(STATUS_CONFIG[f as ReadingStatus].labelKey),
+          count: f === 'all' ? books.length : books.filter(b => b.status === f).length,
+        }))}
+        activeTab={filter}
+        onTabChange={(tabKey) => setFilter(tabKey as any)}
+      />
 
-      {/* Stats Cards - Added margin to fix "nempel" issue */}
-      <View style={styles.statsRow}>
+      {/* Stats Cards */}
+      <View style={[styles.statsRow, { marginTop: 14 }]}>
         <Card style={styles.statCard}>
-          <Text style={[styles.statValue, { color: c.purple }]}>{stats.total}</Text>
+          <Text style={[styles.statValue, { color: '#193F30' }]}>{stats.total}</Text>
           <Text style={[styles.statLabel, { color: c.textSecondary }]}>{t('reading.stats_collection')}</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={[styles.statValue, { color: c.blue }]}>{stats.reading}</Text>
+          <Text style={[styles.statValue, { color: '#3b82f6' }]}>{stats.reading}</Text>
           <Text style={[styles.statLabel, { color: c.textSecondary }]}>{t('reading.stats_reading')}</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={[styles.statValue, { color: c.green }]}>{stats.completed}</Text>
+          <Text style={[styles.statValue, { color: '#10b981' }]}>{stats.completed}</Text>
           <Text style={[styles.statLabel, { color: c.textSecondary }]}>{t('reading.stats_completed')}</Text>
         </Card>
-      </View>
-
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {(['all', 'reading', 'want_to_read', 'completed', 'paused'] as const).map(f => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.filterChip, { backgroundColor: filter === f ? c.purple : c.bgInput }]}
-              onPress={() => setFilter(f)}
-            >
-              <Text style={[styles.filterChipText, { color: filter === f ? '#fff' : c.textSecondary }]}>
-                {f === 'all' ? t('reading.all_categories') : t(STATUS_CONFIG[f].labelKey)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       {/* Book List */}
@@ -149,14 +138,19 @@ export default function ReadingScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const cfg = STATUS_CONFIG[item.status];
-          const progress = item.totalPages > 0 ? (item.currentPage / item.totalPages) * 100 : 0;
+          const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.want_to_read;
+          const totalPages = Math.max(0, Number(item.totalPages) || 0);
+          const rawCurrent = item.currentPage !== undefined && item.currentPage !== null ? item.currentPage : (item as any).pagesRead;
+          const parsedCurrent = Number(rawCurrent);
+          const currentPage = Number.isFinite(parsedCurrent) ? Math.max(0, parsedCurrent) : 0;
+          const progressRatio = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
+          const progress = Number.isFinite(progressRatio) ? Math.min(100, Math.max(0, progressRatio)) : 0;
           return (
             <Card style={styles.bookCard} onPress={() => openEdit(item)}>
               <View style={[styles.bookIconBox, { backgroundColor: c.bgInput }]}>
                 <MaterialIcons name={cfg.icon as any} size={24} color={cfg.color} />
               </View>
-              
+
               <View style={styles.bookMainInfo}>
                 <View style={styles.bookHeaderRow}>
                   <Text style={[styles.bookTitle, { color: c.textPrimary }]} numberOfLines={1}>{item.title}</Text>
@@ -164,9 +158,9 @@ export default function ReadingScreen() {
                     <MaterialIcons name="delete-outline" size={18} color={c.red} />
                   </TouchableOpacity>
                 </View>
-                
+
                 <Text style={[styles.bookAuthor, { color: c.textSecondary }]} numberOfLines={1}>{item.author || t('reading.author_anon')}</Text>
-                
+
                 <View style={styles.bookTagRow}>
                   <Badge label={t(cfg.labelKey)} color={cfg.color} variant="solid" />
                   {item.genre && (
@@ -174,11 +168,11 @@ export default function ReadingScreen() {
                   )}
                 </View>
 
-                {item.totalPages > 0 && (
+                {totalPages > 0 && (
                   <View style={styles.progressContainer}>
                     <View style={styles.progressInfo}>
                       <Text style={[styles.progressPercent, { color: c.textPrimary }]}>{Math.round(progress)}%</Text>
-                      <Text style={[styles.progressPages, { color: c.textMuted }]}>{item.currentPage} / {item.totalPages} {t('reading.unit_pages')}</Text>
+                      <Text style={[styles.progressPages, { color: c.textMuted }]}>{currentPage} / {totalPages} {t('reading.unit_pages')}</Text>
                     </View>
                     <View style={[styles.progressBarTrack, { backgroundColor: c.bgInput }]}>
                       <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: cfg.color }]} />
@@ -219,37 +213,37 @@ export default function ReadingScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Input 
+              <Input
                 label={t('reading.title_label')}
-                value={form.title} 
-                onChangeText={t => setForm(f => ({ ...f, title: t }))} 
-                placeholder={t('reading.title_placeholder')} 
+                value={form.title}
+                onChangeText={t => setForm(f => ({ ...f, title: t }))}
+                placeholder={t('reading.title_placeholder')}
               />
 
-              <Input 
+              <Input
                 label={t('reading.author_label')}
-                value={form.author} 
-                onChangeText={t => setForm(f => ({ ...f, author: t }))} 
-                placeholder={t('reading.author_placeholder')} 
+                value={form.author}
+                onChangeText={t => setForm(f => ({ ...f, author: t }))}
+                placeholder={t('reading.author_placeholder')}
               />
 
               <View style={styles.inputRow}>
                 <View style={{ flex: 1 }}>
-                  <Input 
+                  <Input
                     label={t('reading.pages_total')}
-                    value={form.totalPages ? String(form.totalPages) : ''} 
-                    onChangeText={t => setForm(f => ({ ...f, totalPages: parseInt(t) || 0 }))} 
-                    keyboardType="numeric" 
-                    placeholder="0" 
+                    value={form.totalPages ? String(form.totalPages) : ''}
+                    onChangeText={t => setForm(f => ({ ...f, totalPages: parseInt(t) || 0 }))}
+                    keyboardType="numeric"
+                    placeholder="0"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Input 
+                  <Input
                     label={t('reading.pages_current')}
-                    value={form.currentPage ? String(form.currentPage) : ''} 
-                    onChangeText={t => setForm(f => ({ ...f, currentPage: parseInt(t) || 0 }))} 
-                    keyboardType="numeric" 
-                    placeholder="0" 
+                    value={form.currentPage ? String(form.currentPage) : ''}
+                    onChangeText={t => setForm(f => ({ ...f, currentPage: parseInt(t) || 0 }))}
+                    keyboardType="numeric"
+                    placeholder="0"
                   />
                 </View>
               </View>
@@ -267,9 +261,9 @@ export default function ReadingScreen() {
                 ))}
               </View>
 
-              <Button 
-                label={editId ? t('tasks.save') : t('reading.save_btn')} 
-                onPress={handleSave} 
+              <Button
+                label={editId ? t('tasks.save') : t('reading.save_btn')}
+                onPress={handleSave}
                 variant="primary"
                 style={{ height: 60, marginTop: 12 }}
               />
@@ -284,20 +278,21 @@ export default function ReadingScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { paddingHorizontal: 24, paddingBottom: 24, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 4 },
-  
+
   statsRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginTop: 28, marginBottom: 24 },
   statCard: { flex: 1, padding: 16, alignItems: 'center' },
   statValue: { fontSize: 20, fontWeight: '900' },
   statLabel: { fontSize: 11, fontWeight: '700', marginTop: 2 },
-  
+
   filterContainer: { marginBottom: 16 },
   filterRow: { paddingHorizontal: 24, gap: 10, paddingVertical: 4 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: 'transparent' },
   filterChipText: { fontSize: 13, fontWeight: '700' },
-  
+
   listContent: { paddingHorizontal: 24, paddingTop: 10 },
   bookCard: { padding: 18, flexDirection: 'row', gap: 16, marginBottom: 16 },
   bookIconBox: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -306,7 +301,7 @@ const styles = StyleSheet.create({
   bookTitle: { fontSize: 16, fontWeight: '900', flex: 1, marginRight: 8 },
   bookAuthor: { fontSize: 13, marginBottom: 10 },
   bookTagRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  
+
   progressContainer: { marginTop: 4 },
   progressInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
   progressPercent: { fontSize: 14, fontWeight: '900' },
@@ -316,13 +311,13 @@ const styles = StyleSheet.create({
   quickControls: { flexDirection: 'row', gap: 10, marginTop: 12 },
   quickBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   quickBtnText: { fontSize: 11, fontWeight: '700' },
-  
+
   empty: { alignItems: 'center', paddingVertical: 80, opacity: 0.5 },
   emptyText: { fontSize: 15, fontWeight: '700', marginTop: 12 },
-  
+
   toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#10b981', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
   toastText: { color: '#fff', fontWeight: '800' },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 24, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },

@@ -1,15 +1,19 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useUser, AVATAR_OPTIONS } from '@/lib/auth';
+import Image from 'next/image';
+import { useUser, AVATAR_OPTIONS } from '@superapp/shared/auth';
 import { setData, getData } from '@/lib/storage';
 import {
   Settings, CheckCircle2, Key, Check, Copy, User, Tag,
   Camera, Upload, Trash2, Smile, Save, Globe, Shield
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
+import CloudAccountCard from '@/components/CloudAccountCard';
+import DatabaseMigrationCard from '@/components/DatabaseMigrationCard';
 
 export default function SettingsPage() {
+  const { tx: translateCopy } = useLanguage();
   const { user, updateProfile } = useUser();
   const { language, changeLanguage, t } = useLanguage();
   const [name, setName] = useState(user?.name || '');
@@ -34,7 +38,7 @@ export default function SettingsPage() {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 150 * 1024) {
-      alert('Ukuran foto max 150 KB. Coba foto yang lebih kecil.');
+      alert(translateCopy("Ukuran foto max 150 KB. Coba foto yang lebih kecil."));
       return;
     }
     const reader = new FileReader();
@@ -90,7 +94,7 @@ export default function SettingsPage() {
             border: '3px solid var(--border-accent)',
           }}>
             {usePhoto && customPhoto ? (
-              <img src={customPhoto} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Image src={customPhoto} alt="Avatar" width={100} height={100} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               avatar
             )}
@@ -190,7 +194,7 @@ export default function SettingsPage() {
                 className="form-input"
                 value={appName}
                 onChange={(e) => setAppName(e.target.value)}
-                placeholder="SuperApp"
+                placeholder="Whenya"
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -199,7 +203,7 @@ export default function SettingsPage() {
                 className="form-input"
                 value={appTagline}
                 onChange={(e) => setAppTagline(e.target.value)}
-                placeholder="Personal Management"
+                placeholder={translateCopy("Personal Management")}
               />
             </div>
           </div>
@@ -250,9 +254,12 @@ export default function SettingsPage() {
           <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
           {customPhoto && (
             <div style={{ marginTop: '12px' }}>
-              <img
+              <Image
                 src={customPhoto}
                 alt="Preview"
+                width={64}
+                height={64}
+                unoptimized
                 style={{
                   width: '64px', height: '64px', borderRadius: '50%',
                   objectFit: 'cover', border: '2px solid var(--border-accent)',
@@ -280,7 +287,7 @@ export default function SettingsPage() {
                   padding: '8px',
                   borderRadius: 'var(--radius-lg)',
                   border: avatar === emoji ? '2px solid var(--accent-purple)' : '2px solid transparent',
-                  background: avatar === emoji ? 'rgba(139, 92, 246, 0.15)' : 'var(--bg-glass)',
+                  background: avatar === emoji ? 'rgba(25, 63, 48, 0.15)' : 'var(--bg-glass)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   textAlign: 'center',
@@ -295,12 +302,11 @@ export default function SettingsPage() {
         {/* E2E Encryption Settings */}
         <div className="card card-padding mb-3" style={{ border: '1px solid var(--accent-green)' }}>
           <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green)' }}>
-            <Shield size={16} /> Keamanan & Privasi (E2E Encryption)
+            <Shield size={16} /> {translateCopy("Keamanan & Privasi (E2E Encryption)")}
           </label>
           <p className="text-sm text-secondary mb-3">
-            Atur password untuk mengenkripsi data kamu sebelum dikirim ke Cloud Sync. 
-            Data kamu tidak akan bisa dibaca oleh siapa pun (termasuk server) tanpa password ini. 
-            <strong>Jangan sampai lupa!</strong> Karena tidak ada fitur reset password.
+            {translateCopy("Atur password untuk mengenkripsi data kamu sebelum dikirim ke Cloud Sync. Data kamu tidak akan bisa dibaca oleh siapa pun (termasuk server) tanpa password ini.")}
+            <strong>{translateCopy("Jangan sampai lupa!")}</strong> {translateCopy("Karena tidak ada fitur reset password.")}
           </p>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <input
@@ -308,10 +314,14 @@ export default function SettingsPage() {
               className="form-input"
               value={syncPassword}
               onChange={(e) => setSyncPassword(e.target.value)}
-              placeholder="Masukkan password enkripsi E2E"
+              placeholder={translateCopy("Masukkan password enkripsi E2E")}
             />
           </div>
         </div>
+
+        <CloudAccountCard />
+
+        <DatabaseMigrationCard />
 
         {/* Save Button */}
         <button className="btn btn-primary btn-lg w-full" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>

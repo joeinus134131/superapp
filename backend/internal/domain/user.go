@@ -19,6 +19,7 @@ type User struct {
 
 type UserRepository interface {
 	Create(user *User) error
+	EnsureExists(user *User) error
 	GetByID(id uuid.UUID) (*User, error)
 	GetByEmail(email string) (*User, error)
 	Update(user *User) error
@@ -26,4 +27,5 @@ type UserRepository interface {
 
 type UserUsecase interface {
 	RegisterOrUpdate(user *User) error
+	EnsureUser(id uuid.UUID, email string) error
 }

@@ -4,12 +4,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '../lib/theme';
 import { CONFIG } from '../lib/config';
 import { getData, STORAGE_KEYS } from '../lib/storage';
+import { useLanguage } from "../context/languageContext";
+
 
 interface CrossModuleInsightsProps {
   isDark: boolean;
 }
 
 export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
+  const { tx: translateCopy } = useLanguage();
   const [insights, setInsights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const c = useColors(isDark);
@@ -20,7 +23,12 @@ export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
 
   const fetchInsights = async () => {
     try {
-      const token = await getData(STORAGE_KEYS.SESSION_TOKEN) || 'dummy-token';
+      const token = await getData(STORAGE_KEYS.SESSION_TOKEN);
+      if (!token) {
+        setInsights([]);
+        setLoading(false);
+        return;
+      }
       const res = await fetch(`${CONFIG.API_URL}/insights`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -40,7 +48,11 @@ export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
   const generateInsights = async () => {
     setLoading(true);
     try {
-      const token = await getData(STORAGE_KEYS.SESSION_TOKEN) || 'dummy-token';
+      const token = await getData(STORAGE_KEYS.SESSION_TOKEN);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       await fetch(`${CONFIG.API_URL}/insights/generate`, {
         method: 'POST',
         headers: {
@@ -57,8 +69,8 @@ export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
   if (loading && insights.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-        <ActivityIndicator color="#8b5cf6" style={{ marginBottom: 8 }} />
-        <Text style={{ color: c.textSecondary }}>Sedang menganalisis pola hidupmu...</Text>
+        <ActivityIndicator color="#52745a" style={{ marginBottom: 8 }} />
+        <Text style={{ color: c.textSecondary }}>{translateCopy("Sedang menganalisis pola hidupmu...")}</Text>
       </View>
     );
   }
@@ -66,13 +78,13 @@ export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
   if (insights.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: c.bgCard, borderColor: c.border, borderStyle: 'dashed' }]}>
-        <MaterialIcons name="auto-awesome" size={32} color="#8b5cf6" style={{ marginBottom: 8 }} />
-        <Text style={[styles.title, { color: c.textPrimary, marginBottom: 4 }]}>Personal Intelligence</Text>
+        <MaterialIcons name="auto-awesome" size={32} color="#52745a" style={{ marginBottom: 8 }} />
+        <Text style={[styles.title, { color: c.textPrimary, marginBottom: 4 }]}>{translateCopy("Personal Intelligence")}</Text>
         <Text style={{ color: c.textSecondary, textAlign: 'center', marginBottom: 16, fontSize: 14 }}>
-          Belum ada insight. AI kami butuh lebih banyak data aktivitasmu.
+          {translateCopy("Belum ada insight. AI kami butuh lebih banyak data aktivitasmu.")}
         </Text>
         <TouchableOpacity style={styles.button} onPress={generateInsights}>
-          <Text style={styles.buttonText}>Analisis Sekarang</Text>
+          <Text style={styles.buttonText}>{translateCopy("Analisis Sekarang")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -82,17 +94,17 @@ export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
     <View style={{ marginBottom: 16 }}>
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <MaterialIcons name="auto-awesome" size={20} color="#8b5cf6" style={{ marginRight: 8 }} />
-          <Text style={[styles.title, { color: c.textPrimary }]}>Intelligence Feed</Text>
+          <MaterialIcons name="auto-awesome" size={20} color="#52745a" style={{ marginRight: 8 }} />
+          <Text style={[styles.title, { color: c.textPrimary }]}>{translateCopy("Intelligence Feed")}</Text>
         </View>
         <TouchableOpacity onPress={generateInsights}>
-          <Text style={{ color: '#8b5cf6', fontWeight: 'bold', fontSize: 12 }}>Update</Text>
+          <Text style={{ color: '#52745a', fontWeight: 'bold', fontSize: 12 }}>{translateCopy("Update")}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={{ gap: 12 }}>
         {insights.map(insight => {
-          let borderColor = '#8b5cf6';
+          let borderColor = '#52745a';
           let iconName = 'lightbulb';
           if (insight.insight_type === 'warning') {
             borderColor = '#ef4444';
@@ -117,7 +129,7 @@ export function CrossModuleInsights({ isDark }: CrossModuleInsightsProps) {
                       </View>
                     ))}
                     <Text style={{ color: c.textMuted, fontSize: 11, marginLeft: 'auto' }}>
-                      Keyakinan: {insight.confidence_score}%
+                      {translateCopy("Keyakinan:")} {insight.confidence_score}%
                     </Text>
                   </View>
                 </View>
@@ -150,15 +162,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   button: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    backgroundColor: 'rgba(25, 63, 48, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(25, 63, 48, 0.3)',
   },
   buttonText: {
-    color: '#8b5cf6',
+    color: '#52745a',
     fontWeight: 'bold',
   },
   insightCard: {

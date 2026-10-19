@@ -6,8 +6,11 @@ import { useTheme } from '../context/themeContext';
 import { getDailyQuest, completeDailyQuest } from '../lib/quests';
 import { addXP } from '../lib/gamification';
 import * as Haptics from 'expo-haptics';
+import { useLanguage } from "../context/languageContext";
+
 
 export const DailyQuestCard = () => {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const [quest, setQuest] = useState<any>(null);
@@ -37,11 +40,11 @@ export const DailyQuestCard = () => {
   if (!quest) return null;
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
-        styles.container, 
-        { 
-          backgroundColor: quest.completed ? c.green + '10' : c.bgCard, 
+        styles.container,
+        {
+          backgroundColor: quest.completed ? c.green + '10' : c.bgCard,
           borderColor: quest.completed ? c.green + '44' : c.border,
           transform: [{ scale: scaleAnim }]
         }
@@ -53,9 +56,9 @@ export const DailyQuestCard = () => {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.microLabel, { color: quest.completed ? c.green : c.purple }]}>
-            {quest.completed ? 'DAILY GOAL ACHIEVED' : 'ACTIVE DAILY QUEST'}
+            {quest.completed ? translateCopy("DAILY GOAL ACHIEVED") : translateCopy("ACTIVE DAILY QUEST")}
           </Text>
-          <Text style={[styles.questTitle, { color: c.textPrimary }]}>{quest.title}</Text>
+          <Text style={[styles.questTitle, { color: c.textPrimary }]}>{translateCopy(quest.title)}</Text>
         </View>
         {!quest.completed && (
           <View style={[styles.xpBadge, { backgroundColor: c.purple + '20' }]}>
@@ -64,25 +67,25 @@ export const DailyQuestCard = () => {
         )}
       </View>
 
-      <Text style={[styles.description, { color: c.textSecondary }]}>{quest.description}</Text>
+      <Text style={[styles.description, { color: c.textSecondary }]}>{translateCopy(quest.description)}</Text>
 
       {!quest.completed ? (
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: c.purple }]} 
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: c.purple }]}
           onPress={handleComplete}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={0.9}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={styles.buttonText}>Complete Quest</Text>
+            <Text style={styles.buttonText}>{translateCopy("Complete Quest")}</Text>
             <MaterialIcons name="arrow-forward" size={18} color="#fff" />
           </View>
         </TouchableOpacity>
       ) : (
         <View style={styles.completedBadge}>
           <MaterialIcons name="check-circle" size={16} color={c.green} />
-          <Text style={[styles.completedText, { color: c.green }]}>Reward Claimed</Text>
+          <Text style={[styles.completedText, { color: c.green }]}>{translateCopy("Reward Claimed")}</Text>
         </View>
       )}
     </Animated.View>
@@ -145,7 +148,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 20,
     alignItems: 'center',
-    shadowColor: '#8b5cf6',
+    shadowColor: '#52745a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

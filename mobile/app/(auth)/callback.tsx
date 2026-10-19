@@ -4,8 +4,11 @@ import * as Linking from 'expo-linking'
 import { router } from 'expo-router'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../context/themeContext'
+import { useLanguage } from "../../context/languageContext";
+
 
 export default function AuthCallbackScreen() {
+  const { tx: translateCopy } = useLanguage();
   const url = Linking.useURL()
   const { consumeAuthRedirect } = useAuth()
   const { isDark } = useTheme()
@@ -16,7 +19,7 @@ export default function AuthCallbackScreen() {
     async function verify() {
       if (!url) {
         setStatus('error')
-        setMessage('Link verifikasi tidak ditemukan.')
+        setMessage(translateCopy("Link verifikasi tidak ditemukan."))
         return
       }
 
@@ -24,7 +27,7 @@ export default function AuthCallbackScreen() {
 
       if (result.success) {
         setStatus('success')
-        setMessage('Email berhasil diverifikasi. Anda akan masuk ke aplikasi...')
+        setMessage(translateCopy("Email berhasil diverifikasi. Anda akan masuk ke aplikasi..."))
         setTimeout(() => {
           router.replace('/(app)')
         }, 1200)
@@ -32,7 +35,7 @@ export default function AuthCallbackScreen() {
       }
 
       setStatus('error')
-      setMessage(result.error || 'Verifikasi email gagal.')
+      setMessage(result.error || translateCopy("Verifikasi email gagal."))
     }
 
     verify()
@@ -45,9 +48,9 @@ export default function AuthCallbackScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: bgColor, justifyContent: 'center', padding: 24 }}>
       <View style={{ backgroundColor: cardColor, borderRadius: 16, padding: 24 }}>
-        {status === 'loading' ? <ActivityIndicator color="#8b5cf6" size="large" /> : null}
+        {status === 'loading' ? <ActivityIndicator color="#52745a" size="large" /> : null}
         <Text style={{ color: textColor, fontSize: 24, fontWeight: '700', textAlign: 'center', marginTop: 16, marginBottom: 12 }}>
-          Verifikasi Email
+          {translateCopy("Verifikasi Email")}
         </Text>
         <Text style={{ color: isDark ? '#d4d4d4' : '#555555', textAlign: 'center', lineHeight: 22 }}>
           {message}
@@ -58,13 +61,13 @@ export default function AuthCallbackScreen() {
             onPress={() => router.replace('/(auth)/login')}
             style={{
               marginTop: 20,
-              backgroundColor: '#8b5cf6',
+              backgroundColor: '#52745a',
               paddingVertical: 14,
               borderRadius: 10,
               alignItems: 'center',
             }}
           >
-            <Text style={{ color: '#ffffff', fontWeight: '700' }}>Kembali ke Login</Text>
+            <Text style={{ color: '#ffffff', fontWeight: '700' }}>{translateCopy("Kembali ke Login")}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

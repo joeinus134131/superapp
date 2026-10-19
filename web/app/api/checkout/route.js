@@ -1,7 +1,7 @@
 import midtransClient from 'midtrans-client';
 import { NextResponse } from 'next/server';
 
-import { TOKEN_PACKAGES } from '@/lib/tokenSystem';
+import { TOKEN_PACKAGES } from '@superapp/shared/token-system';
 
 // Initialize Snap client
 // Use Sandbox mode for development
@@ -32,15 +32,6 @@ export async function POST(request) {
             );
         }
 
-        // --- BACKDOOR BYPASS FOR TESTING ---
-        if (userName && userName.includes('BACKDOOR')) {
-            return NextResponse.json({
-                token: 'dummy-token-' + Date.now(),
-                redirect_url: '',
-                isBackdoor: true
-            });
-        }
-        // ------------------------------------
 
         // Prepare transaction details for Midtrans
         const parameter = {
@@ -54,7 +45,7 @@ export async function POST(request) {
                     price: actualPackage.price,
                     quantity: 1,
                     name: actualPackage.name || 'Premium Token Package',
-                    brand: 'SuperApp',
+                    brand: 'Whenya',
                     category: 'Digital Goods'
                 }
             ],

@@ -1,15 +1,18 @@
+import { HeaderText } from '../../components/HeaderText';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, Alert, ScrollView, RefreshControl
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
 import { formatDate, getToday } from '../../lib/helpers';
 import * as Haptics from 'expo-haptics';
 import { useLanguage } from '../../context/languageContext';
+import { useRouter } from 'expo-router';
 
 import { useCalendar, CalendarEvent } from '../../hooks/useCalendar';
 import { Card } from '../../components/ui/Card';
@@ -19,7 +22,7 @@ import { Input } from '../../components/ui/Input';
 
 const CATEGORIES = [
   { key: 'work', labelKey: 'calendar.cat_work', color: '#3b82f6', icon: 'work' },
-  { key: 'personal', labelKey: 'calendar.cat_personal', color: '#8b5cf6', icon: 'person' },
+  { key: 'personal', labelKey: 'calendar.cat_personal', color: '#52745a', icon: 'person' },
   { key: 'health', labelKey: 'calendar.cat_health', color: '#10b981', icon: 'favorite' },
   { key: 'study', labelKey: 'calendar.cat_study', color: '#f59e0b', icon: 'school' },
   { key: 'social', labelKey: 'calendar.cat_social', color: '#ec4899', icon: 'people' },
@@ -28,7 +31,7 @@ const CATEGORIES = [
 
 const EMPTY: Omit<CalendarEvent, 'id' | 'createdAt'> = {
   title: '', date: '', time: '09:00', endTime: '10:00',
-  category: 'personal', color: '#8b5cf6', notes: '', isAllDay: false,
+  category: 'personal', color: '#52745a', notes: '', isAllDay: false,
 };
 
 function getDaysInMonth(year: number, month: number) {
@@ -58,15 +61,17 @@ const EventCard = React.memo(({ event, onEdit, onDelete, c, t }: { event: Calend
 });
 
 export default function CalendarScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
   const todayDate = new Date(today);
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
-  const { 
-    events, loading, addEvent, updateEvent, deleteEvent, refreshEvents 
+  const {
+    events, loading, addEvent, updateEvent, deleteEvent, refreshEvents
   } = useCalendar();
 
   const [year, setYear] = useState(todayDate.getFullYear());
@@ -110,8 +115,8 @@ export default function CalendarScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { Alert.alert(t('calendar.title_label') + ' ' + (t('tasks.required_msg') || 'wajib diisi')); return; }
-    if (!form.date) { Alert.alert(t('calendar.date_label') + ' ' + (t('tasks.required_msg') || 'wajib diisi')); return; }
+    if (!form.title.trim()) { Alert.alert(t('calendar.title_label') + ' ' + (t('tasks.required_msg') || translateCopy("wajib diisi"))); return; }
+    if (!form.date) { Alert.alert(t('calendar.date_label') + ' ' + (t('tasks.required_msg') || translateCopy("wajib diisi"))); return; }
     if (editId) {
       await updateEvent(editId, form);
     } else {
@@ -133,11 +138,11 @@ export default function CalendarScreen() {
     return [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   }, [year, month]);
 
-  const selectedEvents = useMemo(() => 
+  const selectedEvents = useMemo(() =>
     events.filter(e => e.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time)),
   [events, selectedDate]);
 
-  const upcomingEvents = useMemo(() => 
+  const upcomingEvents = useMemo(() =>
     events
       .filter(e => e.date >= today)
       .sort((a, b) => a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date))
@@ -146,20 +151,14 @@ export default function CalendarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
-            <MaterialIcons name="event" size={24} color={c.purple} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.calendar')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('calendar.subtitle')}</Text>
-          </View>
-        </View>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.calendar')}
+        subtitle={t('calendar.subtitle')}
+        showBack={router.canGoBack()}
+      />
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 20, paddingBottom: layout.bottomPadding + 40 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshEvents} tintColor={c.purple} />}
       >
@@ -243,18 +242,18 @@ export default function CalendarScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Input 
+              <Input
                 label={t('calendar.title_label')}
-                value={form.title} 
-                onChangeText={t => setForm(f => ({ ...f, title: t }))} 
-                placeholder={t('calendar.title_placeholder')} 
+                value={form.title}
+                onChangeText={t => setForm(f => ({ ...f, title: t }))}
+                placeholder={t('calendar.title_placeholder')}
               />
 
-              <Input 
+              <Input
                 label={t('calendar.date_label')}
-                value={form.date} 
-                onChangeText={t => setForm(f => ({ ...f, date: t }))} 
-                placeholder="YYYY-MM-DD" 
+                value={form.date}
+                onChangeText={t => setForm(f => ({ ...f, date: t }))}
+                placeholder="YYYY-MM-DD"
               />
 
               <TouchableOpacity style={styles.toggleRow} onPress={() => setForm(f => ({ ...f, isAllDay: !f.isAllDay }))}>
@@ -267,19 +266,19 @@ export default function CalendarScreen() {
               {!form.isAllDay && (
                 <View style={styles.row}>
                   <View style={styles.halfField}>
-                    <Input 
+                    <Input
                       label={t('calendar.start_label')}
-                      value={form.time} 
-                      onChangeText={t => setForm(f => ({ ...f, time: t }))} 
-                      placeholder="09:00" 
+                      value={form.time}
+                      onChangeText={t => setForm(f => ({ ...f, time: t }))}
+                      placeholder="09:00"
                     />
                   </View>
                   <View style={styles.halfField}>
-                    <Input 
+                    <Input
                       label={t('calendar.end_label')}
-                      value={form.endTime} 
-                      onChangeText={t => setForm(f => ({ ...f, endTime: t }))} 
-                      placeholder="10:00" 
+                      value={form.endTime}
+                      onChangeText={t => setForm(f => ({ ...f, endTime: t }))}
+                      placeholder="10:00"
                     />
                   </View>
                 </View>
@@ -298,18 +297,18 @@ export default function CalendarScreen() {
                 ))}
               </View>
 
-              <Input 
+              <Input
                 label={t('calendar.notes_label')}
-                value={form.notes} 
-                onChangeText={t => setForm(f => ({ ...f, notes: t }))} 
-                placeholder={t('calendar.notes_placeholder')} 
+                value={form.notes}
+                onChangeText={t => setForm(f => ({ ...f, notes: t }))}
+                placeholder={t('calendar.notes_placeholder')}
                 multiline
                 inputStyle={styles.textarea}
               />
 
-              <Button 
-                label={editId ? t('calendar.edit_save_btn') : t('calendar.save_btn')} 
-                onPress={handleSave} 
+              <Button
+                label={editId ? t('calendar.edit_save_btn') : t('calendar.save_btn')}
+                onPress={handleSave}
                 variant="primary"
                 style={{ height: 60, marginTop: 12 }}
               />
@@ -333,7 +332,8 @@ const eventStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 4 },
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },

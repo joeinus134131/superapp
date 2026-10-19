@@ -25,6 +25,10 @@ func (u *socialUsecase) GetMySquads(userID uuid.UUID) ([]domain.Squad, error) {
 	return u.repo.GetSquadsByUserID(userID)
 }
 
+func (u *socialUsecase) GetSquadByID(squadID uuid.UUID) (*domain.Squad, error) {
+	return u.repo.GetSquadByID(squadID)
+}
+
 func (u *socialUsecase) CreateNewSquad(userID uuid.UUID, name, desc string) (*domain.Squad, error) {
 	if name == "" {
 		return nil, errors.New("nama squad tidak boleh kosong")
@@ -45,9 +49,17 @@ func (u *socialUsecase) CreateNewSquad(userID uuid.UUID, name, desc string) (*do
 	return squad, nil
 }
 
-func (u *socialUsecase) CreateChallenge(squadID uuid.UUID, title, challengeType string, target, stakeXP int, startDate, endDate time.Time) (*domain.Challenge, error) {
+func (u *socialUsecase) CreateChallenge(userID, squadID uuid.UUID, title, challengeType string, target, stakeXP int, startDate, endDate time.Time) (*domain.Challenge, error) {
 	if title == "" {
 		return nil, errors.New("judul challenge tidak boleh kosong")
+	}
+
+	squad, err := u.repo.GetSquadByID(squadID)
+	if err != nil || squad == nil {
+		return nil, errors.New("squad tidak ditemukan")
+	}
+	if squad.CreatorID != userID {
+		return nil, errors.New("hanya pemilik squad yang dapat membuat challenge")
 	}
 
 	challenge := &domain.Challenge{
@@ -73,13 +85,26 @@ func (u *socialUsecase) GetSquadChallenges(squadID uuid.UUID) ([]domain.Challeng
 }
 
 func (u *socialUsecase) UpdateProgress(challengeID, userID uuid.UUID, increment int) (*domain.ChallengeProgress, error) {
-	// Simple update logic. In a real app we'd fetch current progress, add increment, and check if target is met.
-	// We'll just do a basic implementation here for Phase 5 initial setup.
+	currentVal := increment
+	existing, err := u.repo.GetUserChallengeProgress(challengeID, userID)
+	if err == nil && existing != nil {
+		currentVal = existing.Current + increment
+	}
+
+	isCompleted := false
+	challenge, err := u.repo.GetChallengeByID(challengeID)
+	if err == nil && challenge != nil && challenge.Target > 0 {
+		if currentVal >= challenge.Target {
+			isCompleted = true
+		}
+	}
+
 	progress := &domain.ChallengeProgress{
 		ChallengeID: challengeID,
 		UserID:      userID,
-		Current:     increment, // In reality, we'd add to existing
-		IsCompleted: false,
+		Current:     currentVal,
+		IsCompleted: isCompleted,
+		UpdatedAt:   time.Now(),
 	}
 
 	if err := u.repo.UpdateChallengeProgress(progress); err != nil {

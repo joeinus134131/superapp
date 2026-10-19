@@ -1,14 +1,32 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { getData, STORAGE_KEYS } from '@/lib/storage';
-import { formatCurrency, EXPENSE_CATEGORIES, getToday } from '@/lib/helpers';
-import { usePremium } from '@/lib/premium';
+import { formatCurrency, EXPENSE_CATEGORIES, getToday } from '@superapp/shared/helpers';
+import { usePremium } from '@superapp/shared/premium';
 import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, Zap, Lock } from 'lucide-react';
+import { useLanguage } from "@superapp/shared/language";
 
-// ─── Local AI Engine (no API needed, runs entirely client-side) ────────────────
 
-function analyzeFinances(transactions) {
+// ─── Analisis Tren Pengeluaran & Pola Aktivitas (Kalkulasi Langsung di Browser) ────────────────
+
+
+
+
+
+// ─── Component ─────────────────────────────────────────────────────────────────
+
+const insightStyles = {
+  success: { bg: 'rgba(5, 150, 105, 0.08)', border: 'rgba(5, 150, 105, 0.25)', color: '#059669' },
+  warning: { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', color: '#f59e0b' },
+  danger:  { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.25)', color: '#ef4444' },
+  info:    { bg: 'rgba(25, 63, 48, 0.08)', border: 'rgba(25, 63, 48, 0.25)', color: '#52745a' },
+};
+
+export default function ProInsights({ stats }) {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+const analyzeFinances = useCallback((transactions) => {
   if (!Array.isArray(transactions) || transactions.length < 2) return [];
 
   const insights = [];
@@ -29,20 +47,20 @@ function analyzeFinances(transactions) {
 
   // Expense trend
   if (lastExpense > 0 && thisExpense > 0) {
-    const change = ((thisExpense - lastExpense) / lastExpense * 100).toFixed(0);
+    const change = Number(((thisExpense - lastExpense) / lastExpense * 100).toFixed(0));
     if (thisExpense > lastExpense) {
       insights.push({
         type: 'warning',
         icon: '📈',
-        title: 'Pengeluaran Naik',
-        text: `Pengeluaran bulan ini naik ${change}% dibanding bulan lalu (${formatCurrency(lastExpense)} → ${formatCurrency(thisExpense)}).`,
+        title: translateCopy("Pengeluaran Naik"),
+        text: translateCopy("Pengeluaran bulan ini naik {0}% dibanding bulan lalu ({1} → {2}).", [change, formatCurrency(lastExpense, uiLanguage), formatCurrency(thisExpense, uiLanguage)]),
       });
     } else {
       insights.push({
         type: 'success',
         icon: '📉',
-        title: 'Pengeluaran Turun!',
-        text: `Hebat! Pengeluaran kamu turun ${Math.abs(change)}% bulan ini. Terus pertahankan!`,
+        title: translateCopy("Pengeluaran Turun!"),
+        text: translateCopy("Hebat! Pengeluaran kamu turun {0}% bulan ini. Terus pertahankan!", [Math.abs(Number(change))]),
       });
     }
   }
@@ -60,29 +78,29 @@ function analyzeFinances(transactions) {
     insights.push({
       type: 'info',
       icon: catInfo?.emoji || '💰',
-      title: `${catInfo?.label || catId} Mendominasi`,
-      text: `${pct}% pengeluaran bulan ini untuk ${catInfo?.label || catId} (${formatCurrency(catAmt)}).`,
+      title: translateCopy("{0} Mendominasi", [translateCopy(catInfo?.label) || catId]),
+      text: translateCopy("{0}% pengeluaran bulan ini untuk {1} ({2}).", [pct, translateCopy(catInfo?.label) || catId, formatCurrency(catAmt, uiLanguage)]),
     });
   }
 
   // Savings rate
   if (thisIncome > 0) {
-    const savingsRate = (((thisIncome - thisExpense) / thisIncome) * 100).toFixed(0);
+    const savingsRate = Number((((thisIncome - thisExpense) / thisIncome) * 100).toFixed(0));
     if (savingsRate > 0) {
       insights.push({
         type: savingsRate >= 20 ? 'success' : 'info',
         icon: savingsRate >= 20 ? '🏆' : '💡',
-        title: `Rasio Tabungan: ${savingsRate}%`,
-        text: savingsRate >= 20 
-          ? `Kamu menabung ${savingsRate}% dari pemasukan bulan ini. Luar biasa!` 
-          : `Kamu menabung ${savingsRate}%. Coba targetkan 20% untuk keuangan yang lebih sehat.`,
+        title: translateCopy("Rasio Tabungan: {0}%", [savingsRate]),
+        text: savingsRate >= 20
+          ? translateCopy("Kamu menabung {0}% dari pemasukan bulan ini. Luar biasa!", [savingsRate])
+          : translateCopy("Kamu menabung {0}%. Coba targetkan 20% untuk keuangan yang lebih sehat.", [savingsRate]),
       });
     } else {
       insights.push({
         type: 'danger',
         icon: '⚠️',
-        title: 'Pengeluaran Melebihi Pemasukan',
-        text: `Pengeluaran bulan ini melebihi pemasukan sebesar ${formatCurrency(thisExpense - thisIncome)}. Hati-hati!`,
+        title: translateCopy("Pengeluaran Melebihi Pemasukan"),
+        text: translateCopy("Pengeluaran bulan ini melebihi pemasukan sebesar {0}. Hati-hati!", [formatCurrency(thisExpense - thisIncome, uiLanguage)]),
       });
     }
   }
@@ -95,73 +113,63 @@ function analyzeFinances(transactions) {
   }).reduce((s, t) => s + t.amount, 0);
   const weekdaySpend = thisExpense - weekendSpend;
   if (weekendSpend > 0 && weekdaySpend > 0) {
-    const weekendPct = ((weekendSpend / thisExpense) * 100).toFixed(0);
+    const weekendPct = Number(((weekendSpend / thisExpense) * 100).toFixed(0));
     if (weekendPct > 40) {
       insights.push({
         type: 'warning',
         icon: '🎉',
-        title: 'Banyak Spending di Weekend',
-        text: `${weekendPct}% pengeluaran terjadi di akhir pekan. Coba batasi pengeluaran weekend kamu.`,
+        title: translateCopy("Banyak Spending di Weekend"),
+        text: translateCopy("{0}% pengeluaran terjadi di akhir pekan. Coba batasi pengeluaran weekend kamu.", [weekendPct]),
       });
     }
   }
 
   return insights;
-}
-
-function analyzeProductivity(stats) {
+}, [translateCopy, uiLanguage]);
+const analyzeProductivity = useCallback((stats) => {
   const insights = [];
 
   if (stats.focusSessions >= 4) {
     insights.push({
       type: 'success', icon: '🔥',
-      title: 'Produktivitas Tinggi Hari Ini!',
-      text: `${stats.focusSessions} sesi fokus sudah diselesaikan hari ini. Luar biasa!`,
+      title: translateCopy("Produktivitas Tinggi Hari Ini!"),
+      text: translateCopy("{0} sesi fokus sudah diselesaikan hari ini. Luar biasa!", [stats.focusSessions]),
     });
   } else if (stats.focusSessions > 0) {
     insights.push({
       type: 'info', icon: '⏱️',
-      title: 'Mulai Bagus!',
-      text: `${stats.focusSessions} sesi fokus hari ini. Coba targetkan 4 sesi untuk produktivitas optimal.`,
+      title: translateCopy("Mulai Bagus!"),
+      text: translateCopy("{0} sesi fokus hari ini. Coba targetkan 4 sesi untuk produktivitas optimal.", [stats.focusSessions]),
     });
   }
 
   if (stats.habitsToday === stats.habitsTotal && stats.habitsTotal > 0) {
     insights.push({
       type: 'success', icon: '✅',
-      title: 'Semua Kebiasaan Terpenuhi!',
-      text: 'Kamu sudah menyelesaikan semua kebiasaan hari ini. Konsistensi adalah kunci! 💪',
+      title: translateCopy("Semua Kebiasaan Terpenuhi!"),
+      text: translateCopy("Kamu sudah menyelesaikan semua kebiasaan hari ini. Konsistensi adalah kunci! 💪"),
     });
   } else if (stats.habitsTotal > 0 && stats.habitsToday < stats.habitsTotal) {
     const remaining = stats.habitsTotal - stats.habitsToday;
     insights.push({
       type: 'info', icon: '📋',
-      title: `${remaining} Kebiasaan Tersisa`,
-      text: `Masih ada ${remaining} kebiasaan yang belum kamu lakukan hari ini. Ayo selesaikan!`,
+      title: translateCopy("{0} Kebiasaan Tersisa", [remaining]),
+      text: translateCopy("Masih ada {0} kebiasaan yang belum kamu lakukan hari ini. Ayo selesaikan!", [remaining]),
     });
   }
 
   if (stats.streak >= 7) {
     insights.push({
       type: 'success', icon: '🔥',
-      title: `Streak ${stats.streak} Hari!`,
-      text: 'Konsistensi kamu luar biasa! Jangan putus streak-nya.',
+      title: translateCopy("Streak {0} Hari!", [stats.streak]),
+      text: translateCopy("Konsistensi kamu luar biasa! Jangan putus streak-nya."),
     });
   }
 
   return insights;
-}
+}, [translateCopy]);
 
-// ─── Component ─────────────────────────────────────────────────────────────────
 
-const insightStyles = {
-  success: { bg: 'rgba(5, 150, 105, 0.08)', border: 'rgba(5, 150, 105, 0.25)', color: '#059669' },
-  warning: { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', color: '#f59e0b' },
-  danger:  { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.25)', color: '#ef4444' },
-  info:    { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.25)', color: '#8b5cf6' },
-};
-
-export default function ProInsights({ stats }) {
   const { isPremium } = usePremium();
   const [transactions, setTransactions] = useState([]);
 
@@ -171,30 +179,30 @@ export default function ProInsights({ stats }) {
     });
   }, []);
 
-  const financeInsights = useMemo(() => analyzeFinances(transactions), [transactions]);
-  const productivityInsights = useMemo(() => analyzeProductivity(stats || {}), [stats]);
+  const financeInsights = useMemo(() => analyzeFinances(transactions), [transactions, analyzeFinances]);
+  const productivityInsights = useMemo(() => analyzeProductivity(stats || {}), [stats, analyzeProductivity]);
 
   const allInsights = [...financeInsights, ...productivityInsights].slice(0, 5);
 
   if (!isPremium) {
     return (
       <div className="card card-padding mb-3" style={{
-        background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(245,158,11,0.08))',
-        border: '1px solid rgba(139,92,246,0.2)',
+        background: 'linear-gradient(135deg, rgba(25,63,48,0.08), rgba(245,158,11,0.08))',
+        border: '1px solid rgba(25,63,48,0.2)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none' }}>
           <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={20} color="#8b5cf6" /> AI Smart Insights
+            <Sparkles size={20} color="var(--accent-purple)" /> {translateCopy("Ringkasan personal")}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(16,185,129,0.08)' }}>
-              <strong>📉 Pengeluaran Turun!</strong>
-              <p className="text-sm text-secondary mt-1">Pengeluaran kamu turun 15% bulan ini...</p>
+              <strong>{translateCopy("📉 Pengeluaran Turun!")}</strong>
+              <p className="text-sm text-secondary mt-1">{translateCopy("Pengeluaran kamu turun 15% bulan ini...")}</p>
             </div>
-            <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(139,92,246,0.08)' }}>
-              <strong>🏆 Rasio Tabungan: 25%</strong>
-              <p className="text-sm text-secondary mt-1">Kamu menabung 25% dari pemasukan...</p>
+            <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(25,63,48,0.08)' }}>
+              <strong>{translateCopy("🏆 Rasio Tabungan: 25%")}</strong>
+              <p className="text-sm text-secondary mt-1">{translateCopy("Kamu menabung 25% dari pemasukan...")}</p>
             </div>
           </div>
         </div>
@@ -205,10 +213,10 @@ export default function ProInsights({ stats }) {
           borderRadius: 'var(--radius-lg)',
         }}>
           <Lock size={32} color="#f59e0b" style={{ marginBottom: '8px' }} />
-          <span style={{ fontWeight: 700, fontSize: '16px', color: '#fff' }}>AI Smart Insights</span>
-          <span className="text-sm" style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>Fitur eksklusif untuk pengguna Pro</span>
+          <span style={{ fontWeight: 700, fontSize: '16px', color: '#fff' }}>{translateCopy("Ringkasan personal")}</span>
+          <span className="text-sm" style={{ color: 'rgba(255,255,255,0.8)', marginBottom: '12px' }}>{translateCopy("Tersedia dalam paket Pro")}</span>
           <a href="/settings" className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} /> Upgrade ke Pro
+            {translateCopy("Lihat paket Pro")}
           </a>
         </div>
       </div>
@@ -217,22 +225,22 @@ export default function ProInsights({ stats }) {
 
   if (allInsights.length === 0) {
     return (
-      <div className="card card-padding mb-3" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.06))' }}>
+      <div className="card card-padding mb-3" style={{ background: 'linear-gradient(135deg, rgba(25,63,48,0.06), rgba(6,182,212,0.06))' }}>
         <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={20} color="#8b5cf6" /> Analisis AI 👑
+          <Sparkles size={20} color="var(--accent-purple)" /> {translateCopy("Ringkasan personal")}
         </div>
-        <p className="text-sm text-muted">Tambahkan lebih banyak data (transaksi, kebiasaan, sesi fokus) untuk mendapatkan insight personal dari AI.</p>
+        <p className="text-sm text-muted">{translateCopy("Tambahkan beberapa transaksi, kebiasaan, atau sesi fokus agar Whenya dapat menemukan pola yang relevan.")}</p>
       </div>
     );
   }
 
   return (
     <div className="card card-padding mb-3" style={{
-      background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.06))',
-      border: '1px solid rgba(139,92,246,0.15)',
+      background: 'linear-gradient(135deg, rgba(25,63,48,0.06), rgba(6,182,212,0.06))',
+      border: '1px solid rgba(25,63,48,0.15)',
     }}>
       <div className="card-title mb-3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Sparkles size={20} color="#8b5cf6" /> <span style={{ background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SuperAI Insights</span> 👑
+        <Sparkles size={20} color="var(--accent-purple)" /> <span>{translateCopy("Ringkasan personal")}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {allInsights.map((insight, i) => {
@@ -252,7 +260,7 @@ export default function ProInsights({ stats }) {
           );
         })}
         <div className="text-xs text-muted" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', gap: '4px' }}>
-           <Zap size={12}/> Dihasilkan secara otomatis (M26) berdasarkan aktivitas Anda.
+           <Zap size={12}/> {translateCopy("Dibuat dari aktivitas yang kamu catat. Periksa kembali sebelum mengambil keputusan.")}
         </div>
       </div>
     </div>

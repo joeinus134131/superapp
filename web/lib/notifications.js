@@ -1,3 +1,4 @@
+import { translateText } from '@superapp/shared/translations';
 // Notification scheduling engine
 import { getData, setData, STORAGE_KEYS } from './storage';
 
@@ -176,10 +177,13 @@ async function checkAndFireReminders() {
       if (lastFiredStr === todayStr && lastFiredTime === currentTime) continue;
     }
 
+    let language = 'en';
+    try { language = localStorage.getItem('superapp_language') === 'id' ? 'id' : 'en'; } catch { /* English default. */ }
+    const display = localizeReminder(reminder, language);
     // FIRE! 🔥
     showNotification(
-      `${getCategoryEmoji(reminder.category)} ${reminder.title}`,
-      reminder.body || getMotivationalBody(reminder.category),
+      `${getCategoryEmoji(reminder.category)} ${display.title}`,
+      display.body || translateText(getMotivationalBody(reminder.category), language),
       { url: reminder.url, tag: reminder.id }
     );
 
@@ -279,4 +283,9 @@ export async function addFromTemplate(template, selectedTimes = null) {
     added.push(r);
   }
   return added;
+}
+
+export function localizeReminder(reminder, language = 'en') {
+  const builtin = REMINDER_TEMPLATES.find(template => template.title === reminder.title && template.body === reminder.body);
+  return builtin ? { ...reminder, title: translateText(reminder.title, language), body: translateText(reminder.body, language) } : reminder;
 }

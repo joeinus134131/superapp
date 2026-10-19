@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   registerServiceWorker, requestPermission, getPermissionStatus,
   startScheduler, showNotification,
-  getReminders, addReminder, deleteReminder, toggleReminder,
+  localizeReminder, getReminders, addReminder, deleteReminder, toggleReminder,
   getNotificationHistory, REMINDER_TEMPLATES, addFromTemplate,
 } from '@/lib/notifications';
 import {
@@ -12,8 +12,10 @@ import {
   FlaskConical, Plus, Rocket, MailCheck, CheckCircle2, AlertTriangle, Zap,
   Package, History, BellOff, Clock, Trash2, Inbox, X, Flame
 } from 'lucide-react';
+import { useLanguage } from "@superapp/shared/language";
 
-const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+
 
 const CATEGORY_ICONS = {
   habit: Flame, task: CheckSquare, goal: Target, water: Droplets,
@@ -21,6 +23,10 @@ const CATEGORY_ICONS = {
 };
 
 export default function NotificationsPage() {
+  const { tx: translateCopy, language } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+const DAY_NAMES = [translateCopy("Min"), translateCopy("Sen"), translateCopy("Sel"), translateCopy("Rab"), translateCopy("Kam"), translateCopy("Jum"), translateCopy("Sab")];
+
   const [permission, setPermission] = useState('default');
   const [reminders, setReminders] = useState([]);
   const [history, setHistory] = useState([]);
@@ -53,12 +59,12 @@ export default function NotificationsPage() {
     if (result === 'granted') {
       await registerServiceWorker();
       startScheduler();
-      showNotification('🎉 Notifikasi Aktif!', 'SuperApp sekarang bisa mengirim reminder ke kamu. Brutal mode ON! 🔥');
+      showNotification(translateCopy("Notifikasi aktif"), translateCopy("Whenya dapat mengingatkanmu pada waktu yang kamu pilih."));
     }
   };
 
   const handleTestNotif = () => {
-    showNotification('⚡ Test Notification', 'Ini test notifikasi dari SuperApp. Semuanya berjalan sempurna! 💪');
+    showNotification(translateCopy("Notifikasi percobaan"), translateCopy("Jika pesan ini terlihat, pengingat sudah siap digunakan."));
   };
 
   const handleAddReminder = async (e) => {
@@ -100,7 +106,7 @@ export default function NotificationsPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data notifikasi...
+        {translateCopy("Memuat data notifikasi...")}
       </div>
     );
   }
@@ -110,12 +116,12 @@ export default function NotificationsPage() {
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Bell size={32} color="var(--accent-purple)" /> Notifikasi & Reminder</h1>
-            <p>Atur reminder brutal biar kamu nggak pernah lupa!</p>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Bell size={32} color="var(--accent-purple)" /> {translateCopy("Notifikasi & Reminder")}</h1>
+            <p>{translateCopy("Atur reminder brutal biar kamu nggak pernah lupa!")}</p>
           </div>
           <div className="flex gap-1">
-            <button className="btn btn-secondary" onClick={handleTestNotif} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FlaskConical size={16} /> Test</button>
-            <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Reminder</button>
+            <button className="btn btn-secondary" onClick={handleTestNotif} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FlaskConical size={16} /> {translateCopy("Test")}</button>
+            <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {translateCopy("Tambah Reminder")}</button>
           </div>
         </div>
       </div>
@@ -126,16 +132,16 @@ export default function NotificationsPage() {
           <div className="notif-permission-content">
             <div className="notif-permission-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={24} /></div>
             <div>
-              <h3>{permission === 'denied' ? 'Notifikasi Diblokir' : 'Aktifkan Notifikasi'}</h3>
+              <h3>{permission === 'denied' ? translateCopy("Notifikasi Diblokir") : translateCopy("Aktifkan Notifikasi")}</h3>
               <p>
                 {permission === 'denied'
-                  ? 'Notifikasi diblokir di browser. Buka Settings Browser → Site Settings → Notifications untuk mengaktifkan.'
-                  : 'Izinkan notifikasi agar SuperApp bisa mengirim reminder langsung ke device kamu — bahkan saat tab tertutup!'}
+                  ? translateCopy("Notifikasi diblokir di browser. Buka Settings Browser → Site Settings → Notifications untuk mengaktifkan.")
+                  : translateCopy("Izinkan notifikasi agar Whenya bisa mengirim reminder langsung ke device kamu — bahkan saat tab tertutup!")}
               </p>
             </div>
             {permission !== 'denied' && (
               <button className="btn btn-primary btn-lg" onClick={handleRequestPermission} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                Aktifkan Sekarang <Rocket size={16} />
+                {translateCopy("Aktifkan Sekarang")} <Rocket size={16} />
               </button>
             )}
           </div>
@@ -145,17 +151,17 @@ export default function NotificationsPage() {
       {/* Stats */}
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Bell size={28} /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><Bell size={28} /></div>
           <div className="stat-info">
             <h3>{activeReminders}</h3>
-            <p>Reminder Aktif</p>
+            <p>{translateCopy("Reminder Aktif")}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><MailCheck size={28} /></div>
           <div className="stat-info">
             <h3>{history.length}</h3>
-            <p>Notif Terkirim</p>
+            <p>{translateCopy("Notif Terkirim")}</p>
           </div>
         </div>
         <div className="stat-card">
@@ -164,14 +170,14 @@ export default function NotificationsPage() {
           </div>
           <div className="stat-info">
             <h3>{permission === 'granted' ? 'Aktif' : 'Off'}</h3>
-            <p>Status Izin</p>
+            <p>{translateCopy("Status Izin")}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><Zap size={28} /></div>
           <div className="stat-info">
             <h3>{reminders.length}</h3>
-            <p>Total Reminder</p>
+            <p>{translateCopy("Total Reminder")}</p>
           </div>
         </div>
       </div>
@@ -179,13 +185,13 @@ export default function NotificationsPage() {
       {/* Tabs */}
       <div className="tabs mb-2">
         <button className={`tab ${activeTab === 'reminders' ? 'active' : ''}`} onClick={() => setActiveTab('reminders')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Bell size={16} /> Reminder ({reminders.length})
+          <Bell size={16} /> {translateCopy("Reminder (")}{reminders.length})
         </button>
         <button className={`tab ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab('templates')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Package size={16} /> Template Cepat
+          <Package size={16} /> {translateCopy("Template Cepat")}
         </button>
         <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <History size={16} /> Riwayat ({history.length})
+          <History size={16} /> {translateCopy("Riwayat (")}{history.length})
         </button>
       </div>
 
@@ -195,9 +201,9 @@ export default function NotificationsPage() {
           {reminders.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><BellOff size={48} color="var(--accent-purple)" /></div>
-              <h3>Belum ada reminder</h3>
-              <p>Tambahkan reminder atau pakai template cepat biar kamu selalu diingetin!</p>
-              <button className="btn btn-primary mt-2" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Tambah Reminder</button>
+              <h3>{translateCopy("Belum ada reminder")}</h3>
+              <p>{translateCopy("Tambahkan reminder atau pakai template cepat biar kamu selalu diingetin!")}</p>
+              <button className="btn btn-primary mt-2" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {translateCopy("Tambah Reminder")}</button>
             </div>
           ) : (
               <div className="reminder-list">
@@ -207,14 +213,14 @@ export default function NotificationsPage() {
                     <div key={r.id} className={`reminder-item ${!r.enabled ? 'disabled' : ''}`}>
                       <div className="reminder-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={20} /></div>
                       <div className="reminder-info">
-                        <h4>{r.title}</h4>
+                        <h4>{localizeReminder(r, language).title}</h4>
                         <div className="reminder-meta">
                           <span className="reminder-time" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {r.time}</span>
                       <span className="reminder-days">
-                        {r.days.length === 7 ? 'Setiap hari' : r.days.map(d => DAY_NAMES[d]).join(', ')}
+                        {r.days.length === 7 ? translateCopy("Setiap hari") : r.days.map(d => DAY_NAMES[d]).join(', ')}
                       </span>
                     </div>
-                    {r.body && <p className="reminder-body">{r.body}</p>}
+                    {r.body && <p className="reminder-body">{localizeReminder(r, language).body}</p>}
                   </div>
                   <div className="reminder-actions">
                     <button
@@ -242,16 +248,16 @@ export default function NotificationsPage() {
               <div key={i} className="card card-padding template-card">
                 <div className="flex items-center gap-1 mb-2">
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', color: 'var(--accent-purple)' }}><Icon size={18} /></span>
-                  <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{t.title}</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{translateCopy(t.title)}</h3>
                 </div>
-                <p className="text-sm text-secondary mb-2">{t.body}</p>
+                <p className="text-sm text-secondary mb-2">{translateCopy(t.body)}</p>
                 <div className="flex flex-wrap gap-1 mb-2">
                   {t.times.map((time, j) => (
                     <span key={j} className="badge badge-purple" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {time}</span>
                   ))}
                 </div>
                 <button className="btn btn-primary btn-sm w-full" onClick={() => handleAddTemplate(t)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <Plus size={14} /> Aktifkan Semua ({t.times.length} reminder)
+                  <Plus size={14} /> {translateCopy("Aktifkan Semua (")}{t.times.length} {translateCopy("reminder)")}
                 </button>
               </div>
             );
@@ -265,22 +271,22 @@ export default function NotificationsPage() {
           {history.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}><Inbox size={48} color="var(--accent-purple)" /></div>
-              <h3>Belum ada riwayat</h3>
-              <p>Notifikasi yang terkirim akan muncul di sini</p>
+              <h3>{translateCopy("Belum ada riwayat")}</h3>
+              <p>{translateCopy("Notifikasi yang terkirim akan muncul di sini")}</p>
             </div>
           ) : (
             history.map((h, i) => {
               const Icon = CATEGORY_ICONS[h.category] || Bell;
               return (
                 <div key={i} className="activity-item">
-                  <div className="activity-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}>
+                  <div className="activity-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}>
                     <Icon size={20} />
                   </div>
                   <div>
-                  <div className="text-sm font-semibold">{h.title}</div>
-                  {h.body && <div className="text-xs text-secondary">{h.body}</div>}
+                  <div className="text-sm font-semibold">{localizeReminder(h, language).title}</div>
+                  {h.body && <div className="text-xs text-secondary">{localizeReminder(h, language).body}</div>}
                   <div className="activity-time">
-                    {new Date(h.firedAt).toLocaleString('id-ID', {
+                    {new Date(h.firedAt).toLocaleString(uiLanguage === 'id' ? 'id-ID' : 'en-US', {
                       day: 'numeric', month: 'short', year: 'numeric',
                       hour: '2-digit', minute: '2-digit',
                     })}
@@ -298,47 +304,47 @@ export default function NotificationsPage() {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Tambah Reminder</h2>
+              <h2>{translateCopy("Tambah Reminder")}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowAddModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleAddReminder}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Judul Reminder</label>
+                  <label className="form-label">{translateCopy("Judul Reminder")}</label>
                   <input className="form-input" value={form.title}
                     onChange={e => setForm({...form, title: e.target.value})}
-                    placeholder="Contoh: Minum Air..." autoFocus />
+                    placeholder={translateCopy("Contoh: Minum Air...")} autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Pesan (opsional)</label>
+                  <label className="form-label">{translateCopy("Pesan (opsional)")}</label>
                   <textarea className="form-textarea" value={form.body}
                     onChange={e => setForm({...form, body: e.target.value})}
-                    placeholder="Pesan yang muncul di notifikasi..."
+                    placeholder={translateCopy("Pesan yang muncul di notifikasi...")}
                     style={{ minHeight: '60px' }} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Waktu</label>
+                    <label className="form-label">{translateCopy("Waktu")}</label>
                     <input type="time" className="form-input" value={form.time}
                       onChange={e => setForm({...form, time: e.target.value})} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Kategori</label>
+                    <label className="form-label">{translateCopy("Kategori")}</label>
                     <select className="form-select" value={form.category}
                       onChange={e => setForm({...form, category: e.target.value})}>
-                      <option value="custom">🔔 Custom</option>
-                      <option value="habit">🔥 Habit</option>
-                      <option value="task">✅ Task</option>
-                      <option value="goal">🎯 Goal</option>
-                      <option value="water">💧 Water</option>
-                      <option value="break">☕ Break</option>
-                      <option value="health">💪 Health</option>
+                      <option value="custom">{translateCopy("🔔 Custom")}</option>
+                      <option value="habit">{translateCopy("🔥 Habit")}</option>
+                      <option value="task">{translateCopy("✅ Task")}</option>
+                      <option value="goal">{translateCopy("🎯 Goal")}</option>
+                      <option value="water">{translateCopy("💧 Water")}</option>
+                      <option value="break">{translateCopy("☕ Break")}</option>
+                      <option value="health">{translateCopy("💪 Health")}</option>
                       <option value="pomodoro">⏱️ Pomodoro</option>
                     </select>
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Hari Aktif</label>
+                  <label className="form-label">{translateCopy("Hari Aktif")}</label>
                   <div className="day-picker">
                     {DAY_NAMES.map((name, idx) => (
                       <button key={idx} type="button"
@@ -350,25 +356,25 @@ export default function NotificationsPage() {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Link Tujuan (opsional)</label>
+                  <label className="form-label">{translateCopy("Link Tujuan (opsional)")}</label>
                   <select className="form-select" value={form.url}
                     onChange={e => setForm({...form, url: e.target.value})}>
-                    <option value="/">Dashboard</option>
-                    <option value="/tasks">Task Manager</option>
-                    <option value="/habits">Habit Tracker</option>
-                    <option value="/pomodoro">Pomodoro Timer</option>
-                    <option value="/goals">Goal Setting</option>
-                    <option value="/finance">Finance</option>
-                    <option value="/health">Health & Fitness</option>
-                    <option value="/journal">Journal</option>
-                    <option value="/reading">Reading List</option>
-                    <option value="/calendar">Calendar</option>
+                    <option value="/">{translateCopy("Dashboard")}</option>
+                    <option value="/tasks">{translateCopy("Task Manager")}</option>
+                    <option value="/habits">{translateCopy("Habit Tracker")}</option>
+                    <option value="/pomodoro">{translateCopy("Pomodoro Timer")}</option>
+                    <option value="/goals">{translateCopy("Goal Setting")}</option>
+                    <option value="/finance">{translateCopy("Finance")}</option>
+                    <option value="/health">{translateCopy("Health & Fitness")}</option>
+                    <option value="/journal">{translateCopy("Journal")}</option>
+                    <option value="/reading">{translateCopy("Reading List")}</option>
+                    <option value="/calendar">{translateCopy("Calendar")}</option>
                   </select>
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Tambah Reminder</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>{translateCopy("Batal")}</button>
+                <button type="submit" className="btn btn-primary">{translateCopy("Tambah Reminder")}</button>
               </div>
             </form>
           </div>

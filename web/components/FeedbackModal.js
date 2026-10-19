@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 const EMOJIS = [
   { value: 1, icon: '😡', label: 'Kecewa' },

@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { STORAGE_KEYS } from '../lib/storage';
 import { EncryptedStorage } from '../lib/secureStorage';
@@ -25,9 +26,7 @@ export function useJournal() {
     setLoading(true);
     try {
       const saved = await EncryptedStorage.getItem(STORAGE_KEYS.JOURNAL);
-      if (saved && Array.isArray(saved)) {
-        setEntries(saved);
-      }
+      setEntries(Array.isArray(saved) ? saved : []);
     } catch (e) {
       console.error('Failed to load journal entries:', e);
     } finally {
@@ -37,6 +36,8 @@ export function useJournal() {
 
   useEffect(() => {
     loadJournal();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadJournal);
+    return () => subscription.remove();
   }, [loadJournal]);
 
   const saveEntries = async (newEntries: JournalEntry[]) => {

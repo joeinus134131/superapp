@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ViewStyle, TouchableOpacity, StyleProp } from 'react-native';
 import { useColors } from '../../lib/theme';
 import { useTheme } from '../../context/themeContext';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   bordered?: boolean;
 }
@@ -26,7 +26,7 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, bordered =
 
   if (onPress) {
     return (
-      <TouchableOpacity style={containerStyle} onPress={onPress} activeOpacity={0.7}>
+      <TouchableOpacity style={containerStyle} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
         {children}
       </TouchableOpacity>
     );
@@ -37,7 +37,7 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, bordered =
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: 16,
     overflow: 'hidden',
   }
 });

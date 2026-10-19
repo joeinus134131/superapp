@@ -8,6 +8,8 @@ Dokumentasi lengkap untuk SuperApp monorepo (Web + Mobile).
 
 | Tujuan | Dokumen |
 |--------|---------|
+| Evaluasi menyeluruh & rencana perbaikan | [comprehensive_evaluation.md](./comprehensive_evaluation.md) |
+| Analisis strategis produk | [strategic_improvement_analysis.md](./strategic_improvement_analysis.md) |
 | Pertama kali setup | [guides/GETTING_STARTED.md](./guides/GETTING_STARTED.md) |
 | Quick start mobile | [guides/QUICK_START_MOBILE.md](./guides/QUICK_START_MOBILE.md) |
 | Setup monorepo | [guides/MONOREPO_SETUP.md](./guides/MONOREPO_SETUP.md) |

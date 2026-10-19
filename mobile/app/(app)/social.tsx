@@ -1,3 +1,4 @@
+import { HeaderText } from '../../components/HeaderText';
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
@@ -5,6 +6,7 @@ import {
   Modal, TextInput
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
@@ -22,14 +24,15 @@ const { width } = Dimensions.get('window');
 const getStyles = (c: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 2 },
-  
+
   tabWrapper: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginVertical: 20 },
   tab: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: 'transparent', backgroundColor: 'rgba(150,150,150,0.05)' },
   tabText: { fontSize: 13, fontWeight: '800' },
-  
+
   content: { paddingHorizontal: 24 },
   podiumContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', marginVertical: 30, gap: 16 },
   podiumItem: { alignItems: 'center', width: (width - 80) / 3 },
@@ -65,11 +68,11 @@ const getStyles = (c: any, isDark: boolean) => StyleSheet.create({
   modalContent: { width: '100%', borderRadius: 28, padding: 28, elevation: 20 },
   modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 4 },
   modalSubtitle: { fontSize: 14, fontWeight: '600', marginBottom: 24, opacity: 0.8 },
-  
+
   inputGroup: { marginBottom: 20 },
   inputLabel: { fontSize: 10, fontWeight: '900', marginBottom: 8, letterSpacing: 1 },
   input: { borderRadius: 16, padding: 16, fontSize: 16, borderWidth: 1, fontWeight: '700' },
-  
+
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 12 },
   modalBtn: { flex: 1, paddingVertical: 16, borderRadius: 18, alignItems: 'center' },
 });
@@ -85,12 +88,13 @@ interface Friend {
 }
 
 export default function SocialScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
   const { t } = useLanguage();
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'squads'>('leaderboard');
   const [leaderboard, setLeaderboard] = useState<Friend[]>([]);
@@ -109,8 +113,8 @@ export default function SocialScreen() {
       if (response.data?.data) {
         setLeaderboard(response.data.data);
       }
-    } catch (e) {
-      console.error('[Social] Gagal ambil leaderboard:', e);
+    } catch (e: any) {
+      console.warn('[Social] Gagal ambil leaderboard:', e?.message || e);
     } finally {
       setLoading(false);
     }
@@ -123,10 +127,10 @@ export default function SocialScreen() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data?.data) {
-        setSquads(response.data.data);
+        setSquads(Array.isArray(response.data.data) ? response.data.data : []);
       }
-    } catch (e) {
-      console.error('[Social] Gagal ambil squads:', e);
+    } catch (e: any) {
+      console.warn('[Social] Gagal ambil squads:', e?.message || e);
     }
   }, []);
 
@@ -145,8 +149,8 @@ export default function SocialScreen() {
       setSquadName('');
       setSquadDesc('');
       fetchSquads();
-    } catch (e) {
-      console.error('[Social] Gagal bikin squad:', e);
+    } catch (e: any) {
+      console.warn('[Social] Gagal bikin squad:', e?.message || e);
     } finally {
       setLoading(false);
     }
@@ -169,39 +173,23 @@ export default function SocialScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Header */}
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.blue + '15' }]}>
-            <MaterialIcons name="groups" size={24} color={c.blue} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>Social Hub</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>Connect & Compete with your Squad</Text>
-          </View>
-        </View>
-      </View>
+      <WhenyaHeader
+        title={translateCopy("Social Hub")}
+        subtitle={translateCopy("Connect & Compete with your Squad")}
+        showBack={router.canGoBack()}
+        tabs={[
+          { key: 'leaderboard', label: translateCopy("Global Leaderboard") },
+          { key: 'squads', label: translateCopy("My Squads") },
+        ]}
+        activeTab={activeTab}
+        onTabChange={(tabKey) => setActiveTab(tabKey as any)}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={c.purple} />}
-        contentContainerStyle={{ paddingBottom: layout.bottomPadding + 100 }}
+        contentContainerStyle={{ paddingTop: 14, paddingBottom: layout.bottomPadding + 100 }}
       >
-        {/* Tabs */}
-        <View style={styles.tabWrapper}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'leaderboard' && { backgroundColor: c.purple + '15', borderColor: c.purple }]} 
-            onPress={() => setActiveTab('leaderboard')}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'leaderboard' ? c.purple : c.textMuted }]}>Global Leaderboard</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'squads' && { backgroundColor: c.purple + '15', borderColor: c.purple }]} 
-            onPress={() => setActiveTab('squads')}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'squads' ? c.purple : c.textMuted }]}>My Squads</Text>
-          </TouchableOpacity>
-        </View>
 
         {activeTab === 'leaderboard' ? (
           <View style={styles.content}>
@@ -270,7 +258,7 @@ export default function SocialScreen() {
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={[styles.friendName, { color: c.textPrimary }]}>{friend.name}</Text>
                     <Text style={[styles.friendTask, { color: c.textMuted }]} numberOfLines={1}>
-                      {friend.currentTask || 'Sedang Fokus'}
+                      {friend.currentTask || translateCopy("Sedang Fokus")}
                     </Text>
                   </View>
                   <View style={styles.friendStats}>
@@ -294,33 +282,33 @@ export default function SocialScreen() {
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[styles.friendName, { color: c.textPrimary }]}>{squad.name}</Text>
                         <Text style={[styles.friendTask, { color: c.textMuted }]} numberOfLines={1}>
-                          {squad.description || 'No description'}
+                          {squad.description || translateCopy("No description")}
                         </Text>
                       </View>
                       <View style={styles.friendStats}>
                         <Text style={[styles.friendXP, { color: c.blue }]}>{squad.member_count}</Text>
-                        <Text style={[styles.friendLevel, { color: c.textMuted }]}>Members</Text>
+                        <Text style={[styles.friendLevel, { color: c.textMuted }]}>{translateCopy("Members")}</Text>
                       </View>
                     </Card>
                   </TouchableOpacity>
                 ))}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.createBtn, { backgroundColor: c.purple, marginTop: 20, width: '100%' }]}
                   onPress={() => setShowCreateModal(true)}
                 >
-                  <Text style={styles.createBtnText}>Bikin Squad Lain</Text>
+                  <Text style={styles.createBtnText}>{translateCopy("Bikin Squad Lain")}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.emptySquad}>
                 <MaterialIcons name="group-add" size={64} color={c.textMuted} />
-                <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>Belum punya Squad?</Text>
-                <Text style={[styles.emptyDesc, { color: c.textSecondary }]}>Bikin komunitas lo sendiri dan mulai kompetisi sehat hari ini!</Text>
-                <TouchableOpacity 
+                <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>{translateCopy("Belum punya Squad?")}</Text>
+                <Text style={[styles.emptyDesc, { color: c.textSecondary }]}>{translateCopy("Bikin komunitas lo sendiri dan mulai kompetisi sehat hari ini!")}</Text>
+                <TouchableOpacity
                   style={[styles.createBtn, { backgroundColor: c.purple }]}
                   onPress={() => setShowCreateModal(true)}
                 >
-                  <Text style={styles.createBtnText}>Bikin Squad Baru</Text>
+                  <Text style={styles.createBtnText}>{translateCopy("Bikin Squad Baru")}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -333,14 +321,14 @@ export default function SocialScreen() {
         <View style={styles.modalOverlay}>
           <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <View style={[styles.modalContent, { backgroundColor: c.bgCard, borderColor: c.border, borderWidth: 1 }]}>
-            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>Bikin Squad Baru</Text>
-            <Text style={[styles.modalSubtitle, { color: c.textSecondary }]}>Bangun komunitas produktivitasmu sendiri.</Text>
-            
+            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{translateCopy("Bikin Squad Baru")}</Text>
+            <Text style={[styles.modalSubtitle, { color: c.textSecondary }]}>{translateCopy("Bangun komunitas produktivitasmu sendiri.")}</Text>
+
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: c.textMuted }]}>NAMA SQUAD</Text>
+              <Text style={[styles.inputLabel, { color: c.textMuted }]}>{translateCopy("NAMA SQUAD")}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-                placeholder="Contoh: Pejuang Subuh"
+                placeholder={translateCopy("Contoh: Pejuang Subuh")}
                 placeholderTextColor={c.textMuted}
                 value={squadName}
                 onChangeText={setSquadName}
@@ -348,10 +336,10 @@ export default function SocialScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: c.textMuted }]}>DESKRIPSI (OPSIONAL)</Text>
+              <Text style={[styles.inputLabel, { color: c.textMuted }]}>{translateCopy("DESKRIPSI (OPSIONAL)")}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border, height: 80, textAlignVertical: 'top' }]}
-                placeholder="Apa visi squad kamu?"
+                placeholder={translateCopy("Apa visi squad kamu?")}
                 placeholderTextColor={c.textMuted}
                 value={squadDesc}
                 onChangeText={setSquadDesc}
@@ -360,18 +348,18 @@ export default function SocialScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]} 
+              <TouchableOpacity
+                style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]}
                 onPress={() => setShowCreateModal(false)}
               >
-                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>Batal</Text>
+                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: c.purple }]} 
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: c.purple }]}
                 onPress={handleCreateSquad}
                 disabled={!squadName.trim() || loading}
               >
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{loading ? 'Membuat...' : 'Bikin Squad'}</Text>
+                <Text style={{ color: '#fff', fontWeight: '800' }}>{loading ? 'Membuat...' : translateCopy("Bikin Squad")}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,15 +1,18 @@
+import { HeaderText } from '../../components/HeaderText';
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Alert, StyleSheet, RefreshControl, Modal, useWindowDimensions
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
 import { getToday } from '../../lib/helpers';
 import { useLanguage } from '../../context/languageContext';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 
 import { useHabits, Habit } from '../../hooks/useHabits';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
@@ -22,14 +25,15 @@ import { MicroTimer } from '../../components/MicroTimer';
 import { MomentumHabitCard } from '../../components/MomentumHabitCard';
 
 const HABIT_ICONS = [
-  'star', 'fitness-center', 'menu-book', 'self-improvement', 'directions-run', 
-  'water-drop', 'restaurant', 'bedtime', 'edit', 'ads-click', 
-  'cleaning-services', 'medication', 'apple', 'computer', 'directions-bike', 
-  'local-cafe', 'palette', 'music-note', 'eco', 'shower', 
+  'star', 'fitness-center', 'menu-book', 'self-improvement', 'directions-run',
+  'water-drop', 'restaurant', 'bedtime', 'edit', 'ads-click',
+  'cleaning-services', 'medication', 'apple', 'computer', 'directions-bike',
+  'local-cafe', 'palette', 'music-note', 'eco', 'shower',
   'smartphone', 'volume-off', 'handshake', 'wb-sunny'
 ];
 
 export default function HabitsScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
@@ -37,10 +41,11 @@ export default function HabitsScreen() {
   const { t, language } = useLanguage();
   const { width } = useWindowDimensions();
   const isSmall = width < 380;
+  const router = useRouter();
 
-  const { 
-    habits, loading, xpToast, levelUpData, setLevelUpData, 
-    addHabit, toggleHabit, deleteHabit, refreshHabits 
+  const {
+    habits, loading, xpToast, levelUpData, setLevelUpData,
+    addHabit, toggleHabit, deleteHabit, refreshHabits
   } = useHabits();
 
   const [showModal, setShowModal] = useState(false);
@@ -78,30 +83,35 @@ export default function HabitsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Header */}
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
-            <MaterialIcons name="local-fire-department" size={24} color={c.purple} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[isSmall ? styles.pageTitleSmall : styles.pageTitle, { color: c.textPrimary }]} numberOfLines={1}>{t('sidebar.habits')}</Text>
-            <Text style={[isSmall ? styles.pageSubtitleSmall : styles.pageSubtitle, { color: c.textSecondary }]} numberOfLines={1}>{t('habits.subtitle')}</Text>
-          </View>
-        </View>
-        <TouchableOpacity 
-          style={[styles.historyToggle, { backgroundColor: c.purple + '15', borderColor: c.purple + '30', borderWidth: 1, marginLeft: 12 }]} 
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setHistoryRange(r => r === 7 ? 30 : 7);
-          }}
-        >
-          <MaterialIcons name="event" size={16} color={c.purple} />
-          <Text style={{ color: c.purple, fontWeight: '800', marginLeft: isSmall ? 4 : 6, fontSize: isSmall ? 11 : 13 }}>
-            {historyRange} {isSmall ? '' : t('habits.day')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.habits')}
+        subtitle={t('habits.subtitle')}
+        showBack={router.canGoBack()}
+        rightSlot={
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 16,
+              backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#ECEFE6',
+              gap: 4,
+            }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setHistoryRange(r => (r === 7 ? 30 : 7));
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={translateCopy("Rentang Waktu")}
+          >
+            <MaterialIcons name="event" size={14} color={c.textPrimary} />
+            <Text style={{ color: c.textPrimary, fontWeight: '700', fontSize: 11 }}>
+              {historyRange} {translateCopy("Hari")}
+            </Text>
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshHabits} tintColor={c.purple} />}
@@ -133,7 +143,7 @@ export default function HabitsScreen() {
               <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('habits.consistency_analysis')}</Text>
             </View>
           </View>
-          
+
           <View style={styles.analysisMeta}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.consistencyLabel, { color: c.textSecondary }]}>{t('habits.global_consistency')}</Text>
@@ -151,7 +161,7 @@ export default function HabitsScreen() {
               const date = new Date(d);
               const isToday = d === today;
               const completedHabits = habits.filter(h => h.completedDates?.includes(d));
-              
+
               return (
                 <View key={d} style={styles.timelineDay}>
                   <View style={styles.timelineLeft}>
@@ -161,7 +171,7 @@ export default function HabitsScreen() {
                     <View style={[styles.timelineLine, { backgroundColor: c.border }]} />
                     <View style={[styles.timelineDot, { backgroundColor: completedHabits.length > 0 ? c.green : c.border }]} />
                   </View>
-                  
+
                   <View style={styles.timelineContent}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Text style={[styles.timelineDayName, { color: c.textPrimary }]}>
@@ -171,7 +181,7 @@ export default function HabitsScreen() {
                         <Badge label={`${completedHabits.length} ${t('habits.status_completed').toUpperCase()}`} color={c.green} />
                       )}
                     </View>
-                    
+
                     <View style={styles.timelineHabits}>
                       {completedHabits.length === 0 ? (
                         <Text style={[styles.noHabitsText, { color: c.textMuted }]}>{t('habits.no_activity')}</Text>
@@ -201,7 +211,7 @@ export default function HabitsScreen() {
             <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('habits.empty_list')}</Text>
           </View>
         ) : habits.map(h => (
-          <MomentumHabitCard 
+          <MomentumHabitCard
             key={h.id}
             habit={h}
             isDone={h.completedDates?.includes(today)}
@@ -220,10 +230,10 @@ export default function HabitsScreen() {
 
       <FloatingActionButton onPress={() => setShowModal(true)} />
 
-      <LevelUpModal 
-        visible={!!levelUpData} 
-        level={levelUpData} 
-        onClose={() => setLevelUpData(null)} 
+      <LevelUpModal
+        visible={!!levelUpData}
+        level={levelUpData}
+        onClose={() => setLevelUpData(null)}
       />
 
       {/* Add Modal */}
@@ -234,13 +244,13 @@ export default function HabitsScreen() {
               <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('habits.new_habit')}</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
             </View>
-            
+
             <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('habits.icon_label')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiGrid}>
               {HABIT_ICONS.map(iconName => (
-                <TouchableOpacity 
-                  key={iconName} 
-                  style={[styles.emojiSelect, { backgroundColor: c.bgInput }, selectedIcon === iconName && { backgroundColor: c.purple + '20', borderColor: c.purple, borderWidth: 1 }]} 
+                <TouchableOpacity
+                  key={iconName}
+                  style={[styles.emojiSelect, { backgroundColor: c.bgInput }, selectedIcon === iconName && { backgroundColor: c.purple + '20', borderColor: c.purple, borderWidth: 1 }]}
                   onPress={() => { setSelectedIcon(iconName); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
                   <MaterialIcons name={iconName as any} size={24} color={selectedIcon === iconName ? c.purple : c.textSecondary} />
@@ -248,7 +258,7 @@ export default function HabitsScreen() {
               ))}
             </ScrollView>
 
-            <Input 
+            <Input
               label={t('habits.name_label')}
               value={newHabitName}
               onChangeText={setNewHabitName}
@@ -256,10 +266,10 @@ export default function HabitsScreen() {
               autoFocus
               containerStyle={{ marginTop: 24 }}
             />
-            
-            <Button 
-              label={t('habits.start_btn')} 
-              onPress={handleAddHabit} 
+
+            <Button
+              label={t('habits.start_btn')}
+              onPress={handleAddHabit}
               variant="primary"
               style={{ height: 60, marginTop: 12 }}
             />
@@ -272,11 +282,11 @@ export default function HabitsScreen() {
         <View style={styles.levelUpOverlay}>
           <View style={[styles.levelUpModal, { backgroundColor: c.bgPrimary, borderColor: c.purple }]}>
             <MaterialIcons name="auto-awesome" size={64} color={c.purple} style={{ marginBottom: 16 }} />
-            <Text style={[styles.levelUpTitle, { color: c.purple }]}>LEVEL UP!</Text>
-            <Text style={[styles.levelUpDesc, { color: c.textPrimary }]}>{t('achievements.level_up_desc') || 'Anda telah mencapai Level'} {levelUpData.level}</Text>
+            <Text style={[styles.levelUpTitle, { color: c.purple }]}>{translateCopy("LEVEL UP!")}</Text>
+            <Text style={[styles.levelUpDesc, { color: c.textPrimary }]}>{t('achievements.level_up_desc') || translateCopy("Anda telah mencapai Level")} {levelUpData.level}</Text>
             <Text style={[styles.levelUpRank, { color: c.textSecondary }]}>{levelUpData.title}</Text>
             <TouchableOpacity style={[styles.levelUpBtn, { backgroundColor: c.purple }]} onPress={() => setLevelUpData(null)}>
-              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('tasks.save') || 'Lanjutkan!'}</Text>
+              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('tasks.save') || translateCopy("Lanjutkan!")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -293,7 +303,7 @@ export default function HabitsScreen() {
         <View style={styles.microModalOverlay}>
           <View style={styles.microModalContent}>
             {microModeHabit && (
-              <MicroTimer 
+              <MicroTimer
                 title={microModeHabit.name}
                 onComplete={() => {
                   toggleHabit(microModeHabit.id);
@@ -311,27 +321,28 @@ export default function HabitsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  pageHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingHorizontal: 24, 
-    paddingBottom: 20, 
-    borderBottomWidth: 1 
+  pageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1
   },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageTitleSmall: { fontSize: 22, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 2 },
   pageSubtitleSmall: { fontSize: 12, marginTop: 1 },
   historyToggle: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  
+
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: { flex: 1, padding: 16, alignItems: 'center' },
   statIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   statValue: { fontSize: 18, fontWeight: '900' },
   statLabel: { fontSize: 11, fontWeight: '700' },
-  
+
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   cardTitle: { fontSize: 16, fontWeight: '900' },
   analysisMeta: { flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.1)' },
@@ -339,7 +350,7 @@ const styles = StyleSheet.create({
   consistencyBarTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   consistencyBarFill: { height: '100%', borderRadius: 4 },
   consistencyValue: { fontSize: 20, fontWeight: '900' },
-  
+
   journeyTimeline: { paddingLeft: 4 },
   timelineDay: { flexDirection: 'row', minHeight: 80, marginBottom: 4 },
   timelineLeft: { width: 70, alignItems: 'center', position: 'relative' },
@@ -353,7 +364,7 @@ const styles = StyleSheet.create({
   habitsCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   habitTag: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
   habitTagText: { fontSize: 11, fontWeight: '700' },
-  
+
   sectionLabel: { fontSize: 11, fontWeight: '900', marginLeft: 4, marginBottom: 16, letterSpacing: 1 },
   habitItemCard: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 18, marginBottom: 14 },
   habitIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -362,10 +373,10 @@ const styles = StyleSheet.create({
   habitMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   habitItemMeta: { fontSize: 12, fontWeight: '700' },
   deleteBtn: { padding: 4 },
-  
+
   emptyState: { alignItems: 'center', paddingVertical: 40, opacity: 0.6 },
   emptyText: { fontSize: 15, fontWeight: '800', marginTop: 12 },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -373,16 +384,16 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 14, fontWeight: '800', marginBottom: 12 },
   emojiGrid: { gap: 10, paddingBottom: 10 },
   emojiSelect: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  
-  levelUpOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.8)', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+
+  levelUpOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.8)', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   levelUpModal: { width: '85%', padding: 32, borderRadius: 32, borderWidth: 2, alignItems: 'center' },
   levelUpTitle: { fontSize: 28, fontWeight: '900', marginBottom: 12 },
   levelUpDesc: { fontSize: 16, textAlign: 'center', marginBottom: 24 },
   levelUpRank: { fontSize: 14, marginBottom: 24, textAlign: 'center', fontWeight: '600' },
   levelUpBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#52745a', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
   toastText: { color: '#fff', fontWeight: '800' },
-  microBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginLeft: 8, borderWidth: 1, borderColor: 'rgba(139, 92, 246, 0.3)' },
+  microBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginLeft: 8, borderWidth: 1, borderColor: 'rgba(25, 63, 48, 0.3)' },
   microBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   microModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   microModalContent: { width: '100%', maxWidth: 400 },

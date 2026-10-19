@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useColors } from '../../lib/theme';
 import { useTheme } from '../../context/themeContext';
+import { MaterialIcons } from '@expo/vector-icons';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -17,6 +18,7 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
   inputStyle?: TextStyle;
   labelStyle?: TextStyle;
+  leftIcon?: keyof typeof MaterialIcons.glyphMap;
 }
 
 export const Input: React.FC<InputProps> = ({ 
@@ -25,6 +27,7 @@ export const Input: React.FC<InputProps> = ({
   containerStyle, 
   inputStyle, 
   labelStyle,
+  leftIcon,
   ...props 
 }) => {
   const { isDark } = useTheme();
@@ -37,19 +40,10 @@ export const Input: React.FC<InputProps> = ({
           {label}
         </Text>
       )}
-      <TextInput
-        style={[
-          styles.input,
-          { 
-            backgroundColor: c.bgInput, 
-            color: c.textPrimary, 
-            borderColor: error ? c.red : c.border 
-          },
-          inputStyle
-        ]}
-        placeholderTextColor={c.textMuted}
-        {...props}
-      />
+      <View style={[styles.inputShell, { backgroundColor: c.bgInput, borderColor: error ? c.red : c.border }]}>
+        {leftIcon ? <MaterialIcons name={leftIcon} size={20} color={c.textMuted} style={styles.leftIcon} /> : null}
+        <TextInput style={[styles.input, { color: c.textPrimary }, inputStyle]} placeholderTextColor={c.textMuted} accessibilityLabel={props.accessibilityLabel || label} accessibilityState={{ disabled: props.editable === false }} {...props} />
+      </View>
       {error && (
         <Text style={[styles.error, { color: c.red }]}>
           {error}
@@ -66,16 +60,24 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     marginBottom: 8,
   },
-  input: {
-    borderRadius: 18,
-    padding: 16,
-    fontSize: 16,
+  inputShell: {
+    borderRadius: 12,
     borderWidth: 1,
-    fontWeight: '700',
+    minHeight: 52,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  leftIcon: { marginRight: 10 },
   error: {
     fontSize: 12,
     marginTop: 4,

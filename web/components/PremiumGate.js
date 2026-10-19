@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { usePremium } from '@/lib/premium';
+import { usePremium } from '@superapp/shared/premium';
+import { useLanguage } from "@superapp/shared/language";
+
 
 export default function PremiumGate({ featureId, children, fallbackContext }) {
-    const { checkFeature, useTokens, balance, isPremium, PREMIUM_FEATURES } = usePremium();
+  const { tx: translateCopy } = useLanguage();
+    const { checkFeature, useTokens: spendTokens, balance, isPremium, PREMIUM_FEATURES } = usePremium();
     const [unlocking, setUnlocking] = useState(false);
     const [error, setError] = useState('');
 
@@ -31,14 +34,14 @@ export default function PremiumGate({ featureId, children, fallbackContext }) {
         setError('');
 
         if (balance < feature.cost) {
-            setError(`Token tidak cukup. Butuh ${feature.cost} token, saldomu ${balance}.`);
+            setError(translateCopy("Token tidak cukup. Butuh {0} token, saldomu {1}.", [feature.cost, balance]));
             return;
         }
 
         setUnlocking(true);
         // Simulate slight delay for effect
         setTimeout(() => {
-            const result = useTokens(featureId, feature.cost, `Unlock: ${feature.name}`);
+            const result = spendTokens(featureId, feature.cost, `Unlock: ${feature.name}`);
             if (result.success) {
                 // Success handled by re-render since context updates
             } else {
@@ -64,9 +67,9 @@ export default function PremiumGate({ featureId, children, fallbackContext }) {
                 textAlign: 'center'
             }}>
                 <div style={{ fontSize: '32px', marginBottom: '8px' }}>💎</div>
-                <h3 style={{ marginBottom: '8px' }}>Fitur Premium</h3>
+                <h3 style={{ marginBottom: '8px' }}>{translateCopy("Fitur Premium")}</h3>
                 <p className="text-secondary text-sm mb-2 max-w-sm">
-                    {fallbackContext || `Buka fitur ${feature?.name || 'ini'} untuk meningkatkan produktivitasmu.`}
+                    {fallbackContext || translateCopy("Buka fitur {0} untuk meningkatkan produktivitasmu.", [feature?.name || 'ini'])}
                 </p>
 
                 {feature && (
@@ -76,15 +79,15 @@ export default function PremiumGate({ featureId, children, fallbackContext }) {
                             onClick={handleUnlock}
                             disabled={unlocking}
                         >
-                            {unlocking ? 'Membuka...' : `Buka Akses (${feature.cost} Token)`}
+                            {unlocking ? 'Membuka...' : translateCopy("Buka Akses ({0} Token)", [feature.cost])}
                         </button>
-                        <span className="text-xs text-secondary mt-1">Saldo saat ini: {balance} Token</span>
-                        {error && <span className="text-xs" style={{ color: 'var(--accent-red)' }}>{error}</span>}
+                        <span className="text-xs text-secondary mt-1">{translateCopy("Saldo saat ini:")} {balance} {translateCopy("Token")}</span>
+                        {error && <span className="text-xs" style={{ color: 'var(--accent-red)' }}>{translateCopy(error)}</span>}
                     </div>
                 )}
 
                 {!feature && (
-                    <a href="/premium" className="btn btn-primary mt-2">Dapatkan Token</a>
+                    <a href="/premium" className="btn btn-primary mt-2">{translateCopy("Dapatkan Token")}</a>
                 )}
             </div>
 

@@ -14,6 +14,7 @@ interface LevelUpModalProps {
 }
 
 export const LevelUpModal: React.FC<LevelUpModalProps> = ({ visible, level, onClose }) => {
+  const { tx: translateCopy } = useLanguage();
   const { t } = useLanguage();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -21,7 +22,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ visible, level, onCl
   useEffect(() => {
     if (visible) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -53,34 +54,34 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ visible, level, onCl
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
-        
+
         <Animated.View style={[styles.content, { transform: [{ scale: scaleAnim }] }]}>
           <Animated.View style={[styles.glow, { backgroundColor: level.color, transform: [{ rotate }] }]} />
-          
+
           <View style={[styles.card, { backgroundColor: '#0a0a0a' }]}>
             <View style={[styles.iconContainer, { backgroundColor: level.color + '22' }]}>
               <MaterialIcons name="emoji-events" size={60} color={level.color} />
             </View>
 
-            <Text style={styles.congrats}>LEVEL UP!</Text>
+            <Text style={styles.congrats}>{translateCopy("LEVEL UP!")}</Text>
             <Text style={[styles.levelTitle, { color: level.color }]}>{t(level.key).toUpperCase()}</Text>
-            
+
             <View style={styles.levelBadge}>
               <Text style={styles.levelNumber}>Lv. {level.level}</Text>
             </View>
 
             <Text style={styles.msg}>
-              Luar biasa brok! Lo makin deket jadi versi terbaik diri lo. Terus gaspol!
+              {translateCopy("Luar biasa brok! Lo makin deket jadi versi terbaik diri lo. Terus gaspol!")}
             </Text>
 
-            <TouchableOpacity 
-              style={[styles.btn, { backgroundColor: level.color }]} 
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: level.color }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 onClose();
               }}
             >
-              <Text style={styles.btnText}>SIAAP, LANJUTKAN!</Text>
+              <Text style={styles.btnText}>{translateCopy("SIAAP, LANJUTKAN!")}</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

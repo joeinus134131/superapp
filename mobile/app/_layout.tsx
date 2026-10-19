@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ActivityIndicator, AppState, Image } from 'react-native'
 import { useFonts } from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import { Stack } from 'expo-router'
@@ -9,17 +9,16 @@ import { LanguageProvider, useLanguage } from '../context/languageContext'
 import { AuthProvider, useAuth } from '../hooks/useAuth'
 import { SecurityProvider, useSecurity } from '../context/securityContext'
 import { LockScreen } from '../components/LockScreen'
-import { BrandLogo } from '../components/BrandLogo'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useColors } from '../lib/theme'
-import { registerForPushNotificationsAsync } from '../lib/notifications'
 import { configureSupabaseRuntime } from '@superapp/shared'
 import { getMobileSupabaseConfig } from '../lib/runtimeConfig'
 import { SettingsProvider } from '../context/settingsContext'
 import { initMobileStorage } from '../lib/storageAdapter'
+import { scheduleDatabaseSync } from '../lib/databaseSync'
 import { initAutoSyncListener } from '../lib/syncService'
 
 initMobileStorage()
-initAutoSyncListener()
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync()
@@ -28,22 +27,24 @@ configureSupabaseRuntime(getMobileSupabaseConfig())
 
 function LoadingScreen() {
   const { isDark } = useTheme();
-  const { t } = useLanguage();
+  const { t, tx: translateCopy } = useLanguage();
   const c = useColors(isDark);
-  
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={[styles.loadingContainer, { backgroundColor: c.bgPrimary }]}>
+    <View style={[styles.loadingContainer, { backgroundColor: c.bgPrimary, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.loadingMain}>
-        <BrandLogo size={120} textSize={36} />
+        <Image source={isDark ? require('../assets/branding/splash-mark-dark.png') : require('../assets/branding/splash-mark.png')} style={styles.loadingMark} resizeMode="contain" accessible={false} />
+        <Text style={[styles.loadingBrand, { color: c.textPrimary }]}>Whenya</Text>
         <View style={styles.loadingSpinnerBox}>
-          <ActivityIndicator size="large" color={c.purple} />
-          <Text style={[styles.loadingText, { color: c.textSecondary, marginTop: 16 }]}>
+          <ActivityIndicator size="small" color={isDark ? '#6BB289' : '#193F30'} />
+          <Text style={[styles.loadingText, { color: c.textSecondary, marginTop: 12 }]}>
             {t('login.loading_app')}
           </Text>
         </View>
       </View>
-      <View style={styles.loadingBottom}>
-        <Text style={[styles.loadingVersion, { color: c.textMuted }]}>SelfOne v2.0 • Premium Quality</Text>
+      <View style={[styles.loadingBottom, { bottom: Math.max(insets.bottom, 16) + 12 }]}>
+        <Text style={[styles.loadingVersion, { color: c.textMuted }]}>{translateCopy("Whenya · ruang personalmu")}</Text>
       </View>
     </View>
   );
@@ -53,7 +54,6 @@ function RootNavigator() {
   const { user, loading, isOnboarded } = useAuth()
   const { isLocked } = useSecurity()
   const { isChangingTheme } = useTheme()
-  const { isChangingLanguage } = useLanguage()
 
   useEffect(() => {
     if (!loading) {
@@ -61,7 +61,16 @@ function RootNavigator() {
     }
   }, [loading])
 
-  if (loading || isChangingTheme || isChangingLanguage) {
+  useEffect(() => {
+    if (loading || !user?.id) return;
+    scheduleDatabaseSync();
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') scheduleDatabaseSync();
+    });
+    return () => subscription.remove();
+  }, [loading, user?.id]);
+
+  if (loading || isChangingTheme) {
     return <LoadingScreen />
   }
 
@@ -102,9 +111,8 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        await registerForPushNotificationsAsync();
-        // Pre-load any assets or fonts here
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        // Permission prompts are requested in context, never during cold start.
+        await Promise.resolve()
       } catch (e) {
         console.warn(e)
       } finally {
@@ -114,6 +122,8 @@ export default function RootLayout() {
 
     prepare()
   }, [])
+
+  useEffect(() => initAutoSyncListener(), [])
 
   if (!appIsReady || !fontsLoaded) {
     return null // This will keep the native splash screen until appIsReady is true
@@ -146,18 +156,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingMark: { width: 160, height: 160 },
+  loadingBrand: { fontSize: 30, lineHeight: 38, fontWeight: '600', letterSpacing: -0.8, marginTop: 10 },
   loadingSpinnerBox: {
-    marginTop: 60,
+    marginTop: 28,
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontWeight: '400',
   },
   loadingBottom: {
-    paddingBottom: 40,
+    position: 'absolute',
+    left: 24,
+    right: 24,
     alignItems: 'center',
   },
   loadingVersion: {

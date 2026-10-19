@@ -1,21 +1,23 @@
 import "./globals.css";
+import "./whenya.css";
+import "./login.css";
 import AppShell from "@/components/AppShell";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 export const metadata = {
-  title: "SelfOne — Personal Management Platform",
-  description: "All-in-one platform untuk mengelola tugas, kebiasaan, keuangan, jurnal, kesehatan, dan lebih banyak lagi. Tingkatkan produktivitas dan value diri Anda bersama SelfOne.",
+  title: "Whenya — Your Life, In Sync.",
+  description: "A personal space to plan your day, record what matters, and understand your progress.",
   icons: {
-    icon: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: '/favicon.png',
+    apple: '/whenya-icon.png',
   },
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
       </head>
       <body suppressHydrationWarning={true}>
         <ErrorBoundary>

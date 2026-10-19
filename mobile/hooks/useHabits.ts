@@ -1,3 +1,5 @@
+import { DeviceEventEmitter } from 'react-native';
+import { habitStreak } from '@superapp/shared/insights';
 import { useState, useCallback, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '../lib/storage';
 import { generateId, getToday } from '../lib/helpers';
@@ -31,7 +33,7 @@ export function useHabits() {
           icon: h.icon || 'star'
         }));
         setHabits(migrated);
-      }
+      } else { setHabits([]); }
     } catch (e) {
       console.error('Failed to load habits:', e);
     } finally {
@@ -41,6 +43,8 @@ export function useHabits() {
 
   useEffect(() => {
     loadHabits();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadHabits);
+    return () => subscription.remove();
   }, [loadHabits]);
 
   const saveHabits = async (newHabits: Habit[]) => {
@@ -75,19 +79,7 @@ export function useHabits() {
         ? dates.filter(d => d !== today)
         : [...dates, today];
 
-      let streak = 0;
-      const sorted = [...newDates].sort().reverse();
-      const todayDate = new Date(today);
-      for (let i = 0; i < 60; i++) {
-        const check = new Date(today);
-        check.setDate(todayDate.getDate() - i);
-        const y = check.getFullYear();
-        const m = String(check.getMonth() + 1).padStart(2, '0');
-        const d = String(check.getDate()).padStart(2, '0');
-        const checkStr = `${y}-${m}-${d}`;
-        if (sorted.includes(checkStr)) streak++;
-        else break;
-      }
+      const streak = habitStreak(newDates);
 
       const bestStreak = Math.max(h.bestStreak || 0, streak);
 

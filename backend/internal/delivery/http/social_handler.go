@@ -12,13 +12,14 @@ type SocialHandler struct {
 	usecase domain.SocialUsecase
 }
 
-func NewSocialHandler(app *fiber.App, uc domain.SocialUsecase) {
+func NewSocialHandler(router fiber.Router, uc domain.SocialUsecase) {
 	handler := &SocialHandler{uc}
 
-	social := app.Group("/api/v1/social")
-	
+	social := router.Group("/social")
+
 	social.Get("/leaderboard", handler.GetLeaderboard)
 	social.Get("/squads", handler.GetMySquads)
+	social.Get("/squads/:id", handler.GetSquadByID)
 	social.Post("/squads", handler.CreateSquad)
 	social.Post("/squads/:id/challenges", handler.CreateChallenge)
 	social.Get("/squads/:id/challenges", handler.GetChallenges)
@@ -42,6 +43,21 @@ func (h *SocialHandler) GetMySquads(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": squads})
+}
+
+func (h *SocialHandler) GetSquadByID(c *fiber.Ctx) error {
+	squadIDStr := c.Params("id")
+	squadID, err := uuid.Parse(squadIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid squad ID"})
+	}
+
+	squad, err := h.usecase.GetSquadByID(squadID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Squad not found"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": fiber.Map{"squad": squad}})
 }
 
 func (h *SocialHandler) CreateSquad(c *fiber.Ctx) error {
@@ -72,6 +88,12 @@ func (h *SocialHandler) CreateChallenge(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid squad ID"})
 	}
 
+	userIDStr := c.Locals("user_id").(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
 	var req struct {
 		Title     string `json:"title"`
 		Type      string `json:"type"`
@@ -88,9 +110,9 @@ func (h *SocialHandler) CreateChallenge(c *fiber.Ctx) error {
 	startDate, _ := time.Parse(time.RFC3339, req.StartDate)
 	endDate, _ := time.Parse(time.RFC3339, req.EndDate)
 
-	challenge, err := h.usecase.CreateChallenge(squadID, req.Title, req.Type, req.Target, req.StakeXP, startDate, endDate)
+	challenge, err := h.usecase.CreateChallenge(userID, squadID, req.Title, req.Type, req.Target, req.StakeXP, startDate, endDate)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": challenge})

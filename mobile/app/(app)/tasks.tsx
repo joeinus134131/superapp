@@ -1,9 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { HeaderText } from '../../components/HeaderText';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Modal, StyleSheet, Dimensions, RefreshControl, Alert, SectionList, FlatList
+  Modal, StyleSheet, RefreshControl, Alert, SectionList, FlatList
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
@@ -11,7 +13,9 @@ import { formatDate, PRIORITY_COLORS, CATEGORIES } from '../../lib/helpers';
 import { useLanguage } from '../../context/languageContext';
 import * as Haptics from 'expo-haptics';
 import { useWindowDimensions } from 'react-native';
+import { useRouter } from 'expo-router';
 
+import { getData, setData } from '../../lib/storage';
 import { useTasks, Task } from '../../hooks/useTasks';
 import { LevelUpModal } from '../../components/LevelUpModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
@@ -19,6 +23,17 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
+
+const getCategoryLabel = (category: string | undefined, t: any) => {
+  if (!category) return t('tasks.cat_other') || 'Lainnya';
+  const clean = String(category).trim().replace(/^cat_/, '');
+  const key = `cat_${clean.toLowerCase()}`;
+  const translated = t(`tasks.${key}`);
+  if (translated && !translated.startsWith('cat_') && translated !== key) {
+    return translated;
+  }
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : (t('tasks.cat_other') || 'Lainnya');
+};
 
 const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }: { task: Task, onEdit: (t: Task) => void, onToggle: (id: string, s: string) => void, c: any, t: any, language: string, isSmall?: boolean }) => {
   return (
@@ -33,10 +48,10 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }
             {task.title}
           </Text>
           <TouchableOpacity onPress={() => onToggle(task.id, task.status === 'done' ? 'todo' : 'done')}>
-            <MaterialIcons 
-              name={task.status === 'done' ? 'check-circle' : 'radio-button-unchecked'} 
-              size={24} 
-              color={task.status === 'done' ? c.green : c.textMuted} 
+            <MaterialIcons
+              name={task.status === 'done' ? 'check-circle' : 'radio-button-unchecked'}
+              size={24}
+              color={task.status === 'done' ? c.green : c.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -44,7 +59,7 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }
           <Text style={[isSmall ? styles.taskDescSmall : styles.taskDesc, { color: c.textSecondary }]} numberOfLines={1}>{task.description}</Text>
         ) : null}
         <View style={styles.taskFooter}>
-          <Badge label={t(`tasks.${task.category.toLowerCase().startsWith('cat_') ? task.category.toLowerCase() : 'cat_' + task.category.toLowerCase()}`)} />
+          <Badge label={getCategoryLabel(task.category, t)} />
           {task.deadline ? (
             <View style={styles.deadline}>
               <MaterialIcons name="event" size={14} color={c.textMuted} />
@@ -58,23 +73,39 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }
 });
 
 export default function TasksScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const { width } = useWindowDimensions();
   const isSmall = width < 380;
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
-  const { 
+  const {
     tasks, loading, xpToast, setXpToast, levelUpData, setLevelUpData,
-    addTask, updateTask, deleteTask, moveTask, refreshTasks 
+    addTask, updateTask, deleteTask, moveTask, refreshTasks
   } = useTasks();
-  
+
   const [filter, setFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [showPriorityLegend, setShowPriorityLegend] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+
+  const modeTouched = useRef(false);
+  useEffect(() => {
+    let active = true;
+    getData('superapp_task_view_mode').then(mode => {
+      if (active && !modeTouched.current && (mode === 'list' || mode === 'kanban')) setViewMode(mode);
+    });
+    return () => { active = false; };
+  }, []);
+  const selectViewMode = (mode: 'list' | 'kanban') => {
+    modeTouched.current = true;
+    setViewMode(mode);
+    void setData('superapp_task_view_mode', mode);
+  };
 
   const [form, setForm] = useState({
     title: '', description: '', priority: 'P3', category: 'personal', deadline: '', status: 'todo'
@@ -120,81 +151,68 @@ export default function TasksScreen() {
     }));
   }, [tasks, filter]);
 
-  const filteredTasks = useMemo(() => 
+  const filteredTasks = useMemo(() =>
     filter === 'all' ? tasks : tasks.filter(t => t.status === filter),
   [tasks, filter]);
 
   const renderTask = useCallback(({ item }: { item: Task }) => (
-    <TaskCard 
-      task={item} 
-      onEdit={openEdit} 
-      onToggle={moveTask} 
-      c={c} 
-      t={t} 
-      language={language} 
+    <TaskCard
+      task={item}
+      onEdit={openEdit}
+      onToggle={moveTask}
+      c={c}
+      t={t}
+      language={language}
       isSmall={isSmall}
     />
   ), [openEdit, moveTask, c, t, language, isSmall]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Header */}
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
-            <MaterialIcons name="assignment" size={24} color={c.purple} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]} numberOfLines={1}>
-              {t('sidebar.tasks')}
-            </Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]} numberOfLines={1}>
-              {t('tasks.subtitle')}
-            </Text>
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, marginLeft: 8 }}>
-          <TouchableOpacity 
-            style={[styles.viewToggle, { backgroundColor: c.bgInput, borderColor: c.border, borderWidth: 1 }]} 
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setViewMode(viewMode === 'list' ? 'kanban' : 'list');
-            }}
-          >
-            <MaterialIcons name={viewMode === 'list' ? 'dashboard' : 'view-list'} size={20} color={c.textPrimary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Filter Tabs */}
-      <View style={styles.filterWrapper}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {['all', ...statuses].map(s => {
-            const count = s === 'all' ? tasks.length : tasks.filter(t => t.status === s).length;
-            const isActive = filter === s;
-            return (
+      <WhenyaHeader
+        title={t('sidebar.tasks')}
+        subtitle={t('tasks.subtitle')}
+        showBack={router.canGoBack()}
+        rightSlot={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {(['list', 'kanban'] as const).map(mode => (
               <TouchableOpacity
-                key={s}
-                style={[
-                  styles.filterChip, 
-                  isActive && { backgroundColor: c.purple, borderColor: c.purple },
-                  { borderColor: c.border, borderWidth: 1 }
-                ]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(s); }}
+                key={mode}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: viewMode === mode ? (isDark ? '#3D6850' : '#193F30') : (isDark ? 'rgba(255,255,255,0.08)' : '#ECEFE6'),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  selectViewMode(mode);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={mode === 'list' ? translateCopy("Tampilan List") : translateCopy("Tampilan Kanban")}
               >
-                <Text style={[isSmall ? styles.filterTextSmall : styles.filterText, { color: isActive ? '#fff' : c.textSecondary }]}>
-                  {s === 'all' ? t('tasks.all_categories') : t(`tasks.status_${s}`)}
-                </Text>
-                {count > 0 && (
-                  <View style={[styles.chipBadge, { backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : c.purple + '20' }]}>
-                    <Text style={[styles.chipBadgeText, { color: isActive ? '#fff' : c.purple }]}>{count}</Text>
-                  </View>
-                )}
+                <MaterialIcons
+                  name={mode === 'list' ? 'view-list' : 'dashboard'}
+                  size={17}
+                  color={viewMode === mode ? '#fff' : c.textPrimary}
+                />
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+            ))}
+          </View>
+        }
+        tabs={['all', ...statuses].map(s => ({
+          key: s,
+          label: s === 'all' ? t('tasks.all_categories') : t(`tasks.status_${s}`),
+          count: s === 'all' ? tasks.length : tasks.filter(t => t.status === s).length,
+        }))}
+        activeTab={filter}
+        onTabChange={(tabKey) => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setFilter(tabKey);
+        }}
+      />
 
       {viewMode === 'list' ? (
         filter === 'all' ? (
@@ -219,11 +237,11 @@ export default function TasksScreen() {
                   <MaterialIcons name="assignment-late" size={48} color={c.textMuted} />
                 </View>
                 <Text style={[styles.emptyText, { color: c.textMuted }]}>{t(`tasks.empty_${filter}`)}</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.emptyBtn, { backgroundColor: c.purple + '15' }]}
                   onPress={openAdd}
                 >
-                  <Text style={{ color: c.purple, fontWeight: '800' }}>Buat Tugas Baru</Text>
+                  <Text style={{ color: c.purple, fontWeight: '800' }}>{translateCopy("Buat Tugas Baru")}</Text>
                 </TouchableOpacity>
               </View>
             }
@@ -244,17 +262,17 @@ export default function TasksScreen() {
           />
         )
       ) : (
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 100 }}
-          snapToInterval={Dimensions.get('window').width - 48}
+          snapToInterval={width - 44}
           decelerationRate="fast"
         >
-          {statuses.map(s => {
+          {statuses.filter(s => filter === 'all' || filter === s).map(s => {
             const columnTasks = tasks.filter(t => t.status === s);
             return (
-              <View key={s} style={[styles.kanbanColumn, { width: Dimensions.get('window').width - 64 }]}>
+              <View key={s} style={[styles.kanbanColumn, { width: width - 64 }]}>
                 <View style={styles.columnHeader}>
                   <Text style={[styles.columnTitle, { color: c.textPrimary }]}>{t(`tasks.status_${s}`)}</Text>
                   <View style={[styles.countBadge, { backgroundColor: c.purple + '15' }]}>
@@ -262,6 +280,7 @@ export default function TasksScreen() {
                   </View>
                 </View>
                 <FlatList
+                  refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshTasks} tintColor={c.purple} />}
                   data={columnTasks}
                   keyExtractor={item => item.id}
                   showsVerticalScrollIndicator={false}
@@ -275,18 +294,18 @@ export default function TasksScreen() {
                       <View style={{ padding: 12, flex: 1 }}>
                         <Text style={[styles.kanbanTaskTitle, { color: c.textPrimary }]} numberOfLines={2}>{task.title}</Text>
                         <View style={styles.kanbanFooter}>
-                          <Badge label={t(`tasks.${task.category.toLowerCase().startsWith('cat_') ? task.category.toLowerCase() : 'cat_' + task.category.toLowerCase()}`)} textStyle={{ fontSize: 10 }} />
-                          <TouchableOpacity 
+                          <Badge label={getCategoryLabel(task.category, t)} textStyle={{ fontSize: 10 }} />
+                          <TouchableOpacity
                             onPress={() => {
                               const nextStatus = s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
                               moveTask(task.id, nextStatus);
                             }}
                             style={styles.kanbanActionBtn}
                           >
-                            <MaterialIcons 
-                              name={s === 'done' ? 'check-circle' : s === 'in_progress' ? 'pending' : 'radio-button-unchecked'} 
-                              size={20} 
-                              color={s === 'done' ? c.green : s === 'in_progress' ? c.blue : c.textMuted} 
+                            <MaterialIcons
+                              name={s === 'done' ? 'check-circle' : s === 'in_progress' ? 'pending' : 'radio-button-unchecked'}
+                              size={20}
+                              color={s === 'done' ? c.green : s === 'in_progress' ? c.blue : c.textMuted}
                             />
                           </TouchableOpacity>
                         </View>
@@ -307,10 +326,10 @@ export default function TasksScreen() {
 
       <FloatingActionButton onPress={openAdd} />
 
-      <LevelUpModal 
-        visible={!!levelUpData} 
-        level={levelUpData} 
-        onClose={() => setLevelUpData(null)} 
+      <LevelUpModal
+        visible={!!levelUpData}
+        level={levelUpData}
+        onClose={() => setLevelUpData(null)}
       />
 
       {/* Task Modal */}
@@ -321,7 +340,7 @@ export default function TasksScreen() {
               <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editTask ? t('tasks.edit_task') : t('tasks.new_task')}</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
             </View>
-            
+
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Input
                 label={t('tasks.title_label')}
@@ -353,7 +372,7 @@ export default function TasksScreen() {
                     <View key={p} style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: PRIORITY_COLORS[p] }]} />
                       <Text style={[styles.legendText, { color: c.textPrimary }]}>
-                        <Text style={{ fontWeight: '900' }}>{p}</Text>: {t(`tasks.priority_${p.toLowerCase()}`)}
+                        <Text style={{ fontWeight: '900' }}>{p}</Text>: {t(`tasks.priority_${String(p || '').toLowerCase()}`)}
                       </Text>
                     </View>
                   ))}
@@ -400,17 +419,17 @@ export default function TasksScreen() {
 
               <View style={styles.modalActions}>
                 {editTask && (
-                  <Button 
-                    label="" 
-                    onPress={() => handleDelete(editTask.id)} 
-                    variant="danger" 
+                  <Button
+                    label=""
+                    onPress={() => handleDelete(editTask.id)}
+                    variant="danger"
                     icon={<MaterialIcons name="delete-outline" size={24} color={c.red} />}
                     style={{ width: 60, height: 60 }}
                   />
                 )}
-                <Button 
-                  label={t('tasks.save')} 
-                  onPress={handleSubmit} 
+                <Button
+                  label={t('tasks.save')}
+                  onPress={handleSubmit}
                   style={{ flex: 1, height: 60 }}
                 />
               </View>
@@ -431,16 +450,17 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 24, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 24, fontWeight: '900' },
   pageSubtitle: { fontSize: 13, marginTop: 2, opacity: 0.7 },
   viewToggle: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  
+
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, marginTop: 20 },
   sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   statusIndicator: { width: 4, height: 16, borderRadius: 2 },
   sectionDivider: { flex: 1, height: 1, opacity: 0.2 },
-  
+
   filterWrapper: { paddingVertical: 12 },
   filterScroll: { paddingHorizontal: 24, gap: 10 },
   filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, gap: 8 },
@@ -448,7 +468,7 @@ const styles = StyleSheet.create({
   filterTextSmall: { fontSize: 11, fontWeight: '800' },
   chipBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, minWidth: 20, alignItems: 'center' },
   chipBadgeText: { fontSize: 10, fontWeight: '900' },
-  
+
   taskCard: { flexDirection: 'row', marginBottom: 16 },
   priorityTag: { width: 6 },
   taskContent: { flex: 1, padding: 18 },
@@ -460,12 +480,12 @@ const styles = StyleSheet.create({
   taskFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   deadline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   deadlineText: { fontSize: 11, fontWeight: '600' },
-  
+
   emptyContainer: { alignItems: 'center', paddingVertical: 100 },
   emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(150,150,150,0.05)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyText: { fontSize: 14, fontWeight: '600', marginBottom: 24, textAlign: 'center', paddingHorizontal: 40 },
   emptyBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 16 },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
@@ -484,10 +504,10 @@ const styles = StyleSheet.create({
   statusBtn: { flex: 1, height: 50, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   optionText: { fontSize: 13, fontWeight: '800' },
   modalActions: { flexDirection: 'row', gap: 16, marginTop: 32 },
-  
-  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#52745a', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
   toastText: { color: '#fff', fontWeight: '800' },
- 
+
   kanbanColumn: { marginRight: 20, paddingTop: 10 },
   columnHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: 4 },
   columnTitle: { fontSize: 18, fontWeight: '900', textTransform: 'capitalize' },

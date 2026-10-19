@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { X, Sparkles, Quote } from 'lucide-react';
+import { useLanguage } from "@superapp/shared/language";
+
 
 export default function DailyPopup({ quote, roast }) {
+  const { tx: translateCopy } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -20,29 +23,29 @@ export default function DailyPopup({ quote, roast }) {
 
   return (
     <div className="modal-overlay" onClick={() => setIsOpen(false)}>
-      <div 
-        className="modal" 
-        onClick={e => e.stopPropagation()} 
+      <div
+        className="modal"
+        onClick={e => e.stopPropagation()}
         style={{ maxWidth: '450px', position: 'relative', overflow: 'hidden' }}
       >
-        <button 
-          onClick={() => setIsOpen(false)} 
-          className="btn btn-icon" 
+        <button
+          onClick={() => setIsOpen(false)}
+          className="btn btn-icon"
           style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}
         >
           <X size={20} />
         </button>
 
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{ 
-            width: '64px', height: '64px', borderRadius: '50%', 
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
             background: 'var(--gradient-primary)', margin: '0 auto 16px',
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff'
           }}>
             <Sparkles size={32} />
           </div>
-          <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Selamat datang!</h2>
-          <p className="text-secondary">Ini ringkasan energi untukmu hari ini.</p>
+          <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>{translateCopy("Selamat datang!")}</h2>
+          <p className="text-secondary">{translateCopy("Ini ringkasan energi untukmu hari ini.")}</p>
         </div>
 
         {roast && (
@@ -54,15 +57,15 @@ export default function DailyPopup({ quote, roast }) {
           }}>
             <span style={{ fontSize: '24px' }}>💡</span>
             <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.5, color: 'var(--text-primary)' }}>
-              {roast.text}
+              {translateCopy(roast.text)}
             </p>
           </div>
         )}
 
         {quote && (
           <div style={{
-            background: 'rgba(139, 92, 246, 0.05)',
-            border: '1px solid rgba(139, 92, 246, 0.2)',
+            background: 'rgba(25, 63, 48, 0.05)',
+            border: '1px solid rgba(25, 63, 48, 0.2)',
             padding: '16px', borderRadius: '12px',
             position: 'relative'
           }}>
@@ -76,12 +79,12 @@ export default function DailyPopup({ quote, roast }) {
           </div>
         )}
 
-        <button 
-          className="btn btn-primary w-full mt-4" 
+        <button
+          className="btn btn-primary w-full mt-4"
           onClick={() => setIsOpen(false)}
           style={{ padding: '12px' }}
         >
-          Mulai Produktivitas
+          {translateCopy("Mulai Produktivitas")}
         </button>
       </div>
     </div>

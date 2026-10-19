@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl,
-  StyleSheet, Dimensions, Image, Animated as RNAnimated, Easing, Modal
+  StyleSheet, Dimensions, useWindowDimensions, DeviceEventEmitter, Image, Animated as RNAnimated, Easing, Modal
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -14,7 +14,7 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useColors } from '../../lib/theme';
 import { useLanguage } from '../../context/languageContext';
 import { MOBILE_SPACING, getTwoColumnCardWidth, useMobileLayout } from '../../lib/layout';
-import { getData, STORAGE_KEYS } from '../../lib/storage';
+import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
 import { EncryptedStorage } from '../../lib/secureStorage';
 import { greetingTime, getToday, formatCurrency } from '../../lib/helpers';
 import { getXP, getCurrentLevel, getXPProgress, checkDailyLogin, addXP } from '../../lib/gamification';
@@ -26,18 +26,28 @@ import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { QuickCaptureModal } from '../../components/QuickCaptureModal';
 import { CrossModuleInsights } from '../../components/CrossModuleInsights';
+import { useSettings } from '../../context/settingsContext';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardScreen() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const { t, language } = useLanguage();
+  const { settings, updateSetting } = useSettings();
+  const { user } = useAuth();
   const router = useRouter();
   const today = getToday();
   const layout = useMobileLayout();
-  const columnWidth = getTwoColumnCardWidth(Dimensions.get('window').width);
+  const { width: screenWidth } = useWindowDimensions();
+  const columnWidth = getTwoColumnCardWidth(screenWidth);
 
   const [refreshing, setRefreshing] = useState(false);
   const [gamData, setGamData] = useState({ totalXP: 0 });
+  const [habitsList, setHabitsList] = useState<any[]>([]);
+  const [goalsList, setGoalsList] = useState<any[]>([]);
   const [stats, setStats] = useState({
     tasksCompleted: 0, tasksTotal: 0,
     habitsToday: 0, habitsTotal: 0,
@@ -48,18 +58,18 @@ export default function DashboardScreen() {
   });
   const { tasks, loading, xpToast, addTask, updateTask, deleteTask, moveTask, refreshTasks } = useTasks();
   const { insights, loading: loadingInsights, refreshInsights } = useAIInsights();
-  
+
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState<any>(null);
   const [newLevelData, setNewLevelData] = useState<any>(null);
-  const [isMager, setIsMager] = useState(false);
   const [emergencyStep, setEmergencyStep] = useState<'menu' | 'mission'>('menu');
   const [selectedEmergency, setSelectedEmergency] = useState<any>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showDNAModal, setShowDNAModal] = useState(false);
   const [showQuickCapture, setShowQuickCapture] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   const fadeAnim = useRef(new RNAnimated.Value(0)).current;
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
@@ -97,11 +107,13 @@ export default function DashboardScreen() {
 
     const taskList = tasks || [];
     const habitList = Array.isArray(habits) ? habits : [];
+    setHabitsList(habitList);
     const tx = Array.isArray(transactions) ? transactions : [];
     const p = pomodoro || { sessions: [] };
-    const g = goals || [];
-    const b = books || [];
-    const j = journal || [];
+    const g = Array.isArray(goals) ? goals : [];
+    setGoalsList(g);
+    const b = Array.isArray(books) ? books : [];
+    const j = Array.isArray(journal) ? journal : [];
     const hl = health || { workouts: [] };
 
     const completedTasks = taskList.filter((x: any) => x.status === 'done').length;
@@ -111,7 +123,7 @@ export default function DashboardScreen() {
     const income = tx.filter((x: any) => x.type === 'income').reduce((s: number, x: any) => s + x.amount, 0);
     const expense = tx.filter((x: any) => x.type === 'expense').reduce((s: number, x: any) => s + x.amount, 0);
     const todaySessions = p.sessions?.filter((s: any) => s.date === today).length || 0;
-    const activeGoals = g.filter((x: any) => !x.completed).length;
+    const activeGoals = g.filter((x: any) => !x.completed && !x.archived).length;
     const readingBooks = b.filter((x: any) => x.status === 'reading').length;
     const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
     const workoutsWeek = hl.workouts?.filter((w: any) => new Date(w.date) >= weekAgo).length || 0;
@@ -128,10 +140,34 @@ export default function DashboardScreen() {
     RNAnimated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
   }, [today, tasks]);
 
+  const toggleHabitToday = async (habitId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const updated = habitsList.map((h: any) => {
+      if (h.id !== habitId) return h;
+      const dates = Array.isArray(h.completedDates) ? [...h.completedDates] : [];
+      const isDone = dates.includes(today);
+      const newDates = isDone ? dates.filter((d: string) => d !== today) : [...dates, today];
+      const newStreak = isDone ? Math.max(0, (h.streak || 1) - 1) : (h.streak || 0) + 1;
+      if (!isDone) {
+        handleAddXP('HABIT_COMPLETE');
+      }
+      return { ...h, completedDates: newDates, streak: newStreak };
+    });
+    setHabitsList(updated);
+    await setData(STORAGE_KEYS.HABITS, updated);
+    const todayCount = updated.filter((h: any) => h.completedDates?.includes(today)).length;
+    setStats(prev => ({
+      ...prev,
+      habitsToday: todayCount,
+      habitsTotal: updated.length,
+      streak: Math.max(...updated.map((h: any) => h.streak || 0), 0),
+    }));
+  };
+
   const handleAddXP = async (action: string) => {
     const result = await addXP(action);
     setGamData({ totalXP: result.totalXP });
-    
+
     // Sync to cloud immediately so leaderboard is updated
     const { SyncService } = require('../../lib/syncService');
     SyncService.runSync().catch((e: any) => console.warn('[Sync] XP sync failed:', e));
@@ -143,26 +179,13 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => {
-    const checkMager = () => {
-      const hour = new Date().getHours();
-      // Logic: After 9 AM, if no tasks and no habits done, you are MAGER
-      const isActuallyMager = hour >= 9 && stats.tasksCompleted === 0 && stats.habitsToday === 0;
-      
-      if (isActuallyMager && !isMager) {
-        setIsMager(true);
-        sendImmediateNotification("🚨 DARURAT MAGER!", "Sistem ngeliat lo belum gerak nih. Mau bantuan?");
-      } else if (!isActuallyMager && isMager) {
-        setIsMager(false);
-      }
-    };
-    checkMager();
-  }, [stats.tasksCompleted, stats.habitsToday]);
 
   useEffect(() => {
     loadData();
     checkDailyLogin();
     registerForPushNotificationsAsync();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadData);
+    return () => subscription.remove();
   }, [loadData]);
 
   const onRefresh = async () => {
@@ -190,152 +213,516 @@ export default function DashboardScreen() {
     { label: t('sidebar.pomodoro'), icon: 'timer' as const, route: '/pomodoro', color: c.cyan },
     { label: t('sidebar.finance'), icon: 'account-balance-wallet' as const, route: '/finance', color: '#10b981' },
     { label: t('sidebar.goals'), icon: 'flag' as const, route: '/goals', color: '#f59e0b' },
-    { label: t('sidebar.reading'), icon: 'menu-book' as const, route: '/reading', color: '#8b5cf6' },
+    { label: t('sidebar.reading'), icon: 'menu-book' as const, route: '/reading', color: '#52745a' },
     { label: t('sidebar.health'), icon: 'fitness-center' as const, route: '/health', color: '#ef4444' },
     { label: t('sidebar.journal'), icon: 'create' as const, route: '/journal', color: '#ec4899' },
   ];
 
+  const displayName = user?.name ? user.name.split(' ')[0] : 'Sahabat';
+  const openTasks = (tasks || []).filter((task: any) => task.status !== 'done');
+  const displayTasks = openTasks.slice(0, 4);
+  const dateLabel = new Intl.DateTimeFormat(uiLanguage === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+
+  // Real Weekly Days & Completion Rate
+  const now = new Date();
+  const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Sen, 6 = Min
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - dayOfWeek);
+
+  const dayNames = [translateCopy("Sen"), translateCopy("Sel"), translateCopy("Rab"), translateCopy("Kam"), translateCopy("Jum"), translateCopy("Sab"), translateCopy("Min")];
+  const weeklyDays = dayNames.map((name, idx) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + idx);
+    const dateStr = d.toISOString().split('T')[0];
+    const isCurrentDay = dateStr === today;
+
+    let pct = 0;
+    if (habitsList.length > 0) {
+      const doneCount = habitsList.filter((h: any) => h.completedDates?.includes(dateStr)).length;
+      pct = Math.round((doneCount / habitsList.length) * 100);
+    } else if (tasks && tasks.length > 0) {
+      const doneTasks = tasks.filter((t: any) => t.status === 'done' && (t.completedAt?.startsWith(dateStr) || t.updatedAt?.startsWith(dateStr))).length;
+      const dayTasks = tasks.filter((t: any) => t.createdAt?.startsWith(dateStr) || t.deadline?.startsWith(dateStr) || t.status === 'done').length;
+      pct = dayTasks > 0 ? Math.round((doneTasks / dayTasks) * 100) : 0;
+    }
+
+    return {
+      day: name,
+      pct: Math.min(100, Math.max(0, pct)),
+      active: isCurrentDay,
+    };
+  });
+
+  const pastOrTodayDays = weeklyDays.filter((_, idx) => idx <= dayOfWeek);
+  const overallWeekPct = pastOrTodayDays.length > 0
+    ? Math.round(pastOrTodayDays.reduce((acc, curr) => acc + curr.pct, 0) / pastOrTodayDays.length)
+    : 0;
+  const weekProgressDecimal = Math.min(1, Math.max(0, overallWeekPct / 100));
+
+  // Real Active Primary Goal
+  const activeGoals = goalsList.filter((x: any) => !x.archived && !x.completed);
+  const primaryGoal = activeGoals[0] || goalsList[0];
+  const goalProgressPct = primaryGoal
+    ? (primaryGoal.progress != null
+        ? Math.min(100, Math.max(0, Math.round(primaryGoal.progress)))
+        : (primaryGoal.target ? Math.min(100, Math.round(((primaryGoal.current || 0) / primaryGoal.target) * 100)) : 0))
+    : 0;
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: c.bgPrimary }}>
       <ScrollView
         style={[styles.container, { backgroundColor: c.bgPrimary }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.content, { paddingTop: layout.topPadding, paddingBottom: layout.bottomPadding + 40 }]}>
-        <RNAnimated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <View style={styles.headerTop}>
-            <View>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.content, { paddingTop: layout.topPadding + 8, paddingBottom: layout.bottomPadding + 40 }]}>
+          {/* Header */}
+          <RNAnimated.View style={[styles.header, { opacity: fadeAnim }]}>
+            <View style={styles.headerTop}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <View style={{ marginBottom: 4 }}>
+                  <BrandLogo size={22} showText={true} textSize={17} style={{ justifyContent: 'flex-start' }} />
+                </View>
+                <Text style={[styles.greeting, { color: c.textPrimary }]}>{translateCopy("Halo,")} {displayName} 👋</Text>
+                <Text style={[styles.headerSubtitle, { color: c.textSecondary }]}>
+                  {translateCopy("Langkah kecil hari ini, membawa perubahan besar nanti.")}
+                </Text>
+              </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text style={[styles.greeting, { color: c.textPrimary }]}>{t(greetingTime())}</Text>
-                <MaterialIcons name="waving-hand" size={28} color={c.yellow} />
-              </View>
-              <Text style={[styles.headerSubtitle, { color: c.textSecondary }]}>
-                {t('dashboard.summary')}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/profile')}>
-              <BrandLogo size={40} showText={false} />
-            </TouchableOpacity>
-          </View>
-        </RNAnimated.View>
-
-        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border, flexDirection: 'row', alignItems: 'center' }]}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.xpHeader}>
-              <View style={styles.xpTitleRow}>
-                <Text style={{ fontSize: 18 }}>📖</Text>
-                <Text style={[styles.xpTitle, { color: c.textPrimary }]}>{level.title}</Text>
-                {insights.some(i => i.xpMultiplier && i.xpMultiplier > 1) && (
-                  <View style={[styles.boostBadge, { backgroundColor: c.purple }]}>
-                    <MaterialIcons name="bolt" size={12} color="#fff" />
-                    <Text style={styles.boostBadgeText}>{t('dashboard.xp_boost')}</Text>
-                  </View>
-                )}
+                <TouchableOpacity
+                  style={[styles.headerIconBtn, { backgroundColor: c.bgCard, borderColor: c.border }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowNotificationsModal(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name="notifications-none" size={20} color={c.textPrimary} />
+                  <View style={[styles.unreadDot, { backgroundColor: '#C8AD80' }]} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/(app)/more' as any)}
+                  activeOpacity={0.8}
+                  style={[styles.avatarCircle, { backgroundColor: '#193F30' }]}
+                >
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={[styles.xpTrack, { backgroundColor: c.border }]}>
-              <View style={[styles.xpFill, { width: `${progress.percent}%`, backgroundColor: level.color }]} />
-            </View>
-            <Text style={[styles.xpText, { color: c.textSecondary, marginTop: 8 }]}>
-              {gamData.totalXP} XP • {progress.percent}% {t('gamification.to_next')} Chapter {level.level + 1}
-            </Text>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.dnaContainer} 
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowDNAModal(true);
-            }}
-            activeOpacity={0.8}
-          >
-            <RadarChart data={dnaData} size={110} />
-            <Text style={[styles.radialLabel, { color: c.textMuted, marginTop: 2 }]}>LIFE DNA</Text>
-          </TouchableOpacity>
-        </View>
-
-        {isMager && (
-          <RNAnimated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity 
-              style={[styles.emergencyBtn, { backgroundColor: c.red, marginBottom: 24 }]} 
-              onPress={() => {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                setShowEmergencyModal(true);
-                setEmergencyStep('menu');
-              }}
-              activeOpacity={0.9}
-            >
-              <View style={styles.emergencyIconBox}>
-                <MaterialIcons name="offline-bolt" size={24} color="#fff" />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.emergencyBtnText}>DARURAT MAGER</Text>
-                <Text style={styles.emergencySubtitle}>AI deteksi hambatan produktivitas lo!</Text>
-              </View>
-              <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" style={{ opacity: 0.7 }} />
-            </TouchableOpacity>
           </RNAnimated.View>
-        )}
 
-        <DailyQuestCard />
+          {/* Search / Quick Input Pill */}
+          <TouchableOpacity
+            style={[styles.searchPill, { backgroundColor: c.bgCard, borderColor: c.border }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowQuickCapture(true);
+            }}
+            activeOpacity={0.85}
+          >
+            <MaterialIcons name="search" size={20} color={c.textMuted} />
+            <Text style={[styles.searchPlaceholder, { color: c.textMuted }]}>
+              {translateCopy("Apa yang ingin kamu capai hari ini?")}
+            </Text>
+          </TouchableOpacity>
 
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('insights.title')}</Text>
-        </View>
+          {/* 5 Quick Action Shortcuts (matching Mockup Image 4) */}
+          <View style={styles.quickShortcutsRow}>
+            {[
+              { label: translateCopy("Tugas"), icon: 'checklist' as const, route: '/(app)/tasks', bg: '#EBF4F0', color: '#193F30' },
+              { label: translateCopy("Kebiasaan"), icon: 'local-fire-department' as const, route: '/(app)/habits', bg: '#EFF4EE', color: '#397353' },
+              { label: translateCopy("Keuangan"), icon: 'account-balance-wallet' as const, route: '/(app)/finance', bg: '#F7F2E7', color: '#B38B4D' },
+              { label: translateCopy("Jurnal"), icon: 'create' as const, route: '/(app)/journal', bg: '#F9EFEF', color: '#D97706' },
+              { label: translateCopy("Tujuan"), icon: 'flag' as const, route: '/(app)/goals', bg: '#F5F7EC', color: '#193F30' },
+            ].map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.shortcutItem}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(item.route as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.shortcutIconBox, { backgroundColor: isDark ? c.bgCard : item.bg, borderColor: c.border }]}>
+                  <MaterialIcons name={item.icon} size={22} color={isDark ? c.textPrimary : item.color} />
+                </View>
+                <Text style={[styles.shortcutLabel, { color: c.textPrimary }]}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <CrossModuleInsights isDark={isDark} />
-
-        {/* Stats Grid - Phase 3 Design */}
-        <View style={styles.statsGrid}>
-          {[
-            { label: t('dashboard.tasks_completed'), value: stats.tasksCompleted, total: stats.tasksTotal, icon: 'checklist' as const, color: c.purple },
-            { label: t('dashboard.habits_completed'), value: stats.habitsToday, total: stats.habitsTotal, icon: 'local-fire-department' as const, color: c.green },
-            { label: t('dashboard.focus_sessions'), value: stats.focusSessions, icon: 'timer' as const, color: c.cyan },
-            { label: t('dashboard.longest_streak'), value: stats.streak, icon: 'auto-awesome' as const, color: c.red },
-          ].map((s, i) => (
-            <View key={i} style={[styles.phase3Stat, { width: columnWidth, backgroundColor: c.bgCard, borderColor: c.border }]}>
-              <View style={styles.statHeader}>
-                <MaterialIcons name={s.icon} size={18} color={s.color} />
-                <Text style={[styles.statLabel, { color: c.textSecondary }]}>{s.label}</Text>
+          {/* Progres Minggu Ini (matching Mockup Image 4) */}
+          <View style={[styles.whenyaCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={[styles.cardHeaderTitle, { color: c.textPrimary }]}>{translateCopy("Progres Minggu Ini")}</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/insights' as any)}>
+                <MaterialIcons name="chevron-right" size={22} color={c.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.weekProgressRow}>
+              <View style={styles.progressRingWrapper}>
+                <Svg width={76} height={76} viewBox="0 0 76 76">
+                  <Circle cx="38" cy="38" r="32" stroke={isDark ? 'rgba(255,255,255,0.1)' : '#E4E8E1'} strokeWidth="7" fill="none" />
+                  <Circle
+                    cx="38" cy="38" r="32"
+                    stroke="#397353"
+                    strokeWidth="7"
+                    strokeDasharray="201"
+                    strokeDashoffset={201 * (1 - weekProgressDecimal)}
+                    strokeLinecap="round"
+                    fill="none"
+                    transform="rotate(-90 38 38)"
+                  />
+                </Svg>
+                <View style={styles.progressRingCenter}>
+                  <Text style={[styles.progressRingText, { color: c.textPrimary }]}>{overallWeekPct}%</Text>
+                </View>
               </View>
-              <Text style={[styles.statValue, { color: c.textPrimary }]}>
-                {s.value}{s.total !== undefined ? `/${s.total}` : ''}
-              </Text>
-              <View style={[styles.statLine, { backgroundColor: s.color + '33' }]}>
-                <View style={[styles.statFill, { backgroundColor: s.color, width: s.total ? `${(s.value / s.total) * 100}%` : '60%' }]} />
+              <View style={{ flex: 1, paddingLeft: 14 }}>
+                <Text style={[styles.weekProgressMotivation, { color: c.textPrimary }]}>
+                  {overallWeekPct >= 70
+                    ? translateCopy("Kamu berada di jalur yang tepat!")
+                    : overallWeekPct >= 30
+                    ? translateCopy("Konsistensi mulai terbangun!")
+                    : translateCopy("Mulai langkah kecilmu hari ini!")}
+                </Text>
+                <Text style={[styles.weekProgressSub, { color: c.textSecondary }]}>
+                  {overallWeekPct >= 70
+                    ? translateCopy("Terus konsisten untuk versi terbaik dari dirimu.")
+                    : translateCopy("Selesaikan tugas atau kebiasaan pertamamu.")}
+                </Text>
               </View>
             </View>
-          ))}
-        </View>
 
-        {/* Quick Actions */}
-        <Text style={[styles.sectionTitle, { color: c.textPrimary, marginTop: 10 }]}>{t('dashboard.quick_actions')}</Text>
-        <View style={styles.actionsGrid}>
-          {quickActions.map((a, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[styles.actionCard, { width: columnWidth, backgroundColor: c.bgCard, borderColor: c.border }]}
-              onPress={() => router.push(a.route as any)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: a.color + '22' }]}>
-                <MaterialIcons name={a.icon} size={24} color={a.color} />
+            {/* 7-day mini bars */}
+            <View style={styles.weekBarsContainer}>
+              {weeklyDays.map((d, i) => (
+                <View key={i} style={styles.dayBarCol}>
+                  <View style={[styles.dayBarTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#EBF0E9' }]}>
+                    <View
+                      style={[
+                        styles.dayBarFill,
+                        {
+                          height: `${d.pct}%`,
+                          backgroundColor: d.active ? '#193F30' : '#397353',
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.dayBarLabel, { color: d.active ? c.textPrimary : c.textMuted, fontWeight: d.active ? '800' : '500' }]}>
+                    {d.day}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Tujuan Utama Card (matching Mockup Image 3 & 4) */}
+          <View style={[styles.whenyaCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialIcons name="flag" size={18} color="#C8AD80" />
+                <Text style={[styles.cardHeaderTitle, { color: c.textPrimary }]}>{translateCopy("Tujuan Utama")}</Text>
               </View>
-              <Text style={[styles.actionLabel, { color: c.textPrimary }]}>{a.label}</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/goals' as any)}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#193F30' }}>{translateCopy("Lihat Semua")}</Text>
+              </TouchableOpacity>
+            </View>
+            {primaryGoal ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <View style={[styles.goalThumbBox, { backgroundColor: '#193F30' }]}>
+                    <MaterialIcons name="nature-people" size={24} color="#C8AD80" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.goalTitle, { color: c.textPrimary }]} numberOfLines={1}>
+                      {primaryGoal.title}
+                    </Text>
+                    <Text style={[styles.goalSub, { color: c.textSecondary }]} numberOfLines={1}>
+                      {primaryGoal.category || primaryGoal.description || translateCopy("Target fokus saat ini")}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#193F30' }}>{goalProgressPct}%</Text>
+                </View>
+                <View style={[styles.goalTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#EBF0E9' }]}>
+                  <View style={[styles.goalFill, { width: `${goalProgressPct}%`, backgroundColor: '#193F30' }]} />
+                </View>
+              </>
+            ) : (
+              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: c.textSecondary, marginBottom: 10, textAlign: 'center' }}>
+                  {translateCopy("Belum ada tujuan aktif. Tentukan target hidupmu untuk fokus yang lebih terarah.")}
+                </Text>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#193F30', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 }}
+                  onPress={() => router.push('/(app)/goals' as any)}
+                >
+                  <MaterialIcons name="add" size={16} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>{translateCopy("Buat Tujuan")}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.focusActionBtn, { backgroundColor: '#193F30', marginTop: 12 }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push('/(app)/pomodoro' as any);
+              }}
+              activeOpacity={0.85}
+            >
+              <MaterialIcons name="play-circle-outline" size={18} color="#ffffff" />
+              <Text style={styles.focusActionBtnText}>{translateCopy("Mulai Sesi Fokus")}</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+          </View>
 
-      {/* Emergency Modal */}
+          {/* Tugas Hari Ini */}
+          <View style={{ marginTop: 6, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{translateCopy("Tugas Hari Ini")}</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/tasks' as any)}>
+                <Text style={{ fontSize: 13, color: '#193F30', fontWeight: '700' }}>{translateCopy("Lihat semua")}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {displayTasks.length > 0 ? (
+              displayTasks.map((task: any) => {
+                const isCompleted = task.status === 'done';
+                return (
+                  <View
+                    key={task.id}
+                    style={[
+                      styles.taskCardRow,
+                      { backgroundColor: c.bgCard, borderColor: c.border },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        moveTask(task.id, isCompleted ? 'todo' : 'done');
+                        if (!isCompleted) handleAddXP('TASK_COMPLETE');
+                      }}
+                      style={[
+                        styles.taskCheckCircle,
+                        {
+                          borderColor: isCompleted ? '#193F30' : c.border,
+                          backgroundColor: isCompleted ? '#193F30' : 'transparent',
+                        },
+                      ]}
+                    >
+                      {isCompleted && <MaterialIcons name="check" size={14} color="#ffffff" />}
+                    </TouchableOpacity>
+
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.taskRowTitle,
+                          {
+                            color: isCompleted ? c.textMuted : c.textPrimary,
+                            textDecorationLine: isCompleted ? 'line-through' : 'none',
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {task.title}
+                      </Text>
+                      <Text style={[styles.taskRowTime, { color: c.textMuted }]}>
+                        {task.deadline ? String(task.deadline).slice(11, 16) : translateCopy("Hari ini")}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.categoryTag,
+                        {
+                          backgroundColor:
+                            task.category === 'Kerja'
+                              ? '#EBF3FE'
+                              : task.category === 'Pengembangan'
+                              ? '#F5EEF9'
+                              : '#EFF7ED',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryTagText,
+                          {
+                            color:
+                              task.category === 'Kerja'
+                                ? '#2563EB'
+                                : task.category === 'Pengembangan'
+                                ? '#7C3AED'
+                                : '#193F30',
+                          },
+                        ]}
+                      >
+                        {task.category || translateCopy("Personal")}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[styles.emptyCardBox, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+                <MaterialIcons name="task-alt" size={32} color="#193F30" style={{ marginBottom: 8 }} />
+                <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>{translateCopy("Semua tugas selesai!")}</Text>
+                <Text style={[styles.emptyCardSub, { color: c.textSecondary }]}>{translateCopy("Tidak ada tugas yang tertunda hari ini.")}</Text>
+                <TouchableOpacity
+                  style={[styles.emptyActionBtn, { backgroundColor: '#193F30' }]}
+                  onPress={() => router.push('/(app)/tasks' as any)}
+                >
+                  <MaterialIcons name="add" size={16} color="#ffffff" />
+                  <Text style={styles.emptyActionBtnText}>{translateCopy("Tambah Tugas")}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Kebiasaan Hari Ini (matching Mockup Image 4) */}
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{translateCopy("Kebiasaan")}</Text>
+                <View style={[styles.streakBannerPill, { backgroundColor: '#FDF6E9' }]}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#B45309' }}>
+                    {stats.streak || 0} {translateCopy("Hari Beruntun 🔥")}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(app)/habits' as any)}>
+                <Text style={{ fontSize: 13, color: '#193F30', fontWeight: '700' }}>{translateCopy("Lihat semua")}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {habitsList.length > 0 ? (
+              <View style={[styles.whenyaCard, { backgroundColor: c.bgCard, borderColor: c.border, paddingVertical: 8 }]}>
+                {habitsList.slice(0, 5).map((habit: any) => {
+                  const isDoneToday = habit.completedDates?.includes(today);
+                  return (
+                    <TouchableOpacity
+                      key={habit.id}
+                      style={styles.habitRowItem}
+                      onPress={() => toggleHabitToday(habit.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          styles.habitCheckCircle,
+                          {
+                            backgroundColor: isDoneToday ? '#193F30' : 'transparent',
+                            borderColor: isDoneToday ? '#193F30' : c.border,
+                          },
+                        ]}
+                      >
+                        {isDoneToday && <MaterialIcons name="check" size={14} color="#ffffff" />}
+                      </View>
+                      <Text
+                        style={[
+                          styles.habitRowTitle,
+                          {
+                            color: isDoneToday ? c.textMuted : c.textPrimary,
+                            textDecorationLine: isDoneToday ? 'line-through' : 'none',
+                          },
+                        ]}
+                      >
+                        {habit.title || habit.name}
+                      </Text>
+                      {habit.streak > 0 && (
+                        <Text style={{ fontSize: 11, color: c.textMuted, fontWeight: '600' }}>
+                          {habit.streak} {translateCopy("hari")}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={[styles.emptyCardBox, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+                <MaterialIcons name="local-fire-department" size={32} color="#397353" style={{ marginBottom: 8 }} />
+                <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>{translateCopy("Belum ada kebiasaan")}</Text>
+                <Text style={[styles.emptyCardSub, { color: c.textSecondary }]}>{translateCopy("Mulai bangun rutinitas positif harianmu.")}</Text>
+                <TouchableOpacity
+                  style={[styles.emptyActionBtn, { backgroundColor: '#193F30' }]}
+                  onPress={() => router.push('/(app)/habits' as any)}
+                >
+                  <MaterialIcons name="add" size={16} color="#ffffff" />
+                  <Text style={styles.emptyActionBtnText}>{translateCopy("Buat Kebiasaan")}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Ringkasan Keuangan (matching Mockup Image 3 & 4) */}
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{translateCopy("Keuangan")}</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/finance' as any)}>
+                <Text style={{ fontSize: 13, color: '#193F30', fontWeight: '700' }}>{translateCopy("Lihat Detail")}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.whenyaCard, { backgroundColor: c.bgCard, borderColor: c.border }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={[styles.financeCardEyebrow, { color: c.textMuted }]}>{translateCopy("Total Pengeluaran Bulan Ini")}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    updateSetting('hideFinanceBalance', !settings.hideFinanceBalance);
+                  }}
+                >
+                  <MaterialIcons
+                    name={settings.hideFinanceBalance ? 'visibility-off' : 'visibility'}
+                    size={18}
+                    color={c.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[styles.financeAmountText, { color: c.textPrimary }]}>
+                {settings.hideFinanceBalance ? '••••••••' : formatCurrency(stats.totalExpense || 0, uiLanguage)}
+              </Text>
+
+              <View style={styles.financeSplitRow}>
+                <View style={[styles.financePill, { backgroundColor: '#EFF7ED' }]}>
+                  <View style={[styles.financeDot, { backgroundColor: '#193F30' }]} />
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#193F30' }}>
+                    {translateCopy("Pemasukan:")} {settings.hideFinanceBalance ? '••••' : formatCurrency(stats.totalIncome || 0, uiLanguage)}
+                  </Text>
+                </View>
+                <View style={[styles.financePill, { backgroundColor: '#F9EFEF' }]}>
+                  <View style={[styles.financeDot, { backgroundColor: '#EF4444' }]} />
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#EF4444' }}>
+                    {translateCopy("Pengeluaran:")} {settings.hideFinanceBalance ? '••••' : formatCurrency(stats.totalExpense || 0, uiLanguage)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Smart Insights & Life DNA */}
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{translateCopy("Insight Personal")}</Text>
+              <TouchableOpacity onPress={() => setShowDNAModal(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <MaterialIcons name="radar" size={16} color="#193F30" />
+                <Text style={{ fontSize: 13, color: '#193F30', fontWeight: '700' }}>{translateCopy("Life DNA")}</Text>
+              </TouchableOpacity>
+            </View>
+            <CrossModuleInsights isDark={isDark} />
+          </View>
+        </View>
+
+      {/* Reset Modal (Supportive Whenya Tone) */}
       <Modal visible={showEmergencyModal} animationType="fade" transparent>
         <View style={styles.emergencyOverlay}>
           <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={[styles.emergencyContent, { backgroundColor: c.bgSecondary + 'EE' }]}>
             <View style={styles.emergencyHeader}>
               <Text style={[styles.emergencyTitle, { color: c.textPrimary }]}>
-                {emergencyStep === 'menu' ? 'Kenapa lo stuck, brok?' : selectedEmergency?.title}
+                {emergencyStep === 'menu' ? translateCopy("Apa yang membuatmu terhenti?") : selectedEmergency?.title}
               </Text>
               <TouchableOpacity onPress={() => setShowEmergencyModal(false)}>
                 <MaterialIcons name="close" size={24} color={c.textSecondary} />
@@ -345,29 +732,29 @@ export default function DashboardScreen() {
             {emergencyStep === 'menu' ? (
               <View style={styles.emergencyMenu}>
                 {[
-                  { 
-                    id: 'move', label: 'Males Gerak', icon: 'fitness-center', color: '#f87171',
-                    title: 'BODY RESET', 
-                    steps: ['Berdiri & loncat-loncat 10x', 'Regangkan tangan ke atas', 'Minum air putih segelas'] 
+                  {
+                    id: 'move', label: translateCopy("Kurang Energi"), icon: 'fitness-center', color: '#f87171',
+                    title: translateCopy("RESET FISIK"),
+                    steps: [translateCopy("Berdiri & regangkan badan"), translateCopy("Tarik napas dalam 3 kali"), translateCopy("Minum segelas air putih")]
                   },
-                  { 
-                    id: 'scroll', label: 'Kena Doomscrolling', icon: 'phonelink-erase', color: '#60a5fa',
-                    title: 'DIGITAL DETOX', 
-                    steps: ['Taruh HP telungkup', 'Cuci muka air dingin', 'Ambil napas dalam 5x'] 
+                  {
+                    id: 'scroll', label: translateCopy("Terdistraksi Layar"), icon: 'phonelink-erase', color: '#60a5fa',
+                    title: translateCopy("DETOKS SEJENAK"),
+                    steps: [translateCopy("Letakkan ponsel sejenak"), translateCopy("Basuh wajah dengan air segar"), translateCopy("Lihat pemandangan luar jendela")]
                   },
-                  { 
-                    id: 'overwhelmed', label: 'Overwhelmed', icon: 'blur-on', color: '#fbbf24',
-                    title: 'BRAIN DUMP', 
-                    steps: ['Tulis 1 hal paling penting', 'Bilang "Gua bisa" 3x', 'Tarik napas tahan 4 detik'] 
+                  {
+                    id: 'overwhelmed', label: translateCopy("Pikiran Penuh (Overwhelmed)"), icon: 'blur-on', color: '#fbbf24',
+                    title: translateCopy("FOKUS SATU HAL"),
+                    steps: [translateCopy("Pilih satu hal paling kecil"), translateCopy("Tarik napas perlahan 4 detik"), translateCopy("Mulai 2 menit pertama")]
                   },
-                  { 
-                    id: 'lost', label: 'Gatau Mau Ngapain', icon: 'explore', color: '#c084fc',
-                    title: 'QUICK START', 
-                    steps: ['Rapikan meja lo 1 menit', 'Buka task list paling atas', 'Mulai 2 menit Micro Mode'] 
+                  {
+                    id: 'lost', label: translateCopy("Bingung Mulai dari Mana"), icon: 'explore', color: '#c084fc',
+                    title: translateCopy("LANGKAH AWAL"),
+                    steps: [translateCopy("Rapikan meja kerjamu 1 menit"), translateCopy("Buka daftar tugas teratas"), translateCopy("Kerjakan satu langkah mudah")]
                   },
                 ].map((item) => (
-                  <TouchableOpacity 
-                    key={item.id} 
+                  <TouchableOpacity
+                    key={item.id}
                     style={[styles.emergencyItem, { backgroundColor: c.bgInput }]}
                     onPress={() => {
                       setSelectedEmergency(item);
@@ -390,12 +777,12 @@ export default function DashboardScreen() {
               <View style={styles.missionBox}>
                 <View style={styles.stepIndicator}>
                   {selectedEmergency?.steps.map((_: any, i: number) => (
-                    <View 
-                      key={i} 
+                    <View
+                      key={i}
                       style={[
-                        styles.indicatorDot, 
+                        styles.indicatorDot,
                         { backgroundColor: i <= currentStepIndex ? selectedEmergency.color : c.border }
-                      ]} 
+                      ]}
                     />
                   ))}
                 </View>
@@ -411,7 +798,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.nextBtn, { backgroundColor: selectedEmergency?.color }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -425,7 +812,7 @@ export default function DashboardScreen() {
                   }}
                 >
                   <Text style={styles.nextBtnText}>
-                    {currentStepIndex < selectedEmergency?.steps.length - 1 ? 'LANJUT BROK!' : 'BERES, GUA BALIK! '}
+                    {currentStepIndex < selectedEmergency?.steps.length - 1 ? 'Lanjutkan' : translateCopy("Selesai, Mulai Kembali")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -441,8 +828,8 @@ export default function DashboardScreen() {
           <View style={[styles.dnaDetailContent, { backgroundColor: c.bgSecondary + 'EE' }]}>
             <View style={styles.emergencyHeader}>
               <View>
-                <Text style={[styles.emergencyTitle, { color: c.textPrimary }]}>LIFE SCORE DNA</Text>
-                <Text style={[styles.dnaDetailSubtitle, { color: c.textSecondary }]}>Analisia perkembangan diri lo</Text>
+                <Text style={[styles.emergencyTitle, { color: c.textPrimary }]}>{translateCopy("LIFE SCORE DNA")}</Text>
+                <Text style={[styles.dnaDetailSubtitle, { color: c.textSecondary }]}>{translateCopy("Analisis perkembangan diri")}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowDNAModal(false)}>
                 <MaterialIcons name="close" size={24} color={c.textSecondary} />
@@ -458,34 +845,34 @@ export default function DashboardScreen() {
                 {dnaData.map((d, i) => (
                   <View key={i} style={styles.dnaStatItem}>
                     <View style={styles.dnaStatHeader}>
-                      <Text style={[styles.dnaStatLabel, { color: c.textPrimary }]}>{d.label}</Text>
+                      <Text style={[styles.dnaStatLabel, { color: c.textPrimary }]}>{translateCopy(d.label)}</Text>
                       <Text style={[styles.dnaStatValue, { color: c.purple }]}>{Math.round(d.value)}%</Text>
                     </View>
                     <View style={[styles.dnaStatBarTrack, { backgroundColor: c.border + '44' }]}>
-                      <View 
+                      <View
                         style={[
-                          styles.dnaStatBarFill, 
+                          styles.dnaStatBarFill,
                           { width: `${d.value}%`, backgroundColor: d.value > 70 ? c.green : d.value > 40 ? c.purple : c.red }
-                        ]} 
+                        ]}
                       />
                     </View>
                     <Text style={[styles.dnaStatDesc, { color: c.textSecondary }]}>
-                      {d.label === 'MIND' ? 'Fokus & konsentrasi belajar lo.' : 
-                       d.label === 'BODY' ? 'Kesehatan fisik & kebugaran.' : 
-                       d.label === 'MONEY' ? 'Kontrol finansial & tabungan.' : 
-                       d.label === 'SOUL' ? 'Kesehatan mental & refleksi diri.' : 
-                       d.label === 'GROWTH' ? 'Progres goals & habit baru.' : 
-                       'Kualitas hubungan sosial lo.'}
+                      {d.label === 'MIND' ? translateCopy("Fokus & konsentrasi belajar.") :
+                       d.label === 'BODY' ? translateCopy("Kesehatan fisik & kebugaran.") :
+                       d.label === 'MONEY' ? translateCopy("Kontrol finansial & tabungan.") :
+                       d.label === 'SOUL' ? translateCopy("Kesehatan mental & refleksi diri.") :
+                       d.label === 'GROWTH' ? translateCopy("Progres target & kebiasaan baru.") :
+                       translateCopy("Kualitas hubungan sosial.")}
                     </Text>
                   </View>
                 ))}
               </View>
-              
-              <TouchableOpacity 
-                style={[styles.dnaCloseBtn, { backgroundColor: c.purple }]}
+
+              <TouchableOpacity
+                style={[styles.dnaCloseBtn, { backgroundColor: '#193F30' }]}
                 onPress={() => setShowDNAModal(false)}
               >
-                <Text style={styles.dnaCloseBtnText}>SIAP, LANJUTKAN!</Text>
+                <Text style={styles.dnaCloseBtnText}>{translateCopy("TUTUP")}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -502,24 +889,24 @@ export default function DashboardScreen() {
             </View>
             <Text style={[styles.insightDetailTitle, { color: c.textPrimary }]}>{selectedInsight?.title}</Text>
             <Text style={[styles.insightDetailMsg, { color: c.textSecondary }]}>{selectedInsight?.msg}</Text>
-            
+
             <View style={styles.insightActionRow}>
-              <TouchableOpacity 
-                style={[styles.insightCloseBtn, { backgroundColor: c.bgInput }]} 
+              <TouchableOpacity
+                style={[styles.insightCloseBtn, { backgroundColor: c.bgInput }]}
                 onPress={() => setShowInsightModal(false)}
               >
-                <Text style={[styles.insightCloseBtnText, { color: c.textPrimary }]}>TUTUP</Text>
+                <Text style={[styles.insightCloseBtnText, { color: c.textPrimary }]}>{translateCopy("TUTUP")}</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.insightGoBtn, { backgroundColor: c.purple }]} 
+
+              <TouchableOpacity
+                style={[styles.insightGoBtn, { backgroundColor: '#193F30' }]}
                 onPress={() => {
                   setShowInsightModal(false);
-                  const routeMap: any = { 
-                    'HABIT': 'habits', 
-                    'TASK': 'tasks', 
-                    'FINANCE': 'finance', 
-                    'FOCUS': 'pomodoro' 
+                  const routeMap: any = {
+                    'HABIT': translateCopy("habits"),
+                    'TASK': translateCopy("tasks"),
+                    'FINANCE': 'finance',
+                    'FOCUS': 'pomodoro'
                   };
                   const target = routeMap[selectedInsight?.type as any];
                   if (target) {
@@ -527,43 +914,118 @@ export default function DashboardScreen() {
                   }
                 }}
               >
-                <Text style={styles.insightGoBtnText}>GAS SEKARANG</Text>
+                <Text style={styles.insightGoBtnText}>{translateCopy("Mulai Sekarang")}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
       </ScrollView>
-      
-      <TouchableOpacity 
-        style={{
-          position: 'absolute',
-          bottom: layout.bottomPadding + 20,
-          right: 20,
-          backgroundColor: c.purple,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          justifyContent: 'center',
-          alignItems: 'center',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 5,
-          elevation: 5,
-        }}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setShowQuickCapture(true);
-        }}
-      >
-        <Text style={{ fontSize: 24, color: '#fff' }}>🔮</Text>
-      </TouchableOpacity>
 
-      <QuickCaptureModal 
-        visible={showQuickCapture} 
-        onClose={() => setShowQuickCapture(false)} 
-        isDark={isDark} 
+      {/* Notifications Modal Bottom Sheet */}
+      <Modal visible={showNotificationsModal} animationType="slide" transparent>
+        <View style={styles.emergencyOverlay}>
+          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.notifSheetContent, { backgroundColor: isDark ? c.bgSecondary : '#FFFFFF' }]}>
+            <View style={styles.notifSheetHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialIcons name="notifications" size={22} color="#193F30" />
+                <Text style={[styles.notifSheetTitle, { color: c.textPrimary }]}>{translateCopy("Notifikasi")}</Text>
+                <View style={styles.notifCountPill}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#193F30' }}>{translateCopy("2 baru")}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
+                <MaterialIcons name="close" size={24} color={c.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 24 }}>
+              {[
+                {
+                  id: '1',
+                  title: translateCopy("Konsistensi Terjaga! 🔥"),
+                  desc: translateCopy("Hebat, kamu telah mempertahankan streak kebiasaanmu 12 hari beruntun."),
+                  time: translateCopy("15 menit yang lalu"),
+                  unread: true,
+                  route: '/(app)/habits',
+                  icon: 'local-fire-department',
+                  color: '#F97316',
+                  bg: '#FFF7ED',
+                },
+                {
+                  id: '2',
+                  title: translateCopy("Progres Target Hidup 🎯"),
+                  desc: translateCopy("Target \"Bangun versi terbaik diri\" sudah mencapai 70%. Teruskan!"),
+                  time: translateCopy("1 jam yang lalu"),
+                  unread: true,
+                  route: '/(app)/goals',
+                  icon: 'flag',
+                  color: '#EAB308',
+                  bg: '#FEFCE8',
+                },
+                {
+                  id: '3',
+                  title: translateCopy("Afirmasi Whenya AI ✨"),
+                  desc: translateCopy("Langkah kecil hari ini membawa perubahan besar nanti. Semangat!"),
+                  time: translateCopy("Hari ini, 08:00"),
+                  unread: false,
+                  icon: 'auto-awesome',
+                  color: '#193F30',
+                  bg: '#EFF7ED',
+                },
+                {
+                  id: '4',
+                  title: translateCopy("Arus Kas Harian 💰"),
+                  desc: translateCopy("Catat pengeluaranmu hari ini agar target keuangan tetap terarah."),
+                  time: translateCopy("Kemarin, 19:30"),
+                  unread: false,
+                  route: '/(app)/finance',
+                  icon: 'account-balance-wallet',
+                  color: '#10B981',
+                  bg: '#ECFDF5',
+                },
+              ].map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.notifItemCard,
+                    {
+                      backgroundColor: isDark ? c.bgCard : '#FBF9F4',
+                      borderColor: item.unread ? '#193F30' : c.border,
+                      borderLeftWidth: item.unread ? 3.5 : 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    setShowNotificationsModal(false);
+                    if (item.route) router.push(item.route as any);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.notifIconCircle, { backgroundColor: isDark ? c.bgInput : item.bg }]}>
+                    <MaterialIcons name={item.icon as any} size={20} color={item.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                      <Text style={[styles.notifItemTitle, { color: c.textPrimary, fontWeight: item.unread ? '800' : '600' }]}>
+                        {item.title}
+                      </Text>
+                      {item.unread && <View style={[styles.unreadDot, { position: 'relative', top: 0, right: 0 }]} />}
+                    </View>
+                    <Text style={[styles.notifItemDesc, { color: c.textSecondary }]}>{item.desc}</Text>
+                    <Text style={[styles.notifItemTime, { color: c.textMuted }]}>{item.time}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <QuickCaptureModal
+        visible={showQuickCapture}
+        onClose={() => setShowQuickCapture(false)}
+        isDark={isDark}
       />
     </View>
   );
@@ -572,10 +1034,94 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: MOBILE_SPACING.screen },
-  header: { marginBottom: 24 },
+  header: { marginBottom: 18 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerSubtitle: { fontSize: 15, marginTop: 4 },
-  greeting: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
+  brandTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
+  greeting: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
+  headerSubtitle: { fontSize: 13, marginTop: 3, lineHeight: 18 },
+  dateText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  headerIconBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  unreadDot: { position: 'absolute', top: 9, right: 9, width: 7, height: 7, borderRadius: 3.5 },
+  avatarCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+
+  searchPill: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, borderWidth: 1, marginBottom: 18 },
+  searchPlaceholder: { fontSize: 13, fontWeight: '500' },
+
+  quickShortcutsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18 },
+  shortcutItem: { alignItems: 'center', gap: 6, flex: 1 },
+  shortcutIconBox: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  shortcutLabel: { fontSize: 11, fontWeight: '700' },
+
+  whenyaCard: { borderRadius: 20, padding: 18, borderWidth: 1, marginBottom: 16 },
+  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardHeaderTitle: { fontSize: 15, fontWeight: '800' },
+
+  weekProgressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  progressRingWrapper: { position: 'relative', width: 76, height: 76, alignItems: 'center', justifyContent: 'center' },
+  progressRingCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  progressRingText: { fontSize: 16, fontWeight: '900' },
+  weekProgressMotivation: { fontSize: 13.5, fontWeight: '800', marginBottom: 3 },
+  weekProgressSub: { fontSize: 11.5, lineHeight: 16 },
+
+  weekBarsContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60, paddingTop: 4 },
+  dayBarCol: { alignItems: 'center', gap: 4, flex: 1 },
+  dayBarTrack: { width: 14, height: 40, borderRadius: 7, justifyContent: 'flex-end', overflow: 'hidden' },
+  dayBarFill: { width: '100%', borderRadius: 7 },
+  dayBarLabel: { fontSize: 10 },
+
+  goalThumbBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  goalTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  goalSub: { fontSize: 11.5 },
+  goalTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 14 },
+  goalFill: { height: '100%', borderRadius: 3 },
+  focusActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, borderRadius: 12 },
+  focusActionBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+
+  taskCardRow: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 8, gap: 12 },
+  taskRowTitle: { fontSize: 13.5, fontWeight: '700', marginBottom: 2 },
+  taskRowTime: { fontSize: 11, fontWeight: '500' },
+  categoryTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  categoryTagText: { fontSize: 10.5, fontWeight: '800' },
+
+  streakBannerPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  habitRowItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4, gap: 12, borderBottomWidth: 0.5, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  habitCheckCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  habitRowTitle: { flex: 1, fontSize: 13.5, fontWeight: '600' },
+
+  financeCardEyebrow: { fontSize: 12, fontWeight: '600' },
+  financeAmountText: { fontSize: 24, fontWeight: '900', marginVertical: 8 },
+  financeSplitRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  financePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flex: 1 },
+  financeDot: { width: 6, height: 6, borderRadius: 3 },
+
+  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  focusCard: { borderRadius: 20, padding: 18, borderWidth: 1, marginBottom: 16 },
+  focusTitle: { fontSize: 19, fontWeight: '800', marginBottom: 6, letterSpacing: -0.3 },
+  focusSubtitle: { fontSize: 13.5, lineHeight: 19, marginBottom: 16 },
+  focusBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12 },
+  focusBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+
+  progressStrip: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  progressItem: { flex: 1, padding: 12, borderRadius: 16, borderWidth: 1, alignItems: 'center' },
+  progressIconBox: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  progressValue: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  progressLabel: { fontSize: 10.5, fontWeight: '600' },
+
+  taskItemRow: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 8, gap: 12 },
+  taskCheckCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  taskItemTitle: { flex: 1, fontSize: 14, fontWeight: '600' },
+  priorityPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+
+  calmEmptyCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, gap: 14 },
+  calmEmptyTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  calmEmptySub: { fontSize: 12, lineHeight: 16 },
+
+  summaryCard: { borderRadius: 18, borderWidth: 1, padding: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  summaryItem: { flex: 1, alignItems: 'center', paddingVertical: 12, gap: 4 },
+  summaryItemLabel: { fontSize: 11, fontWeight: '600' },
+  summaryItemVal: { fontSize: 13, fontWeight: '800' },
+  summaryDivider: { width: 1, height: 28 },
+  summaryFootnote: { fontSize: 11.5, textAlign: 'center', marginTop: 10, lineHeight: 16 },
 
   card: { borderRadius: 28, padding: 20, marginBottom: 20, borderWidth: 1 },
   xpHeader: { marginBottom: 12 },
@@ -606,8 +1152,8 @@ const styles = StyleSheet.create({
   xpFill: { height: '100%', borderRadius: 4 },
   xpText: { fontSize: 12, fontWeight: '700' },
 
-  dnaContainer: { 
-    alignItems: 'center', 
+  dnaContainer: {
+    alignItems: 'center',
     justifyContent: 'center',
     width: 130,
     marginLeft: 8,
@@ -617,7 +1163,7 @@ const styles = StyleSheet.create({
   sectionHeader: { marginBottom: 16, paddingLeft: 4 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   insightsScroll: { gap: 12, paddingBottom: 24, paddingLeft: 4 },
-  
+
   insightCard: {
     width: 240,
     flexDirection: 'row',
@@ -759,4 +1305,47 @@ const styles = StyleSheet.create({
   dnaStatDesc: { fontSize: 12, fontWeight: '600', opacity: 0.7, lineHeight: 18 },
   dnaCloseBtn: { width: '100%', paddingVertical: 20, borderRadius: 24, alignItems: 'center', marginBottom: 40 },
   dnaCloseBtnText: { color: '#fff', fontSize: 16, fontWeight: '900' },
+
+  notifSheetContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '80%' },
+  notifSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  notifSheetTitle: { fontSize: 18, fontWeight: '900' },
+  notifCountPill: { backgroundColor: '#EFF7ED', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  notifItemCard: { flexDirection: 'row', padding: 14, borderRadius: 16, borderWidth: 1, gap: 12, alignItems: 'flex-start' },
+  notifIconCircle: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  notifItemTitle: { fontSize: 13.5 },
+  notifItemDesc: { fontSize: 12, lineHeight: 17, marginBottom: 4 },
+  notifItemTime: { fontSize: 10.5 },
+
+  emptyCardBox: {
+    padding: 24,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  emptyCardSub: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  emptyActionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });

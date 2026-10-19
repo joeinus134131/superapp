@@ -12,19 +12,19 @@ export function getToday(date?: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDate(dateStr: string, lang: string = 'id'): string {
+export function formatDate(dateStr: string, lang: string = 'en'): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function formatCurrency(amount: number, lang: string = 'id'): string {
+export function formatCurrency(amount: number, lang: string = 'en'): string {
   return new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', {
     style: 'currency',
-    currency: lang === 'id' ? 'IDR' : 'USD',
+    currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(lang === 'id' ? amount : amount / 15000); // Simple conversion for demo
+  }).format(amount);
 }
 
 export function getRandomQuote(): string {
@@ -70,3 +70,5 @@ export function formatRupiahInput(value: string): string {
   if (!parsed) return '';
   return parsed.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
+
+export { normalizeBook } from '@superapp/shared';

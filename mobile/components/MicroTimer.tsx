@@ -4,6 +4,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '../lib/theme';
 import { useTheme } from '../context/themeContext';
 import * as Haptics from 'expo-haptics';
+import { useLanguage } from "../context/languageContext";
+
 
 interface MicroTimerProps {
   duration?: number;
@@ -12,12 +14,15 @@ interface MicroTimerProps {
   title: string;
 }
 
-export const MicroTimer: React.FC<MicroTimerProps> = ({ 
-  duration = 120, 
-  onComplete, 
+export const MicroTimer: React.FC<MicroTimerProps> = ({
+  duration = 120,
+  onComplete,
   onCancel,
   title
 }) => {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const [timeLeft, setTimeLeft] = useState(duration);
@@ -54,7 +59,7 @@ export const MicroTimer: React.FC<MicroTimerProps> = ({
       easing: Easing.linear,
       useNativeDriver: false,
     }).start();
-    
+
     if (timeLeft % 10 === 0 && timeLeft !== duration) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -71,43 +76,43 @@ export const MicroTimer: React.FC<MicroTimerProps> = ({
       <View style={styles.header}>
         <View style={[styles.microBadge, { backgroundColor: c.purple + '20' }]}>
           <MaterialIcons name="speed" size={12} color={c.purple} style={{ marginRight: 6 }} />
-          <Text style={[styles.microBadgeText, { color: c.purple }]}>FOCUS MODE</Text>
+          <Text style={[styles.microBadgeText, { color: c.purple }]}>{translateCopy("FOCUS MODE")}</Text>
         </View>
         <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
       </View>
 
       <View style={styles.timerContainer}>
         <Text style={[styles.timerText, { color: c.textPrimary }]}>{formatTime(timeLeft)}</Text>
-        
+
         <View style={[styles.progressTrack, { backgroundColor: c.border + '44' }]}>
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.progressFill, 
-              { 
+              styles.progressFill,
+              {
                 backgroundColor: c.purple,
                 width: progressAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: ['0%', '100%'],
                 })
               }
-            ]} 
+            ]}
           />
         </View>
         <Text style={[styles.subText, { color: c.textSecondary }]}>
-          "Success is the sum of small efforts, repeated day in and day out."
+          {translateCopy("\"Success is the sum of small efforts, repeated day in and day out.\"")}
         </Text>
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: c.bgInput, borderWidth: 1, borderColor: c.border }]} 
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: c.bgInput, borderWidth: 1, borderColor: c.border }]}
           onPress={onCancel}
         >
-          <Text style={[styles.buttonText, { color: c.textSecondary }]}>Cancel</Text>
+          <Text style={[styles.buttonText, { color: c.textSecondary }]}>{translateCopy("Cancel")}</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: c.purple }]} 
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: c.purple }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setIsActive(!isActive);
@@ -115,7 +120,7 @@ export const MicroTimer: React.FC<MicroTimerProps> = ({
         >
           <MaterialIcons name={isActive ? 'pause' : 'play-arrow'} size={24} color="#fff" />
           <Text style={[styles.buttonText, { color: '#fff', marginLeft: 8 }]}>
-            {isActive ? 'Pause' : 'Resume'}
+            {isActive ? translateCopy("Pause") : 'Resume'}
           </Text>
         </TouchableOpacity>
       </View>

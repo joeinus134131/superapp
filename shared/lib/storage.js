@@ -41,6 +41,21 @@ async function getAdapter() {
 }
 
 /**
+ * Adapters may return either a plain string (AsyncStorage) or a JSON encoded
+ * string (the web adapter). Always normalize identity values before using them
+ * as part of a storage key.
+ */
+export function normalizeStorageIdentity(value) {
+  if (typeof value !== 'string') return value || null;
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === 'string' ? parsed : null;
+  } catch {
+    return value || null;
+  }
+}
+
+/**
  * Build a user-namespaced key.
  */
 async function buildKey(key) {
@@ -48,8 +63,8 @@ async function buildKey(key) {
   if (!adapter) return key;
   
   // We try to get current user ID to namespace the key
-  const userId = await adapter.getItem(STORAGE_KEYS.AUTH_USER);
-  if (userId && typeof userId === 'string') {
+  const userId = normalizeStorageIdentity(await adapter.getItem(STORAGE_KEYS.AUTH_USER));
+  if (userId) {
     return `${userId}_${key}`;
   }
   return key;
@@ -75,9 +90,6 @@ export async function setData(key, value) {
   const fullKey = await buildKey(key);
   try {
     await adapter.setItem(fullKey, JSON.stringify(value));
-    
-    // Pemicu otomatis sinkronisasi ke cloud
-    import('./cloudSync').then(m => m.triggerAutoSync());
   } catch (e) {
     console.error('[Storage] Error setting data:', e);
   }
@@ -101,7 +113,8 @@ export async function getRawData(key) {
   if (!adapter) return null;
   try {
     const data = await adapter.getItem(key);
-    return typeof data === 'string' ? JSON.parse(data) : data;
+    if (typeof data !== 'string') return data;
+    try { return JSON.parse(data); } catch { return data; }
   } catch { return null; }
 }
 
@@ -109,6 +122,10 @@ export async function setRawData(key, value) {
   const adapter = await getAdapter();
   if (!adapter) return;
   try {
+    if (value === null || value === undefined) {
+      await adapter.removeItem(key);
+      return;
+    }
     await adapter.setItem(key, JSON.stringify(value));
   } catch (e) { console.error(e); }
 }

@@ -7,7 +7,9 @@ export function useAICoach() {
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const token = await getData(STORAGE_KEYS.SESSION_TOKEN) || 'dummy-token';
+        const token = await getData(STORAGE_KEYS.SESSION_TOKEN);
+        if (!token) return; // Do not fetch or spam backend when unauthenticated
+
         const res = await fetch(`${CONFIG.API_URL}/coach/messages`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -19,7 +21,7 @@ export function useAICoach() {
             const latestMsg = json.data[json.data.length - 1];
             
             // Show Local Notification on the phone
-            sendImmediateNotification(`SelfOne Coach: ${latestMsg.title}`, latestMsg.body);
+            sendImmediateNotification(`Whenya Coach: ${latestMsg.title}`, latestMsg.body);
 
             // Mark as read immediately so it doesn't spam
             await fetch(`${CONFIG.API_URL}/coach/messages/read`, {

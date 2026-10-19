@@ -48,10 +48,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: EAS Build Production
-        working-directory: packages/mobile
+        working-directory: mobile
         run: eas build --platform ${{ inputs.platform }} --profile production --non-interactive
 
       - name: EAS Submit to Store
         if: ${{ inputs.submit == 'true' }}
-        working-directory: packages/mobile
+        working-directory: mobile
         run: eas submit --platform ${{ inputs.platform }} --profile production --non-interactive

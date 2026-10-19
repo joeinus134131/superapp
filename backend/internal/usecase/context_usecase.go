@@ -41,3 +41,8 @@ func (u *contextUsecase) SyncContexts(userID uuid.UUID, contexts []domain.UserCo
 
 	return nil
 }
+
+func (u *contextUsecase) GetLatestContexts(userID uuid.UUID) ([]domain.UserContext, error) {
+	return u.repo.GetByUserID(userID)
+}
+

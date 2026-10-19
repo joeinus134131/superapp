@@ -1,92 +1,47 @@
-import { ReactNode } from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
-import { MaterialIcons } from '@expo/vector-icons'
-import { useMobileLayout, MOBILE_SPACING } from '../lib/layout'
+import React, { ReactNode } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from './WhenyaHeader';
 
 interface PageHeaderProps {
-  title: string
-  subtitle?: string
-  textColor: string
-  subtextColor: string
-  borderColor?: string
-  backgroundColor?: string
-  actionIcon?: keyof typeof MaterialIcons.glyphMap
-  actionColor?: string
-  onActionPress?: () => void
-  rightSlot?: ReactNode
+  title: string;
+  subtitle?: string;
+  textColor?: string;
+  subtextColor?: string;
+  borderColor?: string;
+  backgroundColor?: string;
+  actionIcon?: keyof typeof MaterialIcons.glyphMap;
+  actionColor?: string;
+  onActionPress?: () => void;
+  rightSlot?: ReactNode;
+  showBack?: boolean;
 }
 
 export function PageHeader({
   title,
   subtitle,
-  textColor,
-  subtextColor,
-  borderColor,
-  backgroundColor = 'transparent',
-  actionIcon = 'add',
-  actionColor = '#8b5cf6',
+  actionIcon,
   onActionPress,
   rightSlot,
+  backgroundColor,
+  showBack,
 }: PageHeaderProps) {
-  const layout = useMobileLayout()
-
   return (
-    <View
-      style={{
-        paddingTop: layout.topPadding,
-        paddingHorizontal: MOBILE_SPACING.screen,
-        paddingBottom: 16,
-        borderBottomWidth: borderColor ? 1 : 0,
-        borderBottomColor: borderColor,
-        backgroundColor,
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        gap: 16,
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            color: textColor,
-            fontSize: 28,
-            fontWeight: '900',
-            lineHeight: 34,
-          }}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text
-            style={{
-              color: subtextColor,
-              fontSize: 15,
-              lineHeight: 22,
-              marginTop: 6,
-            }}
-          >
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-
-      {rightSlot ? rightSlot : onActionPress ? (
-        <TouchableOpacity
-          onPress={onActionPress}
-          activeOpacity={0.8}
-          hitSlop={10}
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 18,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: actionColor,
-          }}
-        >
-          <MaterialIcons name={actionIcon} size={24} color="#fff" />
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  )
+    <WhenyaHeader
+      title={title}
+      subtitle={subtitle}
+      showBack={showBack}
+      backgroundColor={backgroundColor}
+      rightAction={
+        onActionPress
+          ? {
+              materialIcon: actionIcon || 'add',
+              onPress: onActionPress,
+            }
+          : undefined
+      }
+      rightSlot={rightSlot}
+    />
+  );
 }
+
+export { WhenyaHeader };

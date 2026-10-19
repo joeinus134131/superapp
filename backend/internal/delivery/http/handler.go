@@ -10,13 +10,33 @@ type ContextHandler struct {
 	usecase domain.ContextUsecase
 }
 
-func NewContextHandler(app *fiber.App, uc domain.ContextUsecase) {
+func NewContextHandler(router fiber.Router, uc domain.ContextUsecase) {
 	handler := &ContextHandler{uc}
 
-	api := app.Group("/api/v1")
-	
 	// Endpoint Sync
-	api.Post("/context/sync", handler.Sync)
+	router.Post("/context/sync", handler.Sync)
+	router.Get("/context/sync", handler.GetSync)
+}
+
+func (h *ContextHandler) GetSync(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("user_id").(string)
+	if !ok || userIDStr == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
+	items, err := h.usecase.GetLatestContexts(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"items": items,
+	})
 }
 
 func (h *ContextHandler) Sync(c *fiber.Ctx) error {
@@ -37,3 +57,4 @@ func (h *ContextHandler) Sync(c *fiber.Ctx) error {
 		"items_count": len(req.Items),
 	})
 }
+

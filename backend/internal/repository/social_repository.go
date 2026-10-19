@@ -38,6 +38,15 @@ func (r *socialRepository) GetSquadsByUserID(userID uuid.UUID) ([]domain.Squad, 
 	return squads, err
 }
 
+func (r *socialRepository) GetSquadByID(squadID uuid.UUID) (*domain.Squad, error) {
+	var squad domain.Squad
+	err := r.db.Where("id = ?", squadID).First(&squad).Error
+	if err != nil {
+		return nil, err
+	}
+	return &squad, nil
+}
+
 func (r *socialRepository) CreateSquad(squad *domain.Squad) error {
 	return r.db.Create(squad).Error
 }
@@ -52,6 +61,15 @@ func (r *socialRepository) GetChallengesBySquad(squadID uuid.UUID) ([]domain.Cha
 	return challenges, err
 }
 
+func (r *socialRepository) GetChallengeByID(challengeID uuid.UUID) (*domain.Challenge, error) {
+	var challenge domain.Challenge
+	err := r.db.Where("id = ?", challengeID).First(&challenge).Error
+	if err != nil {
+		return nil, err
+	}
+	return &challenge, nil
+}
+
 func (r *socialRepository) UpdateChallengeProgress(progress *domain.ChallengeProgress) error {
 	return r.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "challenge_id"}, {Name: "user_id"}},
@@ -63,4 +81,13 @@ func (r *socialRepository) GetChallengeProgress(challengeID uuid.UUID) ([]domain
 	var progress []domain.ChallengeProgress
 	err := r.db.Where("challenge_id = ?", challengeID).Find(&progress).Error
 	return progress, err
+}
+
+func (r *socialRepository) GetUserChallengeProgress(challengeID, userID uuid.UUID) (*domain.ChallengeProgress, error) {
+	var progress domain.ChallengeProgress
+	err := r.db.Where("challenge_id = ? AND user_id = ?", challengeID, userID).First(&progress).Error
+	if err != nil {
+		return nil, err
+	}
+	return &progress, nil
 }

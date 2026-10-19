@@ -1,330 +1,94 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getData, STORAGE_KEYS } from '@/lib/storage';
-import { getRandomQuote, getToday, formatCurrency } from '@/lib/helpers';
-import { useUser } from '@/lib/auth';
-import { getXP, getCurrentLevel, getXPProgress, checkDailyLogin, checkAchievements, addXP } from '@/lib/gamification';
-import { getRoastMessage } from '@/lib/roast';
-import { playAchievement } from '@/lib/sounds';
-import Confetti from '@/components/Confetti';
-import LevelUpModal from '@/components/LevelUpModal';
-import DailyPopup from '@/components/DailyPopup';
-import { useLanguage } from '@/lib/language';
-import {
-  CheckSquare, Flame, Wallet, Timer, TrendingUp, Trophy,
-  Target, BookOpen, NotebookPen, Dumbbell, Rocket
-} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import CrossModuleInsights from '@/components/CrossModuleInsights';
+import { ArrowRight, Check, CheckSquare, Flame, Plus, Target, Wallet, Eye, EyeOff, CalendarDays, NotebookPen, BarChart3, MoreHorizontal, Leaf, Sparkles } from 'lucide-react';
+import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
+import { summarizeLife, habitStreak } from '@superapp/shared/insights';
+import { formatCurrency, getToday, ensureArray } from '@superapp/shared/helpers';
+import { useUser } from '@superapp/shared/auth';
+import { Scene, ProgressRing, FinanceBars, WeekBars } from '@/components/WhenyaVisuals';
+import { useLanguage } from "@superapp/shared/language";
+
+
+
+
 
 export default function Dashboard() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+const SHORTCUTS = [{ href: '/tasks', Icon: CheckSquare, label: translateCopy("Tugas") }, { href: '/habits', Icon: BarChart3, label: translateCopy("Kebiasaan") }, { href: '/finance', Icon: Wallet, label: translateCopy("Keuangan") }, { href: '/journal', Icon: NotebookPen, label: translateCopy("Jurnal") }, { href: '/goals', Icon: Target, label: translateCopy("Tujuan") }];
+const STARTERS = [{ category: 'health', title: translateCopy("Kesehatan"), text: translateCopy("Lebih sehat dan bugar") }, { category: 'career', title: translateCopy("Karier"), text: translateCopy("Bertumbuh dalam karya") }, { category: 'finance', title: translateCopy("Keuangan"), text: translateCopy("Bangun masa depan") }, { category: 'hobby', title: translateCopy("Hobi"), text: translateCopy("Ruang untuk hal yang kamu suka") }];
+
   const { user } = useUser();
-  const { t } = useLanguage();
-  const [quote] = useState(getRandomQuote());
-  const [roast, setRoast] = useState(null);
-  const [gamData, setGamData] = useState({ totalXP: 0 });
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [levelUpData, setLevelUpData] = useState(null);
-  const [newAchievements, setNewAchievements] = useState([]);
   const today = getToday();
-
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [rawData, setRawData] = useState({
-    tasks: [], habits: [], transactions: [], pomodoro: { sessions: [] },
-    goals: [], books: [], journal: [], health: { workouts: [] }
-  });
-
-  const timeContext = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 10) return 'morning';
-    if (hour >= 10 && hour < 17) return 'work';
-    return 'evening';
-  }, [refreshTrigger]);
-
-  // Fetch from async localforage
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [hideBalance, setHideBalance] = useState(false);
+  const [data, setView] = useState({ tasks: [], habits: [], transactions: [], goals: [], journal: [] });
+  const load = useCallback(async () => {
+    try {
+      const [tasks, habits, transactions, goals, journal] = await Promise.all(['TASKS', 'HABITS', 'TRANSACTIONS', 'GOALS', 'JOURNAL'].map(key => getData(STORAGE_KEYS[key])));
+      setView({
+        tasks: ensureArray(tasks),
+        habits: ensureArray(habits),
+        transactions: ensureArray(transactions),
+        goals: ensureArray(goals),
+        journal: ensureArray(journal),
+      });
+      setError('');
+    } catch { setError(translateCopy("Ringkasan belum dapat dimuat. Silakan coba lagi.")); }
+    finally { setLoading(false); }
+  }, [translateCopy]);
   useEffect(() => {
-    let isMounted = true;
-    async function loadData() {
-      if (typeof window === 'undefined') return;
-      try {
-        const [
-          tasks, habits, transactions, pomodoro,
-          goals, books, journal, health
-        ] = await Promise.all([
-          getData(STORAGE_KEYS.TASKS),
-          getData(STORAGE_KEYS.HABITS),
-          getData(STORAGE_KEYS.TRANSACTIONS),
-          getData(STORAGE_KEYS.POMODORO),
-          getData(STORAGE_KEYS.GOALS),
-          getData(STORAGE_KEYS.READING),
-          getData(STORAGE_KEYS.JOURNAL),
-          getData(STORAGE_KEYS.HEALTH),
-        ]);
-
-        if (isMounted) {
-          setRawData({
-            tasks: tasks || [],
-            habits: habits || [],
-            transactions: transactions || [],
-            pomodoro: pomodoro || { sessions: [] },
-            goals: goals || [],
-            books: books || [],
-            journal: journal || [],
-            health: health || { workouts: [] },
-          });
-        }
-      } catch (e) {
-        console.error("Error loading dashboard data:", e);
-      }
-    }
-    
-    loadData();
-    return () => { isMounted = false; };
-  }, [refreshTrigger, today]);
-
-  useEffect(() => {
-    // Force a re-render to catch client-side storage after mount
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
-
-  const stats = useMemo(() => {
-    const { tasks, habits, transactions, pomodoro, goals, books, journal, health } = rawData;
-    
-    const completedTasks = tasks.filter(t => t.status === 'done').length;
-    const todayHabits = habits.filter(h => h.completedDates && h.completedDates.includes(today)).length;
-    let maxStreak = 0;
-    habits.forEach(h => { if (h.streak && h.streak > maxStreak) maxStreak = h.streak; });
-    const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    const todaySessions = pomodoro.sessions ? pomodoro.sessions.filter(s => s.date === today).length : 0;
-    const activeGoals = goals.filter(g => !g.completed).length;
-    const readingBooks = books.filter(b => b.status === 'reading').length;
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    const workoutsWeek = health.workouts ? health.workouts.filter(w => new Date(w.date) >= weekAgo).length : 0;
-
-    return {
-      tasksCompleted: completedTasks, tasksTotal: tasks.length,
-      habitsToday: todayHabits, habitsTotal: habits.length,
-      streak: maxStreak, totalIncome: income, totalExpense: expense,
-      focusSessions: todaySessions, goalsActive: activeGoals,
-      booksReading: readingBooks, journalEntries: journal.length,
-      workoutsThisWeek: workoutsWeek,
-    };
-  }, [rawData, today]);
-
-  useEffect(() => {
-    // Gamification & side-effects that need to run once stats/mount logic settles
-    const loginResult = checkDailyLogin();
-    if (loginResult.levelUp) {
-      setLevelUpData(loginResult.newLevel);
-      setShowConfetti(true);
-    }
-    setGamData(getXP());
-
-    // Roast
-    setRoast(getRoastMessage(stats));
-
-    // Check achievements
-    checkAchievements().then(achResult => {
-      if (achResult.newlyUnlocked.length > 0) {
-        setNewAchievements(achResult.newlyUnlocked);
-        setShowConfetti(true);
-        playAchievement();
-      }
-    });
-  }, [today]);
-
-  const level = getCurrentLevel(gamData.totalXP);
-  const progress = getXPProgress(gamData.totalXP);
-
-  const greetingTime = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Selamat Pagi';
-    if (hour < 17) return 'Selamat Siang';
-    if (hour < 20) return 'Selamat Sore';
-    return 'Selamat Malam';
+    load();
+    setHideBalance(localStorage.getItem('privacy_hide_balance') === 'true');
+    window.addEventListener('storage_update', load);
+    window.addEventListener('focus', load);
+    return () => { window.removeEventListener('storage_update', load); window.removeEventListener('focus', load); };
+  }, [load]);
+  const summary = useMemo(() => summarizeLife(data), [data]);
+  const safeTasks = ensureArray(data.tasks);
+  const safeHabits = ensureArray(data.habits);
+  const dayTasks = safeTasks.filter(task => !task.deadline && !task.dueDate ? task.status !== 'done' || String(task.createdAt || '').startsWith(today) : String(task.deadline || task.dueDate).slice(0, 10) <= today && (task.status !== 'done' || String(task.deadline || task.dueDate).startsWith(today)));
+  const done = dayTasks.filter(task => task.status === 'done').length;
+  const taskRate = dayTasks.length ? Math.round(done / dayTasks.length * 100) : 0;
+  const streak = Math.max(0, ...safeHabits.map(h => habitStreak(h.completedDates)));
+  const goals = summary.goalProgress.filter(g => !g.completed).slice(0, 4);
+  const dateLabel = new Date().toLocaleDateString(uiLanguage === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const toggleTask = async task => {
+    const tasks = safeTasks.map(item => item.id === task.id ? { ...item, status: item.status === 'done' ? 'todo' : 'done' } : item);
+    await setData(STORAGE_KEYS.TASKS, tasks);
+    setView(current => ({ ...current, tasks }));
+    window.dispatchEvent(new Event('storage_update'));
   };
-
-  const roastStyles = {
-    roast: { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.2)', icon: '🤡' },
-    hype: { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)', icon: '🔥' },
-    neutral: { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)', icon: '💬' },
+  const toggleHabit = async habit => {
+    const dates = ensureArray(habit.completedDates);
+    const completedDates = dates.includes(today) ? dates.filter(date => date !== today) : [...dates, today];
+    const habits = safeHabits.map(item => item.id === habit.id ? { ...item, completedDates, streak: habitStreak(completedDates), bestStreak: Math.max(item.bestStreak || 0, habitStreak(completedDates)) } : item);
+    await setData(STORAGE_KEYS.HABITS, habits);
+    setView(current => ({ ...current, habits }));
   };
-
-  return (
-    <div>
-      <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
-      {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
-      <DailyPopup quote={quote} roast={roast} />
-
-      <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', marginBottom: '4px' }}>{greetingTime()}, {user?.name || 'Pengguna'}</h1>
-          <p className="text-secondary" style={{ fontSize: '15px' }}>Berikut adalah ringkasan produktivitasmu hari ini.</p>
-        </div>
-      </div>
-
-      {/* AI Smart Insights (Pro Feature) - Top Hierarchy */}
-      <CrossModuleInsights />
-
-      {/* New Achievements */}
-      {newAchievements.length > 0 && (
-        <div className="achievement-unlock-banner mb-3">
-          <h3>🏆 Pencapaian Terbuka!</h3>
-          <div className="flex gap-1 flex-wrap">
-            {newAchievements.map(a => (
-              <div key={a.id} className="achievement-unlock-item">
-                <span style={{ fontSize: '24px' }}>{a.icon}</span>
-                <span className="font-semibold">{a.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* XP Progress - Narrative Chapter Badge */}
-      <div className="card card-padding mb-4" style={{ background: 'var(--bg-glass)', border: '1px solid var(--border-color)', position: 'relative', overflow: 'hidden' }}>
-        <div className="flex justify-between items-center mb-3">
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <span style={{ fontSize: '24px' }}>📖</span>
-             <span className="font-bold" style={{ color: 'var(--text-primary)', fontSize: '18px' }}>{level.title}</span>
-           </div>
-           <Link href="/achievements" style={{ fontSize: '12px', color: 'var(--accent-purple)', textDecoration: 'none', fontWeight: 600 }}>Lihat Perjalanan</Link>
-        </div>
-        
-        <div className="xp-bar-track" style={{ background: 'rgba(0,0,0,0.1)', height: '10px', borderRadius: '8px', marginBottom: '8px' }}>
-          <div className="xp-bar-fill" style={{ width: `${progress.percent}%`, background: `linear-gradient(90deg, ${level.color}, ${level.color}dd)`, height: '100%', borderRadius: '8px' }} />
-        </div>
-        
-        <div className="flex justify-between items-center" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          <span style={{ fontWeight: 500 }}>{gamData.totalXP} XP <span style={{ opacity: 0.6, fontWeight: 'normal' }}>Total</span></span>
-          <span><span style={{ fontWeight: 600 }}>{progress.percent}%</span> menuju Chapter {level.level + 1} ({progress.current} / {progress.needed} XP)</span>
-        </div>
-      </div>
-
-      {(() => {
-        const mainStats = (
-          <div className="stats-grid mb-3" key="main">
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><CheckSquare size={28} /></div>
-              <div className="stat-info">
-                <h3>{stats.tasksCompleted}<span className="text-sm text-muted">/{stats.tasksTotal}</span></h3>
-                <p>{t('dashboard.tasks_completed')}</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><Flame size={28} /></div>
-              <div className="stat-info">
-                <h3>{stats.streak}</h3>
-                <p>{t('dashboard.longest_streak')}</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><Wallet size={28} /></div>
-              <div className="stat-info">
-                <h3 className="text-lg">{formatCurrency(stats.totalIncome - stats.totalExpense)}</h3>
-                <p>{t('dashboard.net_balance')}</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}><Timer size={28} /></div>
-              <div className="stat-info">
-                <h3>{stats.focusSessions}</h3>
-                <p>{t('dashboard.focus_sessions')}</p>
-              </div>
-            </div>
-          </div>
-        );
-
-        const secondaryStats = (
-          <div className="grid-2 mb-3" key="sec">
-            <div className="card card-padding">
-              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><TrendingUp size={20} /> {timeContext === 'morning' ? 'Target Hari Ini' : t('dashboard.todays_progress')}</div>
-              <div className="flex flex-col gap-2">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-secondary">{t('dashboard.habits_completed')}</span>
-                    <span className="text-sm font-semibold">{stats.habitsToday}/{stats.habitsTotal}</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill green" style={{width: stats.habitsTotal > 0 ? `${(stats.habitsToday / stats.habitsTotal) * 100}%` : '0%'}} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-secondary">{t('dashboard.tasks_completed')}</span>
-                    <span className="text-sm font-semibold">{stats.tasksCompleted}/{stats.tasksTotal}</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{width: stats.tasksTotal > 0 ? `${(stats.tasksCompleted / stats.tasksTotal) * 100}%` : '0%'}} />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="card card-padding">
-              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Trophy size={20} /> {timeContext === 'evening' ? 'Refleksi Diri' : t('dashboard.quick_stats')}</div>
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={16} /> {t('dashboard.active_goals')}</span>
-                  <span className="font-semibold">{stats.goalsActive}</span>
-                </div>
-                <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> {t('dashboard.reading')}</span>
-                  <span className="font-semibold">{stats.booksReading}</span>
-                </div>
-                <div className="flex justify-between items-center" style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><NotebookPen size={16} /> {t('dashboard.total_journals')}</span>
-                  <span className="font-semibold">{stats.journalEntries}</span>
-                </div>
-                <div className="flex justify-between items-center" style={{ padding: '6px 0' }}>
-                  <span className="text-sm text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Dumbbell size={16} /> {t('dashboard.workouts_week')}</span>
-                  <span className="font-semibold">{stats.workoutsThisWeek}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-        const financeSummary = (
-          <div className="grid-2" key="fin">
-            <div className="card card-padding">
-              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Wallet size={20} /> {t('dashboard.finance')}</div>
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
-                  <span className="text-sm text-secondary">{t('dashboard.income')}</span>
-                  <span className="font-semibold text-green">{formatCurrency(stats.totalIncome)}</span>
-                </div>
-                <div className="flex justify-between items-center" style={{ padding: '8px 0' }}>
-                  <span className="text-sm text-secondary">{t('dashboard.expense')}</span>
-                  <span className="font-semibold text-red">{formatCurrency(stats.totalExpense)}</span>
-                </div>
-                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold">{t('dashboard.balance')}</span>
-                    <span className="font-bold text-lg" style={{ color: stats.totalIncome - stats.totalExpense >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {formatCurrency(stats.totalIncome - stats.totalExpense)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="card card-padding">
-              <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Rocket size={20} /> {t('dashboard.quick_actions')}</div>
-              <div className="flex flex-col gap-2">
-                <a href="/tasks" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><CheckSquare size={16} /> {t('dashboard.add_task')}</a>
-                <a href="/journal" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><NotebookPen size={16} /> {t('dashboard.write_journal')}</a>
-                <a href="/pomodoro" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Timer size={16} /> {t('dashboard.start_focus')}</a>
-                <a href="/achievements" className="btn btn-secondary w-full" style={{ justifyContent: 'flex-start', display: 'flex', gap: '8px' }}><Trophy size={16} /> {t('dashboard.view_achievements')}</a>
-              </div>
-            </div>
-          </div>
-        );
-
-        if (timeContext === 'morning') return [secondaryStats, mainStats, financeSummary];
-        if (timeContext === 'work') return [mainStats, secondaryStats, financeSummary];
-        return [secondaryStats, financeSummary, mainStats];
-      })()}
+  return <div className="wy-dashboard" aria-busy={loading}>
+    <header className="wy-welcome"><div><p className="wy-overline">{translateCopy("RUANG UNTUK BERTUMBUH")}</p><h1>{translateCopy("Halo,")} {user?.name?.split(' ')[0] || translateCopy("kamu")} <span className="wy-wave">👋</span></h1><p>{translateCopy("Langkah kecil hari ini, hidup yang lebih bermakna.")}</p></div><time>{dateLabel}</time></header>
+    {error && <div className="whenya-error" role="alert">{translateCopy(error)}<button className="btn btn-secondary" onClick={load}>{translateCopy("Coba lagi")}</button></div>}
+    {loading && <div className="wy-loading" role="status">{translateCopy("Menyiapkan harimu…")}</div>}
+    <nav className="wy-mobile-shortcuts" aria-label={translateCopy("Menu cepat")}>{SHORTCUTS.map(({href, Icon, label}) => <Link href={href} key={href}><span><Icon size={21}/></span>{label}</Link>)}</nav>
+    <section className="wy-overview" aria-label={translateCopy("Ringkasan hari ini")}>
+      {[{ Icon: CheckSquare, value: `${done}/${dayTasks.length}`, label: translateCopy("Tugas hari ini"), href: '/tasks', tone: 'mint' }, { Icon: BarChart3, value: `${summary.habitsDone}`, label: translateCopy("Kebiasaan selesai"), href: '/habits', tone: 'sage' }, { Icon: Target, value: `${summary.goalRate}%`, label: translateCopy("Progres tujuan"), href: '/goals', tone: 'mint' }, { Icon: Flame, value: `${streak}`, label: translateCopy("Hari berturut-turut"), href: '/habits', tone: 'sand' }].map(({Icon,value,label,href,tone}) => <Link href={href} className="wy-overview-item" key={href+label}><span className={`wy-icon-tile ${tone}`}><Icon size={21}/></span><div><strong>{value}</strong><small>{label}</small></div></Link>)}
+    </section>
+    <section className="wy-mobile-week wy-panel"><div className="wy-panel-heading"><h2>{translateCopy("Progres minggu ini")}</h2><Link href="/insights"><ArrowRight size={17}/><span className="sr-only">{translateCopy("Lihat insight")}</span></Link></div><div className="wy-week-summary"><ProgressRing value={summary.habitRate}/><p>{translateCopy("Konsistensi tumbuh dari hal kecil.")}<br/><strong>{translateCopy("Teruskan langkah baikmu.")}</strong></p></div><WeekBars trend={summary.habitTrend}/></section>
+    <div className="wy-dashboard-grid">
+      <section className="wy-panel wy-schedule"><div className="wy-panel-heading"><div><h2>{translateCopy("Rencana hari ini")}</h2><p>{dateLabel}</p></div><Link href="/tasks" className="btn btn-primary btn-sm"><Plus size={14}/>{translateCopy("Tambah tugas")}</Link></div>
+        <div className="wy-schedule-columns"><span>{translateCopy("PROGRES")}</span><span>{translateCopy("AKTIVITAS")}</span><span>{translateCopy("KATEGORI")}</span></div>
+        {dayTasks.length ? dayTasks.slice(0, 5).map(task => <div key={task.id} className={`wy-task-row ${task.status === 'done' ? 'done' : ''}`}><button className="wy-check" aria-label={`${task.status === 'done' ? translateCopy("Batalkan") : translateCopy("Selesaikan")} ${task.title}`} aria-pressed={task.status === 'done'} onClick={() => toggleTask(task)}>{task.status === 'done' && <Check size={12}/>}</button><Link href="/tasks"><strong>{task.title}</strong><small>{task.priority === 'P1' ? translateCopy("Prioritas utama") : task.deadline ? translateCopy("Sesuai rencanamu") : translateCopy("Satu langkah kecil hari ini")}</small></Link><span className={`wy-category ${task.category === 'Kerja' ? 'lavender' : task.category === 'Belajar' ? 'peach' : ''}`}>{translateCopy(task.category) || translateCopy("Personal")}</span></div>) : <div className="wy-empty-inline"><span className="wy-icon-tile mint"><CheckSquare size={24}/></span><h3>{translateCopy("Harimu, rencanamu.")}</h3><p>{translateCopy("Mulai dengan satu hal yang ingin kamu selesaikan.")}</p><Link href="/tasks">{translateCopy("Tambahkan tugas pertama")} <ArrowRight size={14}/></Link></div>}
+        <footer className="wy-schedule-footer"><span><i style={{width:`${taskRate}%`}}/></span><small>{done} {translateCopy("dari")} {dayTasks.length} {translateCopy("selesai")}</small><Link href="/tasks">{translateCopy("Lihat semua")} <ArrowRight size={13}/></Link></footer>
+      </section>
+      <section className="wy-panel wy-financial"><div className="wy-panel-heading"><h2>{translateCopy("Finansial bulan ini")}</h2><button className="wy-icon-button" aria-label={hideBalance ? translateCopy("Tampilkan nominal") : translateCopy("Sembunyikan nominal")} onClick={() => { setHideBalance(!hideBalance); localStorage.setItem('privacy_hide_balance', String(!hideBalance)); }}>{hideBalance ? <EyeOff size={16}/> : <Eye size={16}/>}</button></div><p className="wy-muted-label">{translateCopy("Total pengeluaran")}</p><strong className="wy-money">{hideBalance ? '••••••' : formatCurrency(summary.expense, uiLanguage)}</strong><FinanceBars transactions={data.transactions} hidden={hideBalance}/><div className="wy-finance-legend"><span><i/>{translateCopy("Pemasukan")}</span><strong>{hideBalance ? '••••••' : formatCurrency(summary.income, uiLanguage)}</strong></div><div className="wy-finance-legend expense"><span><i/>{translateCopy("Pengeluaran")}</span><strong>{hideBalance ? '••••••' : formatCurrency(summary.expense, uiLanguage)}</strong></div><Link className="wy-panel-footlink" href="/finance">{translateCopy("Lihat ringkasan keuangan")} <ArrowRight size={14}/></Link></section>
+      <section className="wy-panel wy-goals-section"><div className="wy-panel-heading"><div><h2>{translateCopy("Tujuan hidup")}</h2><p>{translateCopy("Selangkah lebih dekat dengan impianmu.")}</p></div><Link href="/goals">{translateCopy("Lihat semua")} <ArrowRight size={14}/></Link></div><div className="wy-goal-strip">{(goals.length ? goals : STARTERS).map((goal, i) => <Link href="/goals" key={goal.id || goal.category} className="wy-goal-mini"><Scene category={goal.category}/><div><div className="wy-goal-mini-title"><strong>{goal.title}</strong><MoreHorizontal size={14}/></div><small>{goal.description || goal.text || translateCopy("Tumbuh setiap hari")}</small>{'progress' in goal ? <><div className="wy-progress-track"><i style={{width:`${goal.progress}%`}}/></div><b>{goal.progress}%</b></> : <span className="wy-goal-start">{translateCopy("Mulai perjalanan")} <Plus size={11}/></span>}</div></Link>)}</div></section>
+      <section className="wy-panel wy-habits-section"><div className="wy-panel-heading"><h2>{translateCopy("Kebiasaan hari ini")}</h2><Link href="/habits">{translateCopy("Lihat semua")} <ArrowRight size={14}/></Link></div>{data.habits.length ? data.habits.slice(0, 4).map(habit => <button className="wy-habit-row" key={habit.id} onClick={() => toggleHabit(habit)} aria-pressed={habit.completedDates?.includes(today)}><span className={`wy-round-check ${habit.completedDates?.includes(today) ? 'checked' : ''}`}>{habit.completedDates?.includes(today) && <Check size={12}/>}</span><span>{habit.name || habit.title}</span><small>{habitStreak(habit.completedDates)} {translateCopy("hari")}</small></button>) : <div className="wy-habit-empty"><Leaf size={27}/><p>{translateCopy("Satu kebiasaan baik.")}<br/>{translateCopy("Banyak perubahan kecil.")}</p><Link href="/habits" className="btn btn-secondary btn-sm">{translateCopy("Bangun kebiasaan")} <Plus size={13}/></Link></div>}</section>
+      <section className="wy-panel wy-journal-section"><div className="wy-panel-heading"><h2>{translateCopy("Jurnal terbaru")}</h2><Link href="/journal">{translateCopy("Lihat semua")} <ArrowRight size={14}/></Link></div><Link className="wy-journal-preview" href="/journal"><div><span className="wy-overline"><Sparkles size={12}/>{translateCopy("MOMEN UNTUK DIRIMU")}</span><h3>{data.journal[0]?.title || translateCopy("Apa yang kamu syukuri hari ini?")}</h3><p>{data.journal[0]?.content?.slice(0, 95) || translateCopy("Luangkan sejenak untuk mencatat cerita, pikiran, dan hal kecil yang berarti.")}</p><small>{data.journal[0]?.date?.slice(0, 10) || translateCopy("Tulis ceritamu")} <ArrowRight size={13}/></small></div><Scene landscape/></Link></section>
     </div>
-  );
+    <div className="wy-bottom-note"><Leaf size={13}/> {translateCopy("Tidak perlu sempurna. Cukup terus bertumbuh.")}</div>
+  </div>;
 }

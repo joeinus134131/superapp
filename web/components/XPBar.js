@@ -1,6 +1,6 @@
 'use client';
 
-import { getXP, getCurrentLevel, getNextLevel, getXPProgress } from '@/lib/gamification';
+import { getXP, getCurrentLevel, getNextLevel, getXPProgress } from '@superapp/shared/gamification';
 
 export default function XPBar() {
   let data;

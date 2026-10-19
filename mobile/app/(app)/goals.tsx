@@ -1,9 +1,13 @@
+import { DeviceEventEmitter } from 'react-native';
+import { HeaderText } from '../../components/HeaderText';
+import { normalizeGoal, normalizeGoalCategory } from '@superapp/shared/insights';
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, StyleSheet, RefreshControl,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
@@ -11,6 +15,7 @@ import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
 import { generateId, formatDate } from '../../lib/helpers';
 import { addXP } from '../../lib/gamification';
 import { useLanguage } from '../../context/languageContext';
+import { useRouter } from 'expo-router';
 
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 
@@ -28,26 +33,56 @@ interface Goal {
   deadline: string;
   progress: number;
   completed: boolean;
+  archived?: boolean;
   journey: JourneyItem[];
   createdAt: string;
 }
 
 const GOAL_CATEGORIES = ['career', 'finance', 'health', 'education', 'personal', 'relationship', 'other'];
-const CATEGORY_ICONS: Record<string, string> = {
-  'career': 'work', 'finance': 'account-balance-wallet', 'health': 'favorite',
-  'education': 'school', 'personal': 'person', 'relationship': 'people', 'other': 'star',
+const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  career: 'work',
+  finance: 'account-balance-wallet',
+  health: 'favorite',
+  education: 'school',
+  personal: 'person',
+  relationship: 'people',
+  other: 'star',
+};
+
+const getCategoryDetails = (rawCategory: string | undefined, t: (key: string) => string) => {
+  const normalized = normalizeGoalCategory(rawCategory);
+  const icon = CATEGORY_ICONS[normalized] || 'star';
+  const translated = t(`goals.cat_${normalized}`);
+
+  let label = translated;
+  if (!translated || translated.startsWith('cat_') || translated === `goals.cat_${normalized}`) {
+    const fallbackNames: Record<string, string> = {
+      career: 'Karir',
+      finance: 'Keuangan',
+      health: 'Kesehatan',
+      education: 'Pendidikan',
+      personal: 'Personal',
+      relationship: 'Hubungan',
+      other: 'Lainnya',
+    };
+    label = fallbackNames[normalized] || (rawCategory ? String(rawCategory).replace(/^cat_/, '') : 'Personal');
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+  }
+  return { key: normalized, icon, label };
 };
 
 export default function GoalsScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
-  const [filter, setFilter] = useState<'active' | 'completed'>('active');
+  const [filter, setFilter] = useState<'active' | 'completed' | 'archived'>('active');
   const [refreshing, setRefreshing] = useState(false);
   const [xpToast, setXpToast] = useState<string | null>(null);
 
@@ -58,14 +93,19 @@ export default function GoalsScreen() {
 
   const load = useCallback(async () => {
     const saved = await getData(STORAGE_KEYS.GOALS);
-    if (saved && Array.isArray(saved)) setGoals(saved);
+    setGoals(Array.isArray(saved) ? saved.map(normalizeGoal) : []);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', load);
+    return () => subscription.remove();
+  }, [load]);
 
   const save = async (data: Goal[]) => {
-    setGoals(data);
-    await setData(STORAGE_KEYS.GOALS, data);
+    const normalized = data.map(goal => normalizeGoal({ ...goal, milestones: undefined, targetDate: goal.deadline }));
+    setGoals(normalized);
+    await setData(STORAGE_KEYS.GOALS, normalized);
   };
 
   const openAdd = () => {
@@ -76,7 +116,7 @@ export default function GoalsScreen() {
 
   const openEdit = (goal: Goal) => {
     setEditGoal(goal);
-    setForm({ ...goal });
+    setForm({ ...goal, category: normalizeGoalCategory(goal.category) });
     setShowModal(true);
   };
 
@@ -98,15 +138,16 @@ export default function GoalsScreen() {
     const completedSteps = form.journey.filter(s => s.completed).length;
     const progress = form.journey.length > 0 ? (completedSteps / form.journey.length) * 100 : 0;
     const isNowCompleted = progress === 100 && form.journey.length > 0;
+    const category = normalizeGoalCategory(form.category);
 
     if (editGoal) {
       const wasCompleted = editGoal.completed;
-      const updated = goals.map(g => g.id === editGoal.id ? { ...g, ...form, progress, completed: isNowCompleted } : g);
+      const updated = goals.map(g => g.id === editGoal.id ? { ...g, ...form, category, progress, completed: isNowCompleted } : g);
       await save(updated);
       if (!wasCompleted && isNowCompleted) await rewardXP();
     } else {
       const newGoal: Goal = {
-        ...form, id: generateId(), progress, completed: isNowCompleted,
+        ...form, category, id: generateId(), progress, completed: isNowCompleted,
         createdAt: new Date().toISOString(),
       };
       await save([newGoal, ...goals]);
@@ -130,86 +171,77 @@ export default function GoalsScreen() {
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  const filtered = goals.filter(g => filter === 'active' ? !g.completed : g.completed);
+  const filtered = goals.filter(g => filter === 'archived' ? g.archived : !g.archived && (filter === 'active' ? !g.completed : g.completed));
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding, paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.cyan + '15', width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }]}>
-            <MaterialIcons name="flag" size={24} color={c.cyan} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary, fontSize: 28, fontWeight: '900' }]}>{t('sidebar.goals')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary, fontSize: 14, marginTop: 2 }]}>{t('goals.subtitle')}</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.tabs}>
-        <TouchableOpacity style={[styles.tab, filter === 'active' && { borderBottomColor: c.purple }]} onPress={() => setFilter('active')}>
-          <Text style={[styles.tabText, { color: filter === 'active' ? c.purple : c.textSecondary }]}>
-            {t('goals.active_targets').replace('{count}', goals.filter(g => !g.completed).length.toString())}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, filter === 'completed' && { borderBottomColor: c.green }]} onPress={() => setFilter('completed')}>
-          <Text style={[styles.tabText, { color: filter === 'completed' ? c.green : c.textSecondary }]}>
-            {t('goals.completed_targets').replace('{count}', goals.filter(g => g.completed).length.toString())}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.goals')}
+        subtitle={t('goals.subtitle')}
+        showBack={router.canGoBack()}
+        tabs={[
+          { key: 'active', label: 'Aktif', count: goals.filter(g => !g.completed && !g.archived).length },
+          { key: 'completed', label: translateCopy("Selesai"), count: goals.filter(g => g.completed && !g.archived).length },
+          { key: 'archived', label: 'Arsip', count: goals.filter(g => g.archived).length },
+        ]}
+        activeTab={filter}
+        onTabChange={(tabKey) => setFilter(tabKey as any)}
+      />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.purple} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 100 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: layout.bottomPadding + 100 }}
       >
-        {filtered.length === 0 ? (
+      {filtered.length === 0 ? (
           <View style={styles.empty}>
             <MaterialIcons name="track-changes" size={64} color={c.textMuted} />
             <Text style={[styles.emptyText, { color: c.textMuted }]}>{t(`goals.empty_${filter}`)}</Text>
           </View>
-        ) : filtered.map(goal => (
-          <TouchableOpacity key={goal.id} style={[styles.goalCard, { backgroundColor: c.bgCard, borderColor: c.border }]} onPress={() => openEdit(goal)}>
-            <View style={styles.goalHeader}>
-              <View style={[styles.iconBox, { backgroundColor: c.bgInput }]}>
-                <MaterialIcons name={CATEGORY_ICONS[goal.category] as any} size={24} color={c.purple} />
+        ) : filtered.map(goal => {
+          const catInfo = getCategoryDetails(goal.category, t);
+          return (
+            <TouchableOpacity key={goal.id} style={[styles.goalCard, { backgroundColor: c.bgCard, borderColor: c.border }]} onPress={() => openEdit(goal)}>
+              <View style={styles.goalHeader}>
+                <View style={[styles.iconBox, { backgroundColor: c.bgInput }]}>
+                  <MaterialIcons name={catInfo.icon} size={24} color={c.purple} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.goalTitle, { color: c.textPrimary }]}>{goal.title}</Text>
+                  <Text style={[styles.goalCat, { color: c.textMuted }]}>{catInfo.label}</Text>
+                </View>
+                {goal.completed && (
+                  <View style={[styles.badge, { backgroundColor: c.green + '20' }]}>
+                    <Text style={[styles.badgeText, { color: c.green }]}>{t('goals.achieved_badge')}</Text>
+                  </View>
+                )}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.goalTitle, { color: c.textPrimary }]}>{goal.title}</Text>
-                <Text style={[styles.goalCat, { color: c.textMuted }]}>{t(`goals.cat_${goal.category}`)}</Text>
+
+              <View style={styles.progressSection}>
+                <View style={styles.progressInfo}>
+                  <Text style={[styles.progressLabel, { color: c.textSecondary }]}>{t('goals.progress_label').replace('{percent}', Math.round(goal.progress).toString())}</Text>
+                  {goal.deadline ? <Text style={[styles.deadline, { color: c.textMuted }]}>{formatDate(goal.deadline, language)}</Text> : null}
+                </View>
+                <View style={[styles.progressTrack, { backgroundColor: c.bgInput }]}>
+                  <View style={[styles.progressFill, { width: `${goal.progress}%`, backgroundColor: goal.completed ? c.green : c.purple }]} />
+                </View>
               </View>
-              {goal.completed && (
-                <View style={[styles.badge, { backgroundColor: c.green + '20' }]}>
-                  <Text style={[styles.badgeText, { color: c.green }]}>{t('goals.achieved_badge')}</Text>
+
+              {goal.journey.length > 0 && (
+                <View style={styles.milestones}>
+                  <Text style={[styles.milestoneLabel, { color: c.textMuted }]}>{t('goals.journey_label')}</Text>
+                  {goal.journey.slice(0, 2).map(step => (
+                    <View key={step.id} style={styles.milestoneItem}>
+                      <MaterialIcons name={step.completed ? "check-box" : "check-box-outline-blank"} size={16} color={step.completed ? c.green : c.textMuted} />
+                      <Text style={[styles.milestoneText, { color: c.textSecondary }, step.completed && { textDecorationLine: 'line-through' }]} numberOfLines={1}>{step.text}</Text>
+                    </View>
+                  ))}
+                  {goal.journey.length > 2 && <Text style={{ fontSize: 10, color: c.textMuted, marginTop: 4 }}>+ {goal.journey.length - 2} {translateCopy("more steps")}</Text>}
                 </View>
               )}
-            </View>
-
-            <View style={styles.progressSection}>
-              <View style={styles.progressInfo}>
-                <Text style={[styles.progressLabel, { color: c.textSecondary }]}>{t('goals.progress_label').replace('{percent}', Math.round(goal.progress).toString())}</Text>
-                {goal.deadline ? <Text style={[styles.deadline, { color: c.textMuted }]}>{formatDate(goal.deadline, language)}</Text> : null}
-              </View>
-              <View style={[styles.progressTrack, { backgroundColor: c.bgInput }]}>
-                <View style={[styles.progressFill, { width: `${goal.progress}%`, backgroundColor: goal.completed ? c.green : c.purple }]} />
-              </View>
-            </View>
-
-            {goal.journey.length > 0 && (
-              <View style={styles.milestones}>
-                <Text style={[styles.milestoneLabel, { color: c.textMuted }]}>{t('goals.journey_label')}</Text>
-                {goal.journey.slice(0, 2).map(step => (
-                  <View key={step.id} style={styles.milestoneItem}>
-                    <MaterialIcons name={step.completed ? "check-box" : "check-box-outline-blank"} size={16} color={step.completed ? c.green : c.textMuted} />
-                    <Text style={[styles.milestoneText, { color: c.textSecondary }, step.completed && { textDecorationLine: 'line-through' }]} numberOfLines={1}>{step.text}</Text>
-                  </View>
-                ))}
-                {goal.journey.length > 2 && <Text style={{ fontSize: 10, color: c.textMuted, marginTop: 4 }}>+ {goal.journey.length - 2} more steps</Text>}
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <FloatingActionButton onPress={openAdd} />
@@ -231,16 +263,23 @@ export default function GoalsScreen() {
 
               <Text style={[styles.inputLabel, { color: c.textSecondary, marginTop: 20 }]}>{t('goals.cat_label')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow}>
-                {GOAL_CATEGORIES.map(cat => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.catBtn, { borderColor: c.border }, form.category === cat && { backgroundColor: c.purple + '15', borderColor: c.purple }]}
-                    onPress={() => setForm({ ...form, category: cat })}
-                  >
-                    <MaterialIcons name={CATEGORY_ICONS[cat] as any} size={18} color={form.category === cat ? c.purple : c.textMuted} />
-                    <Text style={[styles.catBtnText, { color: form.category === cat ? c.purple : c.textSecondary }]}>{t(`goals.cat_${cat}`)}</Text>
-                  </TouchableOpacity>
-                ))}
+                {GOAL_CATEGORIES.map(cat => {
+                  const isSelected = normalizeGoalCategory(form.category) === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        styles.catBtn,
+                        { borderColor: c.border },
+                        isSelected && { backgroundColor: c.purple + '15', borderColor: c.purple }
+                      ]}
+                      onPress={() => setForm({ ...form, category: cat })}
+                    >
+                      <MaterialIcons name={CATEGORY_ICONS[cat]} size={18} color={isSelected ? c.purple : c.textMuted} />
+                      <Text style={[styles.catBtnText, { color: isSelected ? c.purple : c.textSecondary }]}>{t(`goals.cat_${cat}`)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
 
               <Text style={[styles.inputLabel, { color: c.textSecondary, marginTop: 20 }]}>{t('goals.journey_setup_label')}</Text>
@@ -268,9 +307,12 @@ export default function GoalsScreen() {
 
               <View style={styles.modalActions}>
                 {editGoal && (
+                  <>
+                  <TouchableOpacity accessibilityRole="button" style={{ padding: 14 }} onPress={async () => { await save(goals.map(goal => goal.id === editGoal.id ? { ...goal, archived: !goal.archived } : goal)); setShowModal(false); }}><Text style={{ color: c.purple }}>{editGoal.archived ? translateCopy("Pulihkan tujuan") : translateCopy("Arsipkan tujuan")}</Text></TouchableOpacity>
                   <TouchableOpacity style={[styles.deleteBtn, { borderColor: c.red }]} onPress={() => deleteGoal(editGoal.id)}>
                     <MaterialIcons name="delete-outline" size={24} color={c.red} />
                   </TouchableOpacity>
+                  </>
                 )}
                 <TouchableOpacity style={[styles.submitBtn, { backgroundColor: c.purple }]} onPress={handleSubmit}>
                   <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{t('goals.start_btn')}</Text>
@@ -293,7 +335,8 @@ export default function GoalsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 4 },
   tabs: { flexDirection: 'row', paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.1)' },

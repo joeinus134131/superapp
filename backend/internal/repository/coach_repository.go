@@ -26,11 +26,11 @@ func (r *coachRepository) GetUnreadByUserID(userID uuid.UUID) ([]domain.CoachMes
 	return msgs, err
 }
 
-func (r *coachRepository) MarkAsRead(messageIDs []uuid.UUID) error {
+func (r *coachRepository) MarkAsRead(userID uuid.UUID, messageIDs []uuid.UUID) error {
 	if len(messageIDs) == 0 {
 		return nil
 	}
 	return r.db.Model(&domain.CoachMessage{}).
-		Where("id IN ?", messageIDs).
+		Where("id IN ? AND user_id = ?", messageIDs, userID).
 		Update("is_read", true).Error
 }

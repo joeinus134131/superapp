@@ -4,20 +4,20 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'packages/web/**'
-      - 'packages/shared/**'
+      - 'web/**'
+      - 'shared/**'
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
   pull_request:
     branches: [main]
     paths:
-      - 'packages/web/**'
-      - 'packages/shared/**'
+      - 'web/**'
+      - 'shared/**'
 
 jobs:
   build:
-    name: Build & Lint Web
+    name: Build, Lint & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -38,10 +38,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Test Shared
+        run: pnpm --filter @superapp/shared test
+
+      - name: Lint Web
         run: pnpm --filter @superapp/web lint
 
-      - name: Build
+      - name: Build Web
         run: pnpm --filter @superapp/shared build --if-present && pnpm --filter @superapp/web build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

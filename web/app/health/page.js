@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, getToday, formatDate } from '@/lib/helpers';
+import { generateId, getToday, formatDate } from '@superapp/shared/helpers';
 import {
   Dumbbell, Droplets, Activity, Scale, Droplet,
   Plus, Trash2, HeartPulse, X, CalendarDays
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 export default function HealthPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { t } = useLanguage();
   const [health, setHealth] = useState({ workouts: [], weights: [], waterLog: {} });
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
@@ -72,7 +75,7 @@ export default function HealthPage() {
     e.preventDefault();
     if (!weightForm.weight) return;
     const entry = { id: generateId(), weight: Number(weightForm.weight), date: weightForm.date };
-    save({ ...health, weights: [...(health.weights || []), entry].sort((a, b) => new Date(a.date) - new Date(b.date)) });
+    save({ ...health, weights: [...(health.weights || []), entry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) });
     setWeightForm({ weight: '', date: getToday() });
     setShowWeightModal(false);
   };
@@ -136,7 +139,7 @@ export default function HealthPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-cyan)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data kesehatan...
+        {translateCopy("Memuat data kesehatan...")}
       </div>
     );
   }
@@ -150,7 +153,7 @@ export default function HealthPage() {
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Dumbbell size={28} /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><Dumbbell size={28} /></div>
           <div className="stat-info">
             <h3>{todayWorkouts.length}</h3>
             <p>{t('health.workouts_today')}</p>
@@ -173,7 +176,7 @@ export default function HealthPage() {
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><Scale size={28} /></div>
           <div className="stat-info">
-            <h3>{health.weights && health.weights.length > 0 ? health.weights[health.weights.length - 1].weight : '—'}<span className="text-sm text-muted"> kg</span></h3>
+            <h3>{health.weights && health.weights.length > 0 ? health.weights[health.weights.length - 1].weight : '—'}<span className="text-sm text-muted"> {translateCopy("kg")}</span></h3>
             <p>{t('health.last_weight')}</p>
           </div>
         </div>
@@ -250,7 +253,7 @@ export default function HealthPage() {
         {(() => {
           const pastWorkouts = (health.workouts || []).filter(w => w.date !== today);
           if (pastWorkouts.length === 0) return null;
-          
+
           return (
             <div>
               <p className="text-sm text-secondary mb-1">{t('health.previous_section')}</p>
@@ -266,7 +269,7 @@ export default function HealthPage() {
                     ) : (
                       <span>{w.duration} {t('health.min')}</span>
                     )}
-                    <span className="text-muted">{formatDate(w.date)}</span>
+                    <span className="text-muted">{formatDate(w.date, uiLanguage)}</span>
                   </div>
                   <button className="btn btn-danger btn-icon sm" onClick={() => deleteWorkout(w.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                 </div>

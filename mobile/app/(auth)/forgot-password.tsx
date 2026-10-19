@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { 
-  View, Text, TextInput, TouchableOpacity, ActivityIndicator, 
+import {
+  View, Text, TextInput, TouchableOpacity, ActivityIndicator,
   ScrollView, KeyboardAvoidingView, StyleSheet, Dimensions
 } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -14,6 +14,7 @@ import { useLanguage } from '../../context/languageContext'
 const { width } = Dimensions.get('window')
 
 export default function ForgotPasswordScreen() {
+  const { tx: translateCopy } = useLanguage();
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +27,7 @@ export default function ForgotPasswordScreen() {
 
   const handleReset = async () => {
     if (!email) {
-      setError('Masukkan email Anda')
+      setError(translateCopy("Masukkan email Anda"))
       return
     }
 
@@ -50,8 +51,8 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.bgPrimary }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-        <TouchableOpacity 
-          style={styles.backBtn} 
+        <TouchableOpacity
+          style={styles.backBtn}
           onPress={() => router.back()}
         >
           <MaterialIcons name="arrow-back" size={24} color={c.textPrimary} />
@@ -68,27 +69,27 @@ export default function ForgotPasswordScreen() {
         {success ? (
           <View style={[styles.successCard, { backgroundColor: c.green + '10', borderColor: c.green }]}>
             <MaterialIcons name="check-circle" size={48} color={c.green} />
-            <Text style={[styles.successTitle, { color: c.textPrimary }]}>Email Terkirim!</Text>
+            <Text style={[styles.successTitle, { color: c.textPrimary }]}>{translateCopy("Email Terkirim!")}</Text>
             <Text style={[styles.successDesc, { color: c.textSecondary }]}>
-              Silakan cek inbox Anda (dan folder spam) untuk instruksi selanjutnya.
+              {translateCopy("Silakan cek inbox Anda (dan folder spam) untuk instruksi selanjutnya.")}
             </Text>
-            <TouchableOpacity 
-              style={[styles.btn, { backgroundColor: c.purple, marginTop: 24, width: '100%' }]} 
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: c.purple, marginTop: 24, width: '100%' }]}
               onPress={() => router.replace('/(auth)/login')}
             >
-              <Text style={styles.btnText}>Kembali ke Login</Text>
+              <Text style={styles.btnText}>{translateCopy("Kembali ke Login")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             {error ? (
               <View style={[styles.errorContainer, { backgroundColor: c.red + '10', borderLeftColor: c.red }]}>
-                <Text style={{ color: c.red }}>{error}</Text>
+                <Text style={{ color: c.red }}>{translateCopy(error)}</Text>
               </View>
             ) : null}
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.textPrimary }]}>Email Address</Text>
+              <Text style={[styles.label, { color: c.textPrimary }]}>{translateCopy("Email Address")}</Text>
               <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
                 <MaterialIcons name="alternate-email" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
                 <TextInput

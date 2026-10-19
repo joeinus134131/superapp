@@ -5,6 +5,7 @@ let audioCtx = null;
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
   if (!audioCtx) {
+    // @ts-ignore - webkitAudioContext is not in TypeScript types but exists in Safari
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   return audioCtx;

@@ -4,15 +4,17 @@
 // Ambient sounds for focus sessions — Pro users only
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { usePremium } from '@/lib/premium';
+import { usePremium } from '@superapp/shared/premium';
 import { Lock, Volume2, VolumeX } from 'lucide-react';
+import { useLanguage } from "@superapp/shared/language";
+
 
 // ─── Ambient Sound Generator (Web Audio API, no external files) ────────────
 
 const SOUNDSCAPES = [
   { id: 'rain', name: 'Hujan', emoji: '🌧️', color: '#3b82f6', desc: 'Suara hujan menenangkan' },
   { id: 'cafe', name: 'Café', emoji: '☕', color: '#f59e0b', desc: 'Suasana kafe yang sibuk' },
-  { id: 'lofi', name: 'Lo-Fi', emoji: '🎵', color: '#8b5cf6', desc: 'Lo-fi beats santai' },
+  { id: 'lofi', name: 'Lo-Fi', emoji: '🎵', color: '#52745a', desc: 'Lo-fi beats santai' },
   { id: 'nature', name: 'Alam', emoji: '🌿', color: '#10b981', desc: 'Suara alam & burung' },
   { id: 'white', name: 'White Noise', emoji: '📻', color: '#6b7280', desc: 'White noise fokus' },
   { id: 'ocean', name: 'Laut', emoji: '🌊', color: '#06b6d4', desc: 'Ombak pantai' },
@@ -211,6 +213,7 @@ const soundStarters = {
 // ─── Component ────────────────────────────────────────────────────────────
 
 export default function PomodoroSoundscapes({ isTimerRunning }) {
+  const { tx: translateCopy } = useLanguage();
   const { isPremium } = usePremium();
   const [activeSound, setActiveSound] = useState(null);
   const [volume, setVolume] = useState(0.5);
@@ -232,7 +235,7 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
 
   const playSound = useCallback((soundId) => {
     if (!isPremium) return;
-    
+
     stopSound();
 
     if (activeSound === soundId) {
@@ -241,6 +244,7 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
     }
 
     if (!audioCtxRef.current) {
+      // @ts-ignore - webkitAudioContext exists in Safari
       audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
     const ctx = audioCtxRef.current;
@@ -286,18 +290,18 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
   if (!isPremium) {
     return (
       <div className="card card-padding mt-3" style={{
-        background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.06))',
-        border: '1px solid rgba(139,92,246,0.15)',
+        background: 'linear-gradient(135deg, rgba(25,63,48,0.06), rgba(6,182,212,0.06))',
+        border: '1px solid rgba(25,63,48,0.15)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ filter: 'blur(3px)', pointerEvents: 'none', userSelect: 'none' }}>
           <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Volume2 size={20} /> Ambient Soundscapes
+            <Volume2 size={20} /> {translateCopy("Ambient Soundscapes")}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {SOUNDSCAPES.slice(0, 4).map(s => (
               <div key={s.id} style={{ padding: '10px 16px', borderRadius: '12px', background: 'var(--bg-glass)', flex: '1 1 calc(50% - 4px)' }}>
-                <span>{s.emoji} {s.name}</span>
+                <span>{s.emoji} {translateCopy(s.name)}</span>
               </div>
             ))}
           </div>
@@ -309,10 +313,10 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
           borderRadius: 'var(--radius-lg)',
         }}>
           <Lock size={28} color="#f59e0b" style={{ marginBottom: '8px' }} />
-          <span style={{ fontWeight: 700, color: '#fff', fontSize: '14px' }}>Ambient Soundscapes</span>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '10px' }}>Eksklusif untuk pengguna Pro</span>
+          <span style={{ fontWeight: 700, color: '#fff', fontSize: '14px' }}>{translateCopy("Ambient Soundscapes")}</span>
+          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '10px' }}>{translateCopy("Eksklusif untuk pengguna Pro")}</span>
           <a href="/settings" className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-            <Lock size={12} /> Upgrade ke Pro
+            <Lock size={12} /> {translateCopy("Upgrade ke Pro")}
           </a>
         </div>
       </div>
@@ -321,16 +325,16 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
 
   return (
     <div className="card card-padding mt-3" style={{
-      background: 'linear-gradient(135deg, rgba(139,92,246,0.04), rgba(6,182,212,0.04))',
-      border: '1px solid rgba(139,92,246,0.1)',
+      background: 'linear-gradient(135deg, rgba(25,63,48,0.04), rgba(6,182,212,0.04))',
+      border: '1px solid rgba(25,63,48,0.1)',
     }}>
       <div className="flex justify-between items-center mb-2">
         <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-          <Volume2 size={18} color="#8b5cf6" /> Ambient Soundscapes 👑
+          <Volume2 size={18} color="#52745a" /> {translateCopy("Ambient Soundscapes 👑")}
         </div>
         {activeSound && (
           <button className="btn btn-sm btn-secondary" onClick={() => { stopSound(); setActiveSound(null); }} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-            <VolumeX size={14} /> Stop
+            <VolumeX size={14} /> {translateCopy("Stop")}
           </button>
         )}
       </div>
@@ -352,7 +356,7 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
             }}
           >
             <span style={{ fontSize: '24px' }}>{s.emoji}</span>
-            <span style={{ fontWeight: 600 }}>{s.name}</span>
+            <span style={{ fontWeight: 600 }}>{translateCopy(s.name)}</span>
           </button>
         ))}
       </div>
@@ -364,7 +368,7 @@ export default function PomodoroSoundscapes({ isTimerRunning }) {
             type="range" min="0" max="1" step="0.05"
             value={volume}
             onChange={e => setVolume(Number(e.target.value))}
-            style={{ flex: 1, accentColor: '#8b5cf6' }}
+            style={{ flex: 1, accentColor: '#52745a' }}
           />
           <Volume2 size={14} color="var(--text-muted)" />
           <span className="text-xs text-muted" style={{ minWidth: '30px' }}>{Math.round(volume * 100)}%</span>

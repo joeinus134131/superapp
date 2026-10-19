@@ -101,7 +101,10 @@ export async function setupNotifications() {
       }
     }
   } else {
-    console.warn('Must use physical device for Push Notifications');
+    const reason = !Notifications
+      ? 'notifications library unavailable'
+      : 'running on a simulator';
+    console.log(`[Notifications] Remote push skipped (${reason}).`);
   }
 
   return token;

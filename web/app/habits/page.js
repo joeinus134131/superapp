@@ -1,21 +1,25 @@
 'use client';
 
+import { habitStreak } from '@superapp/shared/insights';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, getToday } from '@/lib/helpers';
-import { addXP, checkAchievements } from '@/lib/gamification';
-import { playHabitDone, playStreakBreak, playXPGain } from '@/lib/sounds';
+import { generateId, getToday } from '@superapp/shared/helpers';
+import { addXP, checkAchievements } from '@superapp/shared/gamification';
+import { playHabitDone, playStreakBreak, playXPGain } from '@superapp/shared/sounds';
 import { getStreakDeathMessage } from '@/lib/roast';
 import StreakDeath from '@/components/StreakDeath';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 import {
   Flame, CheckSquare, TrendingUp, Plus, CalendarDays,
   ListTodo, Trash2
 } from 'lucide-react';
 
 export default function HabitsPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { t } = useLanguage();
   const [habits, setHabits] = useState([]);
   const [newHabit, setNewHabit] = useState('');
@@ -73,20 +77,7 @@ export default function HabitsPage() {
         newDates = [...dates, today];
       }
 
-      // Calculate streak
-      let streak = 0;
-      const sorted = [...newDates].sort().reverse();
-      const todayDate = new Date(today);
-      for (let i = 0; i < sorted.length; i++) {
-        const check = new Date(today);
-        check.setDate(todayDate.getDate() - i);
-        const checkStr = check.toISOString().split('T')[0];
-        if (sorted.includes(checkStr)) {
-          streak++;
-        } else {
-          break;
-        }
-      }
+      const streak = habitStreak(newDates);
 
       const oldStreak = h.streak || 0;
       const bestStreak = Math.max(h.bestStreak || 0, streak);
@@ -161,7 +152,7 @@ export default function HabitsPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-red)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data habits...
+        {translateCopy("Memuat data habits...")}
       </div>
     );
   }
@@ -187,7 +178,7 @@ export default function HabitsPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><TrendingUp size={28} /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><TrendingUp size={28} /></div>
           <div className="stat-info">
             <h3>{completionRate}%</h3>
             <p>{t('habits.completion_rate')}</p>
@@ -239,7 +230,7 @@ export default function HabitsPage() {
                 <th style={{ textAlign: 'left', padding: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>{t('habits.habit_th')}</th>
                 {visibleDays.map(d => (
                   <th key={d} style={{ textAlign: 'center', padding: '8px', fontSize: '11px', color: d === today ? 'var(--accent-purple)' : 'var(--text-muted)', fontWeight: d === today ? '700' : '500' }}>
-                    {new Date(d).toLocaleDateString('id-ID', { weekday: 'short' })}
+                    {new Date(d).toLocaleDateString(uiLanguage === 'id' ? 'id-ID' : 'en-US', { weekday: 'short' })}
                     <br />{new Date(d).getDate()}
                   </th>
                 ))}
@@ -258,7 +249,7 @@ export default function HabitsPage() {
                     return (
                       <td key={d} style={{ textAlign: 'center', padding: '4px' }}>
                         <div
-                          className={`heatmap-cell ${done ? 'completed' : ''}`}
+                          className={`heatmap-cell ${done ? translateCopy("completed") : ''}`}
                           style={{
                             margin: '0 auto',
                             cursor: isToday ? 'pointer' : 'default',
@@ -322,7 +313,7 @@ export default function HabitsPage() {
             </div>
           );
         })}
-        
+
         {habits.length > ITEMS_PER_PAGE && (
             <div className="flex justify-between items-center mt-3 border-t border-color pt-3">
                 <span className="text-sm text-secondary">

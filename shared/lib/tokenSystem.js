@@ -55,7 +55,14 @@ export const PREMIUM_FEATURES = [
 // ===== CORE FUNCTIONS =====
 function getUserId() {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('superapp_current_user');
+    const stored = localStorage.getItem('superapp_current_user');
+    if (!stored) return null;
+    try {
+      const parsed = JSON.parse(stored);
+      return typeof parsed === 'string' ? parsed : null;
+    } catch {
+      return stored;
+    }
 }
 
 function getTokenKey() {

@@ -1,15 +1,18 @@
+import { HeaderText } from '../../components/HeaderText';
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Modal, StyleSheet, RefreshControl, Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
 import { getToday, formatDate } from '../../lib/helpers';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useLanguage } from '../../context/languageContext';
+import { useRouter } from 'expo-router';
 
 import { useJournal, JournalEntry } from '../../hooks/useJournal';
 import { analyzeJournalEntry, processJournalAI } from '../../lib/ai';
@@ -38,15 +41,17 @@ const COMMON_TAGS = [
 ];
 
 export default function JournalScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
-  const { 
-    entries, loading, xpToast, 
-    addEntry, updateEntry, deleteEntry, refreshJournal 
+  const {
+    entries, loading, xpToast,
+    addEntry, updateEntry, deleteEntry, refreshJournal
   } = useJournal();
 
   const [showModal, setShowModal] = useState(false);
@@ -74,12 +79,12 @@ export default function JournalScreen() {
   const handleSubmit = async () => {
     if (!form.content.trim()) return;
     setIsSaving(true);
-    
+
     let finalMood = form.mood;
     let reflection = '';
 
     try {
-      const aiResult = await processJournalAI(form.content);
+      const aiResult = await processJournalAI(form.content, language);
       finalMood = aiResult.mood;
       reflection = aiResult.reflection;
     } catch (e) {
@@ -93,7 +98,7 @@ export default function JournalScreen() {
     } else {
       await addEntry(payload);
     }
-    
+
     setIsSaving(false);
     setShowModal(false);
   };
@@ -105,9 +110,9 @@ export default function JournalScreen() {
     }));
   };
 
-  const filtered = useMemo(() => 
+  const filtered = useMemo(() =>
     search.trim()
-      ? entries.filter(e => e.title.toLowerCase().includes(search.toLowerCase()) || e.content.toLowerCase().includes(search.toLowerCase()))
+      ? entries.filter(e => String(e.title || '').toLowerCase().includes(search.toLowerCase()) || String(e.content || '').toLowerCase().includes(search.toLowerCase()))
       : entries,
   [entries, search]);
 
@@ -124,17 +129,11 @@ export default function JournalScreen() {
         </View>
       )}
 
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.purple + '15' }]}>
-            <MaterialIcons name="edit-note" size={24} color={c.purple} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.journal')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('journal.subtitle').replace('{count}', entries.length.toString())}</Text>
-          </View>
-        </View>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.journal')}
+        subtitle={t('journal.subtitle').replace('{count}', entries.length.toString())}
+        showBack={router.canGoBack()}
+      />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshJournal} tintColor={c.purple} />}
@@ -182,7 +181,7 @@ export default function JournalScreen() {
         )}
 
         {/* Search */}
-        <Input 
+        <Input
           value={search}
           onChangeText={setSearch}
           placeholder={t('journal.search_placeholder')}
@@ -252,16 +251,16 @@ export default function JournalScreen() {
                 ))}
               </View>
 
-              <Input 
+              <Input
                 label={t('journal.title_label')}
-                value={form.title} 
+                value={form.title}
                 onChangeText={v => setForm({ ...form, title: v })}
                 placeholder={t('journal.title_placeholder')}
               />
 
-              <Input 
+              <Input
                 label={t('journal.content_label')}
-                value={form.content} 
+                value={form.content}
                 onChangeText={v => setForm({ ...form, content: v })}
                 placeholder={t('journal.content_placeholder')}
                 multiline
@@ -283,12 +282,12 @@ export default function JournalScreen() {
 
               <View style={styles.modalActions}>
                 <Button label={t('tasks.cancel')} onPress={() => setShowModal(false)} variant="secondary" style={{ flex: 1, height: 60 }} />
-                <Button 
-                  label={isSaving ? 'AI Sedang Menganalisa...' : (editEntry ? t('tasks.save') : t('journal.write_btn'))} 
-                  onPress={handleSubmit} 
-                  variant="primary" 
+                <Button
+                  label={isSaving ? translateCopy("AI Sedang Menganalisa...") : (editEntry ? t('tasks.save') : t('journal.write_btn'))}
+                  onPress={handleSubmit}
+                  variant="primary"
                   disabled={isSaving}
-                  style={{ flex: 1, height: 60 }} 
+                  style={{ flex: 1, height: 60 }}
                 />
               </View>
             </ScrollView>
@@ -311,7 +310,7 @@ export default function JournalScreen() {
                     <MaterialIcons name="edit" size={22} color={c.purple} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => {
-                    Alert.alert(t('journal.delete_title') || 'Delete Entry', t('journal.delete_confirm') || 'Are you sure?', [
+                    Alert.alert(t('journal.delete_title') || translateCopy("Delete Entry"), t('journal.delete_confirm') || translateCopy("Are you sure?"), [
                       { text: t('tasks.cancel'), style: 'cancel' },
                       { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => { deleteEntry(viewEntry.id); setViewEntry(null); } },
                     ]);
@@ -326,13 +325,13 @@ export default function JournalScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {viewEntry.title ? <Text style={[styles.viewEntryTitle, { color: c.textPrimary }]}>{viewEntry.title}</Text> : null}
                 <Text style={[styles.viewEntryContent, { color: c.textPrimary }]}>{viewEntry.content}</Text>
-                
+
                 {/* AI Reflection Card */}
                 {(viewEntry.aiReflection || aiReflection) && (
                   <Card style={{ marginTop: 20, backgroundColor: c.purple + '08', borderColor: c.purple + '22', borderStyle: 'dashed' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <MaterialIcons name="auto-awesome" size={16} color={c.purple} />
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>AI COACH REFLECTION</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>{translateCopy("AI COACH REFLECTION")}</Text>
                     </View>
                     <Text style={{ fontSize: 14, color: c.textPrimary, lineHeight: 20 }}>
                       "{viewEntry.aiReflection || aiReflection}"
@@ -344,18 +343,18 @@ export default function JournalScreen() {
                   <Card style={{ marginTop: 20, backgroundColor: c.purple + '08', borderColor: c.purple + '22', borderStyle: 'dashed' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <MaterialIcons name="auto-awesome" size={16} color={c.purple} />
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>AI COACH REFLECTION</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>{translateCopy("AI COACH REFLECTION")}</Text>
                     </View>
                     {aiLoading ? (
-                      <Text style={{ fontSize: 13, color: c.textSecondary, fontStyle: 'italic' }}>Thinking...</Text>
+                      <Text style={{ fontSize: 13, color: c.textSecondary, fontStyle: 'italic' }}>{translateCopy("Thinking...")}</Text>
                     ) : (
                       <TouchableOpacity onPress={async () => {
                         setAiLoading(true);
-                        const res = await analyzeJournalEntry(viewEntry.content);
+                        const res = await analyzeJournalEntry(viewEntry.content, language);
                         setAiReflection(res);
                         setAiLoading(false);
                       }}>
-                        <Text style={{ fontSize: 13, color: c.purple, fontWeight: '700' }}>Get AI Insight ✨</Text>
+                        <Text style={{ fontSize: 13, color: c.purple, fontWeight: '700' }}>{translateCopy("Get AI Insight ✨")}</Text>
                       </TouchableOpacity>
                     )}
                   </Card>
@@ -379,22 +378,23 @@ export default function JournalScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  xpToast: { position: 'absolute', right: 16, zIndex: 999, backgroundColor: '#8b5cf6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, flexDirection: 'row', alignItems: 'center' },
+  xpToast: { position: 'absolute', right: 16, zIndex: 999, backgroundColor: '#52745a', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, flexDirection: 'row', alignItems: 'center' },
   xpToastText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  
+
   pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 2 },
 
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   cardTitle: { fontSize: 15, fontWeight: '800' },
-  
+
   todayPrompt: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 14 },
   promptIconBox: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   promptTitle: { fontSize: 15, fontWeight: '700' },
   promptSub: { fontSize: 12, marginTop: 2 },
-  
+
   entryCard: { padding: 14, marginBottom: 12 },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -402,25 +402,25 @@ const styles = StyleSheet.create({
   entryTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   entryPreview: { fontSize: 13, lineHeight: 18 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  
+
   emptyState: { alignItems: 'center', paddingVertical: 48 },
   emptyText: { fontSize: 15, fontWeight: '600', marginTop: 12 },
-  
+
   moodRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   moodBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 74, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'transparent' },
   moodLabel: { fontSize: 9, marginTop: 2, fontWeight: '600', textAlign: 'center' },
   inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  
+
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   tagBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: 'transparent' },
   tagBtnText: { fontSize: 12, fontWeight: '600' },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 20, fontWeight: '800' },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 20 },
-  
+
   viewEntryMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   viewEntryDate: { fontSize: 13 },
   viewEntryTitle: { fontSize: 22, fontWeight: '800', marginBottom: 12 },

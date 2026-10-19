@@ -8,8 +8,8 @@ export function generateId() {
   
   // Fallback kriptografi (menggunakan entropy murni jika randomUUID tidak tersedia)
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    return String(1e7).replace(/[018]/g, c =>
+      (Number(c) ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> Number(c) / 4).toString(16)
     );
   }
   
@@ -17,8 +17,8 @@ export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-export function formatDate(date) {
-  return new Date(date).toLocaleDateString('id-ID', {
+export function formatDate(date, language = 'en') {
+  return new Date(date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
@@ -26,22 +26,22 @@ export function formatDate(date) {
   });
 }
 
-export function formatDateShort(date) {
-  return new Date(date).toLocaleDateString('id-ID', {
+export function formatDateShort(date, language = 'en') {
+  return new Date(date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
     month: 'short',
     day: 'numeric',
   });
 }
 
-export function formatTime(date) {
-  return new Date(date).toLocaleTimeString('id-ID', {
+export function formatTime(date, language = 'en') {
+  return new Date(date).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
 }
 
-export function formatCurrency(amount) {
-  return new Intl.NumberFormat('id-ID', {
+export function formatCurrency(amount, language = 'en') {
+  return new Intl.NumberFormat(language === 'id' ? 'id-ID' : 'en-US', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
@@ -80,7 +80,7 @@ export function getFirstDayOfMonth(year, month) {
 export function getDaysBetween(date1, date2) {
   const d1 = new Date(date1);
   const d2 = new Date(date2);
-  const diff = Math.abs(d2 - d1);
+  const diff = Math.abs(d2.getTime() - d1.getTime());
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
@@ -151,3 +151,78 @@ export const INCOME_CATEGORIES = [
   { id: 'investment', label: 'Investasi', emoji: '📈', color: '#8b5cf6' },
   { id: 'other', label: 'Lainnya', emoji: '💰', color: '#6b7280' },
 ];
+
+/**
+ * Safely coercing any value (including double-stringified JSON or wrapped objects) into an Array.
+ */
+export function ensureArray(val) {
+  if (Array.isArray(val)) return val;
+  if (!val) return [];
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.tasks)) return parsed.tasks;
+        if (Array.isArray(parsed.data)) return parsed.data;
+        if (Array.isArray(parsed.items)) return parsed.items;
+        return Object.values(parsed);
+      }
+    } catch {
+      return [];
+    }
+  }
+  if (typeof val === 'object') {
+    if (Array.isArray(val.tasks)) return val.tasks;
+    if (Array.isArray(val.data)) return val.data;
+    if (Array.isArray(val.items)) return val.items;
+    return Object.values(val);
+  }
+  return [];
+}
+
+export function normalizeBook(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+
+  const totalPages = Math.max(0, Number(raw.totalPages) || 0);
+  const rawCurrent = raw.currentPage !== undefined && raw.currentPage !== null
+    ? raw.currentPage
+    : raw.pagesRead;
+  const parsedCurrent = Number(rawCurrent);
+  const safeCurrent = Number.isFinite(parsedCurrent) ? Math.max(0, parsedCurrent) : 0;
+  const currentPage = totalPages > 0 ? Math.min(totalPages, safeCurrent) : safeCurrent;
+
+  let status = 'want_to_read';
+  const rawStatus = String(raw.status || '').toLowerCase().trim();
+  if (['reading', 'sedang_dibaca', 'sedang'].includes(rawStatus)) {
+    status = 'reading';
+  } else if (['completed', 'finished', 'selesai', 'done'].includes(rawStatus)) {
+    status = 'completed';
+  } else if (['paused', 'jeda', 'ditunda'].includes(rawStatus)) {
+    status = 'paused';
+  } else if (['want_to_read', 'wishlist', 'ingin_dibaca'].includes(rawStatus)) {
+    status = 'want_to_read';
+  } else if (totalPages > 0 && currentPage >= totalPages) {
+    status = 'completed';
+  } else if (currentPage > 0) {
+    status = 'reading';
+  }
+
+  return {
+    ...raw,
+    id: raw.id || String(Date.now()),
+    title: String(raw.title || '').trim(),
+    author: String(raw.author || '').trim(),
+    totalPages,
+    currentPage,
+    pagesRead: currentPage,
+    status,
+    genre: raw.genre || 'gen_other',
+    rating: Number(raw.rating) || 0,
+    notes: raw.notes || '',
+    startDate: raw.startDate || '',
+    finishDate: raw.finishDate || '',
+    createdAt: raw.createdAt || new Date().toISOString(),
+  };
+}
+

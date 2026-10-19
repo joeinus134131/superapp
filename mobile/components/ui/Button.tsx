@@ -21,6 +21,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  accessibilityHint?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
@@ -32,7 +33,8 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   style,
   textStyle,
-  icon
+  icon,
+  accessibilityHint
 }) => {
   const { isDark } = useTheme();
   const c = useColors(isDark);
@@ -82,6 +84,10 @@ export const Button: React.FC<ButtonProps> = ({
       onPress={handlePress}
       disabled={disabled || loading}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
       {loading ? (
         <ActivityIndicator color={getTextColor()} size="small" />
@@ -104,16 +110,16 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 18,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  small: { paddingVertical: 8, paddingHorizontal: 16 },
-  medium: { paddingVertical: 14, paddingHorizontal: 24 },
-  large: { paddingVertical: 18, paddingHorizontal: 32 },
-  text: { fontWeight: '800', textAlign: 'center' },
+  small: { minHeight: 44, paddingVertical: 8, paddingHorizontal: 16 },
+  medium: { minHeight: 48, paddingVertical: 12, paddingHorizontal: 20 },
+  large: { minHeight: 52, paddingVertical: 14, paddingHorizontal: 24 },
+  text: { fontWeight: '700', textAlign: 'center' },
   text_small: { fontSize: 13 },
   text_medium: { fontSize: 15 },
   text_large: { fontSize: 17 },

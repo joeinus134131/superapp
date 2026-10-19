@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useColorScheme } from 'react-native'
 
 interface ThemeContextType {
   isDark: boolean
@@ -19,8 +18,8 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
-  const systemColorScheme = useColorScheme()
-  const [isDark, setIsDark] = useState(systemColorScheme === 'dark')
+  // Whenya is light-first. Existing users keep their explicit preference.
+  const [isDark, setIsDark] = useState(false)
   const [isChangingTheme, setIsChangingTheme] = useState(false)
 
   useEffect(() => {
@@ -36,8 +35,6 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
 
   const toggleTheme = async (): Promise<void> => {
     setIsChangingTheme(true)
-    // Artificial delay to show loading effect
-    await new Promise(resolve => setTimeout(resolve, 800))
     const newTheme = !isDark
     setIsDark(newTheme)
     await AsyncStorage.setItem('superapp_theme', newTheme ? 'dark' : 'light')

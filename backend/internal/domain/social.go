@@ -46,18 +46,22 @@ type SocialRepository interface {
 	GetGlobalLeaderboard(limit int) ([]LeaderboardEntry, error)
 	UpdateUserStats(entry LeaderboardEntry) error
 	GetSquadsByUserID(userID uuid.UUID) ([]Squad, error)
+	GetSquadByID(squadID uuid.UUID) (*Squad, error)
 	CreateSquad(squad *Squad) error
 	CreateChallenge(challenge *Challenge) error
 	GetChallengesBySquad(squadID uuid.UUID) ([]Challenge, error)
+	GetChallengeByID(challengeID uuid.UUID) (*Challenge, error)
 	UpdateChallengeProgress(progress *ChallengeProgress) error
 	GetChallengeProgress(challengeID uuid.UUID) ([]ChallengeProgress, error)
+	GetUserChallengeProgress(challengeID, userID uuid.UUID) (*ChallengeProgress, error)
 }
 
 type SocialUsecase interface {
 	GetLeaderboard() ([]LeaderboardEntry, error)
 	GetMySquads(userID uuid.UUID) ([]Squad, error)
+	GetSquadByID(squadID uuid.UUID) (*Squad, error)
 	CreateNewSquad(userID uuid.UUID, name, desc string) (*Squad, error)
-	CreateChallenge(squadID uuid.UUID, title, challengeType string, target, stakeXP int, startDate, endDate time.Time) (*Challenge, error)
+	CreateChallenge(userID, squadID uuid.UUID, title, challengeType string, target, stakeXP int, startDate, endDate time.Time) (*Challenge, error)
 	GetSquadChallenges(squadID uuid.UUID) ([]Challenge, error)
 	UpdateProgress(challengeID, userID uuid.UUID, increment int) (*ChallengeProgress, error)
 }

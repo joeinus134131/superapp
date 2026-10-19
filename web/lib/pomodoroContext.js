@@ -2,9 +2,11 @@
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { getToday } from '@/lib/helpers';
-import { addXP, checkAchievements } from '@/lib/gamification';
-import { playPomodoroDone } from '@/lib/sounds';
+import { translateText } from '@superapp/shared/translations';
+import { useLanguage } from '@superapp/shared/language';
+import { getToday } from '@superapp/shared/helpers';
+import { addXP, checkAchievements } from '@superapp/shared/gamification';
+import { playPomodoroDone } from '@superapp/shared/sounds';
 
 // ─── Notification configs ──────────────────────────────────────────────────────
 export const SESSION_NOTIFICATIONS = {
@@ -63,6 +65,9 @@ export const MODES = {
 const PomodoroContext = createContext(null);
 
 export function PomodoroProvider({ children }) {
+  const { language } = useLanguage();
+  const languageRef = useRef(language);
+  languageRef.current = language;
   const [mode, setMode]               = useState('focus');
   const [isRunning, setIsRunning]     = useState(false);
   const [timeLeft, setTimeLeft]       = useState(25 * 60);
@@ -221,7 +226,7 @@ export function PomodoroProvider({ children }) {
     setTimeout(() => setNotification(null), 6000);
 
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification(`${config.emoji} ${config.title}`, { body: message });
+      new Notification(`${config.emoji} ${translateText(config.title, languageRef.current)}`, { body: translateText(message, languageRef.current) });
     }
 
     // Auto switch mode

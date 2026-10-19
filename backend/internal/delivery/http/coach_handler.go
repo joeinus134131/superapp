@@ -12,16 +12,15 @@ type CoachHandler struct {
 	coachRepo domain.CoachRepository
 }
 
-func NewCoachHandler(app *fiber.App, engine *usecase.CoachEngine, repo domain.CoachRepository) {
+func NewCoachHandler(router fiber.Router, engine *usecase.CoachEngine, repo domain.CoachRepository) {
 	handler := &CoachHandler{
 		engine:    engine,
 		coachRepo: repo,
 	}
 
-	api := app.Group("/api/v1")
-	api.Get("/coach/messages", handler.GetMessages)
-	api.Post("/coach/messages/read", handler.MarkAsRead)
-	api.Post("/coach/generate", handler.GenerateMessage)
+	router.Get("/coach/messages", handler.GetMessages)
+	router.Post("/coach/messages/read", handler.MarkAsRead)
+	router.Post("/coach/generate", handler.GenerateMessage)
 }
 
 func (h *CoachHandler) GetMessages(c *fiber.Ctx) error {
@@ -41,13 +40,19 @@ type MarkReadRequest struct {
 }
 
 func (h *CoachHandler) MarkAsRead(c *fiber.Ctx) error {
+	userIDStr := c.Locals("user_id").(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
 	var req MarkReadRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
-	if err := h.coachRepo.MarkAsRead(req.MessageIDs); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	if err := h.coachRepo.MarkAsRead(userID, req.MessageIDs); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to mark messages as read"})
 	}
 
 	return c.JSON(fiber.Map{"message": "Messages marked as read"})

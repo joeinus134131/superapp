@@ -1,7 +1,8 @@
+import { syncDatabase } from './databaseSync';
 import axios from 'axios';
-import * as Network from 'expo-network';
 import NetInfo from '@react-native-community/netinfo';
 import { getData, STORAGE_KEYS, getRawData } from '@superapp/shared/storage';
+import { getValidAuthToken, refreshAuthToken } from './authToken';
 import { CONFIG } from './config';
 
 const API_URL = CONFIG.API_URL;
@@ -63,6 +64,7 @@ export const SyncService = {
         return;
       }
 
+      await syncDatabase();
       console.log(`[Sync] Mengumpulkan snapshot...`);
       const items = await this.collectContextSnapshots();
       console.log(`[Sync] Terkumpul ${items.length} items:`, items.map(i => i.module_type));
@@ -74,16 +76,38 @@ export const SyncService = {
 
       console.log(`[Sync] Mengirim ${items.length} snapshot ke backend...`);
       
-      const token = await getRawData(STORAGE_KEYS.SESSION_TOKEN);
-      const response = await axios.post(`${API_URL}/context/sync`, {
-        items: items
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      let token = await getValidAuthToken();
+      let response;
 
-      if (response.status === 202 || response.status === 201) {
+      try {
+        response = await axios.post(`${API_URL}/context/sync`, {
+          items: items
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          console.log('[Sync] Token 401 terdeteksi, mencoba refresh token...');
+          token = await refreshAuthToken();
+          if (token) {
+            response = await axios.post(`${API_URL}/context/sync`, {
+              items: items
+            }, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
+
+      if (response && (response.status === 202 || response.status === 201)) {
         console.log('[Sync] Berhasil sinkronisasi ke PostgreSQL');
       }
     } catch (error) {
@@ -106,14 +130,33 @@ export const SyncService = {
   async getBackendInsights() {
     try {
       const userId = await getRawData(STORAGE_KEYS.AUTH_USER);
-      const token = await getRawData(STORAGE_KEYS.SESSION_TOKEN);
+      let token = await getValidAuthToken();
       if (!userId) return [];
 
-      const response = await axios.get(`${API_URL}/context/insights?userId=${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      let response;
+      try {
+        response = await axios.get(`${API_URL}/context/insights?userId=${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          token = await refreshAuthToken();
+          if (token) {
+            response = await axios.get(`${API_URL}/context/insights?userId=${userId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
         }
-      });
+      }
+
       return response.data.data || [];
     } catch (e) {
       console.error('[Sync] Gagal mengambil insight dari backend:', e);
@@ -122,14 +165,22 @@ export const SyncService = {
   }
 };
 
+let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
- * Hook untuk otomatis sinkronisasi saat koneksi kembali online
+ * Hook untuk otomatis sinkronisasi saat koneksi kembali online (didebounce)
  */
 export function initAutoSyncListener() {
-  NetInfo.addEventListener(state => {
+  const unsubscribe = NetInfo.addEventListener(state => {
+    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     if (state.isConnected) {
-      console.log('[Sync] Koneksi terdeteksi, memicu sinkronisasi...');
-      SyncService.runSync();
+      syncDebounceTimer = setTimeout(() => {
+        SyncService.runSync();
+      }, 1500);
     }
   });
+  return () => {
+    unsubscribe();
+    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  };
 }

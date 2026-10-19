@@ -1,15 +1,19 @@
 'use client';
 
+import { normalizeGoal, normalizeGoalCategory } from '@superapp/shared/insights';
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, formatDate, getToday } from '@/lib/helpers';
+import { generateId, formatDate, getToday } from '@superapp/shared/helpers';
 import {
   Target, Plus, CheckCircle2, BarChart2, Flame, Check,
   Trash2, X, Star, Briefcase, Dumbbell, Wallet, BookOpen, Heart
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 export default function GoalsPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { t } = useLanguage();
   const [goals, setGoals] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -23,12 +27,12 @@ export default function GoalsPage() {
 
   useEffect(() => {
     getData(STORAGE_KEYS.GOALS).then(saved => {
-      if (saved && Array.isArray(saved)) setGoals(saved);
+      if (saved && Array.isArray(saved)) setGoals(saved.map(normalizeGoal));
       setLoading(false);
     });
   }, []);
 
-  const save = (g) => { setGoals(g); setData(STORAGE_KEYS.GOALS, g); };
+  const save = (g) => { const normalized = g.map(normalizeGoal); setGoals(normalized); setData(STORAGE_KEYS.GOALS, normalized); };
 
   const openAdd = () => {
     setEditGoal(null);
@@ -37,9 +41,20 @@ export default function GoalsPage() {
     setShowModal(true);
   };
 
+  const CATEGORY_MAP_TO_WEB = {
+    personal: translateCopy("Personal"),
+    career: translateCopy("Karir"),
+    health: translateCopy("Kesehatan"),
+    finance: translateCopy("Keuangan"),
+    education: 'Edukasi',
+    relationship: translateCopy("Hubungan"),
+    other: translateCopy("Personal"),
+  };
+
   const openEdit = (goal) => {
     setEditGoal(goal);
-    setForm({ ...goal });
+    const cat = CATEGORY_MAP_TO_WEB[normalizeGoalCategory(goal.category)] || goal.category || translateCopy("Personal");
+    setForm({ ...goal, category: cat });
     setNewMilestone('');
     setShowModal(true);
   };
@@ -71,31 +86,46 @@ export default function GoalsPage() {
   const deleteGoal = (id) => save(goals.filter(g => g.id !== id));
   const completeGoal = (id) => save(goals.map(g => g.id === id ? { ...g, completed: !g.completed } : g));
 
-  const active = goals.filter(g => !g.completed);
-  const completed = goals.filter(g => g.completed);
+  const toggleArchive = (id) => save(goals.map(g => g.id === id ? { ...g, archived: !g.archived } : g));
+  const archived = goals.filter(g => g.archived);
+  const active = goals.filter(g => !g.completed && !g.archived);
+  const completed = goals.filter(g => g.completed && !g.archived);
 
-  const getProgress = (goal) => {
-    if (!goal.milestones || goal.milestones.length === 0) return goal.completed ? 100 : 0;
-    const done = goal.milestones.filter(m => m.done).length;
-    return Math.round((done / goal.milestones.length) * 100);
-  };
+  const getProgress = (goal) => normalizeGoal(goal).progress;
 
-  const CATEGORIES = ['Personal', 'Karir', 'Kesehatan', 'Keuangan', 'Edukasi', 'Hubungan'];
+  const CATEGORIES = [translateCopy("Personal"), translateCopy("Karir"), translateCopy("Kesehatan"), translateCopy("Keuangan"), 'Edukasi', translateCopy("Hubungan")];
   const CAT_EMOJIS = { Personal: '🌟', Karir: '💼', Kesehatan: '💪', Keuangan: '💰', Edukasi: '📚', Hubungan: '❤️' };
   const CAT_ICONS = {
+    personal: <Star size={14} />,
+    career: <Briefcase size={14} />,
+    health: <Dumbbell size={14} />,
+    finance: <Wallet size={14} />,
+    education: <BookOpen size={14} />,
+    relationship: <Heart size={14} />,
+    other: <Star size={14} />,
     Personal: <Star size={14} />,
     Karir: <Briefcase size={14} />,
     Kesehatan: <Dumbbell size={14} />,
     Keuangan: <Wallet size={14} />,
     Edukasi: <BookOpen size={14} />,
-    Hubungan: <Heart size={14} />
+    Hubungan: <Heart size={14} />,
+  };
+
+  const getCategoryDisplay = (cat) => {
+    const key = normalizeGoalCategory(cat);
+    const translated = t(`goals.cat_${key}`);
+    if (translated && !translated.startsWith('cat_') && translated !== `goals.cat_${key}`) {
+      return translated;
+    }
+    const clean = cat ? String(cat).replace(/^cat_/, '') : translateCopy("Personal");
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
   };
 
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data goals...
+        {translateCopy("Memuat data goals...")}
       </div>
     );
   }
@@ -114,7 +144,7 @@ export default function GoalsPage() {
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Target size={28} /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><Target size={28} /></div>
           <div className="stat-info">
             <h3>{active.length}</h3>
             <p>{t('goals.active_goals')}</p>
@@ -130,7 +160,7 @@ export default function GoalsPage() {
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-yellow)' }}><BarChart2 size={28} /></div>
           <div className="stat-info">
-            <h3>{goals.length > 0 ? Math.round(goals.reduce((s, g) => s + getProgress(g), 0) / goals.length) : 0}%</h3>
+            <h3>{active.length + completed.length > 0 ? Math.round([...active, ...completed].reduce((s, g) => s + getProgress(g), 0) / (active.length + completed.length)) : 0}%</h3>
             <p>{t('goals.avg_progress')}</p>
           </div>
         </div>
@@ -147,9 +177,10 @@ export default function GoalsPage() {
                 <div key={goal.id} className="card card-padding" style={{ cursor: 'pointer' }} onClick={() => openEdit(goal)}>
                   <div className="flex justify-between items-center mb-1">
                     <span className="badge badge-purple" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {CAT_ICONS[goal.category] || <Target size={14} />} {goal.category}
+                      {CAT_ICONS[normalizeGoalCategory(goal.category)] || <Target size={14} />} {getCategoryDisplay(goal.category)}
                     </span>
                     <div className="flex gap-1">
+                      <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); toggleArchive(goal.id); }}>{translateCopy("Arsipkan")}</button>
                       <button className="btn btn-success btn-icon sm" onClick={(e) => { e.stopPropagation(); completeGoal(goal.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={16} /></button>
                       <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteGoal(goal.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                     </div>
@@ -169,7 +200,7 @@ export default function GoalsPage() {
                     </div>
                   )}
                   {goal.targetDate && (
-                    <div className="text-xs text-muted mt-1" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Target size={12} /> {t('goals.target')} {formatDate(goal.targetDate)}</div>
+                    <div className="text-xs text-muted mt-1" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Target size={12} /> {t('goals.target')} {formatDate(goal.targetDate, uiLanguage)}</div>
                   )}
                 </div>
               );
@@ -195,6 +226,8 @@ export default function GoalsPage() {
           </div>
         </div>
       )}
+
+      {archived.length > 0 && <section className="card card-padding mb-3"><h2>{translateCopy("Arsip tujuan")}</h2>{archived.map(goal => <div className="summary-row" key={goal.id}><span>{goal.title}</span><button className="btn btn-secondary btn-sm" onClick={() => toggleArchive(goal.id)}>{translateCopy("Pulihkan")}</button></div>)}</section>}
 
       {goals.length === 0 && (
         <div className="card card-padding">

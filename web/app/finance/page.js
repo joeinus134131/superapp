@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday, formatRupiahInput, parseRupiahInput } from '@/lib/helpers';
+import { generateId, formatDate, formatCurrency, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getToday, formatRupiahInput, parseRupiahInput } from '@superapp/shared/helpers';
 import {
   Wallet, Download, Plus, TrendingUp, TrendingDown,
   PieChart as PieChartIcon, List, History, Trash2, X
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
-import { usePremium } from '@/lib/premium';
+import { translateText } from '@superapp/shared/translations';
+import { useLanguage } from '@superapp/shared/language';
+import { usePremium } from '@superapp/shared/premium';
 
 // ─── Export helpers ────────────────────────────────────────────────────────────
 
@@ -17,12 +18,20 @@ function getMonthKey(dateStr) {
   return dateStr ? dateStr.slice(0, 7) : '';
 }
 
+
+
+
+
+// ─── Component ─────────────────────────────────────────────────────────────────
+
+export default function FinancePage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
 function getMonthLabel(monthKey) {
   if (!monthKey) return '';
-  const [year, month] = monthKey.split('-');
-  return new Date(year, month - 1, 1).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
+  const [year, month] = monthKey.split(translateCopy("-"));
+  return new Date(year, month - 1, 1).toLocaleDateString(uiLanguage === 'id' ? 'id-ID' : 'en-US', { year: 'numeric', month: 'long' });
 }
-
 function exportToCSV(transactions, monthFilter, t) {
   const filtered = monthFilter
     ? transactions.filter(t => getMonthKey(t.date) === monthFilter)
@@ -43,13 +52,14 @@ function exportToCSV(transactions, monthFilter, t) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((tx, i) => {
       const catList = tx.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-      const cat = catList.find(c => c.id === tx.category)?.label || tx.category;
-      return [i + 1, tx.date, tx.type === 'income' ? t('finance.income') : t('finance.expense'), cat, tx.description, tx.amount];
+      const cat = catList.find(c => c.id === tx.category);
+      const categoryLabel = cat ? translateText(cat.label, uiLanguage) : tx.category;
+      return [i + 1, tx.date, tx.type === 'income' ? t('finance.income') : t('finance.expense'), categoryLabel, tx.description, tx.amount];
     });
 
   const rows = [
     [`${t('finance.report_title')} ${monthFilter ? getMonthLabel(monthFilter) : t('finance.all_periods_text')}`],
-    [t('finance.created_at'), new Date().toLocaleString('id-ID')],
+    [t('finance.created_at'), new Date().toLocaleString(uiLanguage === 'id' ? 'id-ID' : 'en-US')],
     [],
     [t('finance.monthly_summary')],
     summaryHeader,
@@ -70,9 +80,7 @@ function exportToCSV(transactions, monthFilter, t) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Component ─────────────────────────────────────────────────────────────────
 
-export default function FinancePage() {
   const { t } = useLanguage();
   const [transactions, setTransactions] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -83,12 +91,12 @@ export default function FinancePage() {
   const ITEMS_PER_PAGE = 10;
   const [form, setForm] = useState({ type: 'expense', amount: '', category: 'food', description: '', date: getToday() });
   const [editingId, setEditingId] = useState(null);
-  
+
   // Custom categories state
   const { isPremium } = usePremium();
   const [customCategories, setCustomCategories] = useState({ expense: [], income: [] });
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [newCat, setNewCat] = useState({ type: 'expense', label: '', emoji: '🍟', color: '#8b5cf6' });
+  const [newCat, setNewCat] = useState({ type: 'expense', label: '', emoji: '🍟', color: '#52745a' });
 
   const [loading, setLoading] = useState(true);
 
@@ -156,8 +164,8 @@ export default function FinancePage() {
   const filtered = activeTab === 'all' ? transactions :
     transactions.filter(t => t.type === activeTab);
 
-  const allExpenseCategories = [...EXPENSE_CATEGORIES, ...customCategories.expense];
-  const allIncomeCategories = [...INCOME_CATEGORIES, ...customCategories.income];
+  const allExpenseCategories = [...EXPENSE_CATEGORIES.map(category => ({ ...category, label: translateCopy(category.label) })), ...customCategories.expense];
+  const allIncomeCategories = [...INCOME_CATEGORIES.map(category => ({ ...category, label: translateCopy(category.label) })), ...customCategories.income];
 
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -183,7 +191,7 @@ export default function FinancePage() {
       [newCat.type]: [...customCategories[newCat.type], cat]
     };
     saveCats(updated);
-    setNewCat({ type: newCat.type, label: '', emoji: '🍟', color: '#8b5cf6' });
+    setNewCat({ type: newCat.type, label: '', emoji: '🍟', color: '#52745a' });
   };
 
   const deleteCategory = (type, id) => {
@@ -266,7 +274,7 @@ export default function FinancePage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-green)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data keuangan...
+        {translateCopy("Memuat data keuangan...")}
       </div>
     );
   }
@@ -281,7 +289,7 @@ export default function FinancePage() {
           </div>
           <div className="flex gap-1" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button className="btn btn-secondary" onClick={() => setShowCategoryModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <List size={16} /> Kategori 👑
+              <List size={16} /> {translateCopy("Kategori 👑")}
             </button>
             <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Download size={16} /> {t('finance.export')}</button>
             <button className="btn btn-primary" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> {t('finance.add_transaction')}</button>
@@ -293,21 +301,21 @@ export default function FinancePage() {
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' }}><TrendingUp size={28} /></div>
           <div className="stat-info">
-            <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalIncome)}</h3>
+            <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalIncome, uiLanguage)}</h3>
             <p>{t('finance.total_income')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' }}><TrendingDown size={28} /></div>
           <div className="stat-info">
-            <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalExpense)}</h3>
+            <h3 style={{ fontSize: '20px' }}>{formatCurrency(totalExpense, uiLanguage)}</h3>
             <p>{t('finance.total_expense')}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: balance >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}><Wallet size={28} /></div>
           <div className="stat-info">
-            <h3 style={{ fontSize: '20px', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatCurrency(balance)}</h3>
+            <h3 style={{ fontSize: '20px', color: balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatCurrency(balance, uiLanguage)}</h3>
             <p>{t('finance.balance')}</p>
           </div>
         </div>
@@ -328,7 +336,7 @@ export default function FinancePage() {
               <div key={cat.id} style={{ marginBottom: '12px' }}>
                 <div className="flex justify-between mb-1">
                   <span className="text-sm">{cat.emoji} {cat.label}</span>
-                  <span className="text-sm font-semibold">{formatCurrency(spent)}</span>
+                  <span className="text-sm font-semibold">{formatCurrency(spent, uiLanguage)}</span>
                 </div>
                 <div className="progress-bar">
                   <div className="progress-fill" style={{ width: `${pct}%`, background: cat.color }} />
@@ -359,14 +367,14 @@ export default function FinancePage() {
               {filtered.slice((listPage - 1) * ITEMS_PER_PAGE, listPage * ITEMS_PER_PAGE).map(t => {
                 const info = getCategoryInfo(t.category, t.type);
                 return (
-                  <div key={t.id} className="transaction-item" onClick={() => editTransaction(t)} style={{ cursor: 'pointer', transition: 'background 0.2s', ':hover': { background: 'var(--bg-glass)' } }}>
+                  <div key={t.id} className="transaction-item transaction-item-hover" onClick={() => editTransaction(t)}>
                     <div className="transaction-icon" style={{ background: `${info.color}22` }}>{info.emoji}</div>
                     <div className="transaction-info" style={{ flex: 1 }}>
                       <h4>{t.description}</h4>
-                      <p>{info.label} • {formatDate(t.date)}</p>
+                      <p>{info.label} • {formatDate(t.date, uiLanguage)}</p>
                     </div>
                     <span className={`transaction-amount ${t.type}`}>
-                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                      {t.type === 'income' ? '+' : translateCopy("-")}{formatCurrency(t.amount, uiLanguage)}
                     </span>
                     <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteTransaction(t.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '12px' }}><Trash2 size={16} /></button>
                   </div>
@@ -392,7 +400,7 @@ export default function FinancePage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingId ? t('finance.edit_transaction', 'Edit Transaksi') : t('finance.add_transaction')}</h2>
+              <h2>{editingId ? t('finance.edit_transaction') : t('finance.add_transaction')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -406,14 +414,14 @@ export default function FinancePage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t('finance.amount')}</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     inputMode="numeric"
-                    className="form-input" 
-                    value={form.amount} 
-                    onChange={e => setForm({...form, amount: formatRupiahInput(e.target.value)})} 
-                    placeholder="0" 
-                    autoFocus 
+                    className="form-input"
+                    value={form.amount}
+                    onChange={e => setForm({...form, amount: formatRupiahInput(e.target.value)})}
+                    placeholder="0"
+                    autoFocus
                   />
                 </div>
                 <div className="form-group">
@@ -484,15 +492,15 @@ export default function FinancePage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
                       <div>
                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('finance.income')}</div>
-                        <div style={{ fontWeight: 700, color: 'var(--accent-green)', fontSize: '14px' }}>{formatCurrency(previewIncome)}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--accent-green)', fontSize: '14px' }}>{formatCurrency(previewIncome, uiLanguage)}</div>
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('finance.expense')}</div>
-                        <div style={{ fontWeight: 700, color: 'var(--accent-red)', fontSize: '14px' }}>{formatCurrency(previewExpense)}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--accent-red)', fontSize: '14px' }}>{formatCurrency(previewExpense, uiLanguage)}</div>
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('finance.balance')}</div>
-                        <div style={{ fontWeight: 700, color: previewBalance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontSize: '14px' }}>{formatCurrency(previewBalance)}</div>
+                        <div style={{ fontWeight: 700, color: previewBalance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontSize: '14px' }}>{formatCurrency(previewBalance, uiLanguage)}</div>
                       </div>
                     </div>
 
@@ -508,7 +516,7 @@ export default function FinancePage() {
                             return (
                               <div key={catId} className="flex justify-between" style={{ fontSize: '12px', marginBottom: '4px' }}>
                                 <span>{info.emoji} {info.label}</span>
-                                <span style={{ fontWeight: 600 }}>{formatCurrency(amt)}</span>
+                                <span style={{ fontWeight: 600 }}>{formatCurrency(amt, uiLanguage)}</span>
                               </div>
                             );
                           })}
@@ -548,7 +556,7 @@ export default function FinancePage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <List size={20} color="var(--accent-purple)" /> Kustom Kategori
+                <List size={20} color="var(--accent-purple)" /> {translateCopy("Kustom Kategori")}
                 {!isPremium && <span className="badge badge-yellow">PRO</span>}
               </h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowCategoryModal(false)}><X size={16} /></button>
@@ -559,55 +567,55 @@ export default function FinancePage() {
                   <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
                     <span style={{ fontSize: '48px' }}>👑</span>
                   </div>
-                  <h3>Fitur Premium</h3>
+                  <h3>{translateCopy("Fitur Premium")}</h3>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                    Upgrade ke Pro untuk membuat kategori pemasukan dan pengeluaran Anda sendiri tanpa batas.
+                    {translateCopy("Upgrade ke Pro untuk membuat kategori pemasukan dan pengeluaran Anda sendiri tanpa batas.")}
                   </p>
                   <button className="btn btn-primary btn-lg" onClick={() => { setShowCategoryModal(false); /* Should open upgrade modal usually */ }}>
-                    Upgrade ke Pro
+                    {translateCopy("Upgrade ke Pro")}
                   </button>
                 </div>
               ) : (
                 <div className="grid-2">
                   <div className="card card-padding" style={{ background: 'var(--bg-glass)' }}>
                     <form onSubmit={handleAddCategory}>
-                      <h4 className="mb-3">Tambah Kategori Baru</h4>
-                      
+                      <h4 className="mb-3">{translateCopy("Tambah Kategori Baru")}</h4>
+
                       <div className="tabs mb-3" style={{ width: '100%', display: 'flex' }}>
-                        <button type="button" className={`tab ${newCat.type === 'expense' ? 'active' : ''}`} style={{flex:1}} onClick={() => setNewCat({...newCat, type: 'expense'})}>Pengeluaran</button>
-                        <button type="button" className={`tab ${newCat.type === 'income' ? 'active' : ''}`} style={{flex:1}} onClick={() => setNewCat({...newCat, type: 'income'})}>Pemasukan</button>
+                        <button type="button" className={`tab ${newCat.type === 'expense' ? 'active' : ''}`} style={{flex:1}} onClick={() => setNewCat({...newCat, type: 'expense'})}>{translateCopy("Pengeluaran")}</button>
+                        <button type="button" className={`tab ${newCat.type === 'income' ? 'active' : ''}`} style={{flex:1}} onClick={() => setNewCat({...newCat, type: 'income'})}>{translateCopy("Pemasukan")}</button>
                       </div>
 
                       <div className="form-group">
-                        <label className="form-label">Nama Kategori</label>
-                        <input className="form-input" value={newCat.label} onChange={e => setNewCat({...newCat, label: e.target.value})} placeholder="Cth: Kopi, Bonus" required />
+                        <label className="form-label">{translateCopy("Nama Kategori")}</label>
+                        <input className="form-input" value={newCat.label} onChange={e => setNewCat({...newCat, label: e.target.value})} placeholder={translateCopy("Cth: Kopi, Bonus")} required />
                       </div>
-                      
+
                       <div className="flex gap-2 form-group">
                         <div style={{ flex: 1 }}>
                           <label className="form-label">Emoji</label>
                           <input className="form-input" value={newCat.emoji} onChange={e => setNewCat({...newCat, emoji: e.target.value})} placeholder="🍟" />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <label className="form-label">Warna</label>
+                          <label className="form-label">{translateCopy("Warna")}</label>
                           <input type="color" className="form-input" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} style={{ padding: '4px', height: '42px', cursor: 'pointer' }} />
                         </div>
                       </div>
 
-                      <button type="submit" className="btn btn-primary w-full mt-2">Tambah Kategori</button>
+                      <button type="submit" className="btn btn-primary w-full mt-2">{translateCopy("Tambah Kategori")}</button>
                     </form>
                   </div>
 
                   <div className="card card-padding" style={{ background: 'var(--bg-glass)', maxHeight: '350px', overflowY: 'auto' }}>
-                    <h4 className="mb-3">Kategori Kustom Anda</h4>
-                    
+                    <h4 className="mb-3">{translateCopy("Kategori Kustom Anda")}</h4>
+
                     {customCategories.expense.length === 0 && customCategories.income.length === 0 ? (
-                      <p className="text-muted text-sm text-center mt-4">Belum ada kategori kustom.</p>
+                      <p className="text-muted text-sm text-center mt-4">{translateCopy("Belum ada kategori kustom.")}</p>
                     ) : (
                       <>
                         {customCategories.expense.length > 0 && (
                           <div className="mb-3">
-                            <strong className="text-sm text-secondary mb-2 block">Pengeluaran</strong>
+                            <strong className="text-sm text-secondary mb-2 block">{translateCopy("Pengeluaran")}</strong>
                             {customCategories.expense.map(c => (
                               <div key={c.id} className="flex justify-between items-center mb-2 p-2 rounded" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
                                 <div className="flex items-center gap-2">
@@ -619,10 +627,10 @@ export default function FinancePage() {
                             ))}
                           </div>
                         )}
-                        
+
                         {customCategories.income.length > 0 && (
                           <div className="mb-3">
-                            <strong className="text-sm text-secondary mb-2 block">Pemasukan</strong>
+                            <strong className="text-sm text-secondary mb-2 block">{translateCopy("Pemasukan")}</strong>
                             {customCategories.income.map(c => (
                               <div key={c.id} className="flex justify-between items-center mb-2 p-2 rounded" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
                                 <div className="flex items-center gap-2">

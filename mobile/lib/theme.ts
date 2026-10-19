@@ -34,9 +34,9 @@ export interface ThemeColors {
 }
 
 export const darkColors: ThemeColors = {
-  bgPrimary: '#000000', // True Black OLED
-  bgSecondary: '#0a0a0a',
-  bgCard: '#111111',
+  bgPrimary: '#101d17', // True Black OLED
+  bgSecondary: '#14241c',
+  bgCard: '#1a2d23',
   bgGlass: 'rgba(0, 0, 0, 0.8)',
   bgInput: '#151515',
 
@@ -47,8 +47,8 @@ export const darkColors: ThemeColors = {
   border: 'rgba(255, 255, 255, 0.1)',
   borderLight: 'rgba(255, 255, 255, 0.05)',
 
-  purple: '#8b5cf6',
-  green: '#10b981',
+  purple: '#9baf99',
+  green: '#397353',
   red: '#ef4444',
   yellow: '#f59e0b',
   cyan: '#06b6d4',
@@ -56,26 +56,26 @@ export const darkColors: ThemeColors = {
   orange: '#f97316',
   pink: '#ec4899',
 
-  tabBg: '#000000',
-  tabBorder: '#111111',
+  tabBg: '#101d17',
+  tabBorder: '#1a2d23',
 };
 
 export const lightColors: ThemeColors = {
-  bgPrimary: '#f8f9fc',
+  bgPrimary: '#f7f4ec',
   bgSecondary: '#ffffff',
   bgCard: '#ffffff',
   bgGlass: 'rgba(255, 255, 255, 0.9)',
-  bgInput: '#f3f4f6',
+  bgInput: '#f0f2e9',
 
-  textPrimary: '#1a1a2e',
-  textSecondary: '#6b7280',
-  textMuted: '#9ca3af',
+  textPrimary: '#172b23',
+  textSecondary: '#526359',
+  textMuted: '#68766e',
 
   border: 'rgba(0, 0, 0, 0.08)',
   borderLight: 'rgba(0, 0, 0, 0.04)',
 
-  purple: '#8b5cf6',
-  green: '#10b981',
+  purple: '#193f30',
+  green: '#397353',
   red: '#ef4444',
   yellow: '#f59e0b',
   cyan: '#06b6d4',

@@ -9,6 +9,8 @@ import {
 import axios from 'axios'
 import { CONFIG } from '../lib/config'
 
+const authClient: any = supabase
+
 interface User {
   id: string
   email: string
@@ -35,6 +37,7 @@ interface AuthContextValue {
   loading: boolean
   connection: ConnectionState
   login: (email: string, password: string) => Promise<AuthResult>
+  loginWithOAuth: (provider: 'google' | 'apple') => Promise<AuthResult>
   register: (email: string, password: string, name: string) => Promise<AuthResult>
   logout: () => Promise<void>
   refreshConnection: () => Promise<ConnectionState>
@@ -53,7 +56,24 @@ const initialConnection: ConnectionState = {
   issues: [],
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
+const defaultAuthContext: AuthContextValue = {
+  user: null,
+  loading: true,
+  connection: initialConnection,
+  login: async () => ({ success: false, error: 'Auth context not initialized' }),
+  loginWithOAuth: async () => ({ success: false, error: 'Auth context not initialized' }),
+  register: async () => ({ success: false, error: 'Auth context not initialized' }),
+
+  logout: async () => {},
+  refreshConnection: async () => initialConnection,
+  consumeAuthRedirect: async () => ({ success: false, error: 'Auth context not initialized' }),
+  resetPassword: async () => ({ success: false, error: 'Auth context not initialized' }),
+  isOnboarded: false,
+  setOnboarded: () => {},
+  updateProfile: async () => ({ success: false, error: 'Auth context not initialized' }),
+}
+
+const AuthContext = createContext<AuthContextValue>(defaultAuthContext)
 
 function buildUser(dataUser: any): User {
   return {
@@ -84,7 +104,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     bootstrapAsync()
+
+    const sub = Linking.addEventListener('url', async ({ url }) => {
+      if (url) {
+        await consumeAuthRedirect(url)
+      }
+    })
+
+    const { data: authListener } = authClient.auth.onAuthStateChange(
+      async (event: string, session: any) => {
+        if (session && session.user) {
+          await AsyncStorage.multiSet([
+            ['superapp_current_user', session.user.id],
+            ['superapp_session_token', session.access_token || ''],
+            ['superapp_session', JSON.stringify(session)],
+          ])
+          setUser(buildUser(session.user))
+        } else if (event === 'SIGNED_OUT') {
+          await AsyncStorage.multiRemove(['superapp_current_user', 'superapp_session_token', 'superapp_session'])
+          setUser(null)
+        }
+      }
+    )
+
+    return () => {
+      sub.remove()
+      authListener?.subscription?.unsubscribe()
+    }
   }, [])
+
 
   const persistSession = async (session: any, dataUser: any) => {
     // Gunakan key yang sama dengan yang diharapkan oleh SyncService dan Shared Storage
@@ -139,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await refreshConnection()
       
       const onboarded = await AsyncStorage.getItem('superapp_onboarded')
-      setIsOnboarded(onboarded === 'true' || onboarded === true)
+      setIsOnboarded(onboarded === 'true')
 
       const initialUrl = await Linking.getInitialURL()
       if (initialUrl) {
@@ -153,15 +201,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (sessionPayload) {
         const parsedSession = JSON.parse(sessionPayload)
-        const { data, error } = await supabase.auth.setSession({
+        const { data, error } = await authClient.auth.setSession({
           access_token: parsedSession.access_token,
           refresh_token: parsedSession.refresh_token,
         })
 
         if (!error && data.user?.email) {
-          await persistSession(parsedSession, data.user)
+          await persistSession(data.session || parsedSession, data.user)
+        } else if (parsedSession?.refresh_token) {
+          // If setSession failed (e.g. access_token expired), try refreshSession
+          const { data: refreshData, error: refreshError } = await authClient.auth.refreshSession({
+            refresh_token: parsedSession.refresh_token,
+          })
+          if (!refreshError && refreshData.session && refreshData.user) {
+            await persistSession(refreshData.session, refreshData.user)
+          } else {
+            await AsyncStorage.multiRemove(['superapp_current_user', 'superapp_session_token', 'superapp_session'])
+            setUser(null)
+          }
         } else {
-          await AsyncStorage.multiRemove(['superapp_user_id', 'superapp_token', 'superapp_session'])
+          await AsyncStorage.multiRemove(['superapp_current_user', 'superapp_session_token', 'superapp_session'])
           setUser(null)
         }
       }
@@ -202,7 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshToken = typeof params.refresh_token === 'string' ? params.refresh_token : ''
 
       if (tokenHash && type) {
-        const { data, error } = await supabase.auth.verifyOtp({
+        const { data, error } = await authClient.auth.verifyOtp({
           token_hash: tokenHash,
           type: type as any,
         })
@@ -218,7 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (accessToken && refreshToken) {
-        const { data, error } = await supabase.auth.setSession({
+        const { data, error } = await authClient.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         })
@@ -247,7 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: readinessError }
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await authClient.auth.signInWithPassword({
         email,
         password,
       })
@@ -280,6 +339,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const loginWithOAuth = async (provider: 'google' | 'apple'): Promise<AuthResult> => {
+    try {
+      const readinessError = await ensureReadyForAuth()
+      if (readinessError) {
+        return { success: false, error: readinessError }
+      }
+
+      const redirectUrl = Linking.createURL('/auth/callback')
+      const { data, error } = await authClient.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      })
+
+      if (error) throw error
+
+      if (data?.url) {
+        await Linking.openURL(data.url)
+        return { success: true }
+      }
+
+      return { success: false, error: 'Tidak dapat membuka browser untuk autentikasi.' }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login OAuth gagal'
+      return { success: false, error: message }
+    }
+  }
+
+
   const register = async (email: string, password: string, name: string): Promise<AuthResult> => {
     try {
       const readinessError = await ensureReadyForAuth()
@@ -287,7 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: readinessError }
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await authClient.auth.signUp({
         email,
         password,
         options: {
@@ -330,7 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: readinessError }
       }
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await authClient.auth.resetPasswordForEmail(email, {
         redirectTo: Linking.createURL('/auth/callback'),
       })
 
@@ -345,8 +435,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut()
-      await AsyncStorage.multiRemove(['superapp_user_id', 'superapp_token', 'superapp_session'])
+      await authClient.auth.signOut()
+      await AsyncStorage.multiRemove(['superapp_current_user', 'superapp_session_token', 'superapp_session'])
       setUser(null)
     } catch (err) {
       console.error('Logout error:', err)
@@ -364,7 +454,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateData.data.name = data.name
       }
 
-      const { data: res, error } = await supabase.auth.updateUser(updateData)
+      const { data: res, error } = await authClient.auth.updateUser(updateData)
       if (error) throw error
 
       if (res.user) {
@@ -383,7 +473,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{ 
-        user, loading, connection, login, register, logout, 
+        user, loading, connection, login, loginWithOAuth, register, logout, 
         refreshConnection, consumeAuthRedirect, resetPassword, 
         isOnboarded, setOnboarded: setIsOnboarded, updateProfile 
       }}
@@ -395,10 +485,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
-
-  if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider')
-  }
-
-  return context
+  return context || defaultAuthContext
 }

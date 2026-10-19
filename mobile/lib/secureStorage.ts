@@ -33,22 +33,14 @@ async function getMasterKey(): Promise<string> {
   try {
     let key = await SecureStore.getItemAsync(MASTER_KEY_STORAGE_KEY);
     if (!key) {
-      try {
-        // Use Expo's native crypto for better compatibility with Expo Go
-        const randomBytes = await Crypto.getRandomBytesAsync(32);
-        key = CryptoJS.lib.WordArray.create(randomBytes as any).toString();
-      } catch (cryptoErr) {
-        console.warn('Native crypto failed, using fallback random generator');
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        key = Array.from({ length: 64 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-      }
+      const randomBytes = await Crypto.getRandomBytesAsync(32);
+      key = CryptoJS.lib.WordArray.create(randomBytes as any).toString();
       await SecureStore.setItemAsync(MASTER_KEY_STORAGE_KEY, key);
     }
     return key;
   } catch (e) {
-    console.error('Failed to get/generate master key:', e);
-    // Fallback (not ideal, but prevents crash)
-    return 'superapp_fallback_key_not_for_production';
+    console.error('[SecureStorage] Failed to access SecureStore master key:', e);
+    throw new Error('Secure storage unavailable: Hardware keystore access failed');
   }
 }
 
@@ -56,51 +48,47 @@ async function getMasterKey(): Promise<string> {
  * Encrypted wrapper for AsyncStorage.
  * Suitable for larger data that needs security (e.g. Finance, Journal).
  */
+async function scopedKey(key: string): Promise<string> {
+  const stored = await AsyncStorage.getItem('superapp_current_user');
+  let owner = stored;
+  try { owner = JSON.parse(stored || 'null'); } catch { /* legacy plain ID */ }
+  if (!owner || typeof owner !== 'string') throw new Error('Profil aktif tidak ditemukan.');
+  return `${owner}_${key}`;
+}
+
 export const EncryptedStorage = {
   async setItem(key: string, value: any): Promise<void> {
-    try {
-      const masterKey = await getMasterKey();
-      const stringValue = JSON.stringify(value);
-      const encryptedValue = CryptoJS.AES.encrypt(stringValue, masterKey).toString();
-      await AsyncStorage.setItem(key, encryptedValue);
-    } catch (e) {
-      console.error(`EncryptedStorage setItem error for key ${key}:`, e);
-    }
+    const fullKey = await scopedKey(key);
+    const masterKey = await getMasterKey();
+    await AsyncStorage.setItem(fullKey, CryptoJS.AES.encrypt(JSON.stringify(value), masterKey).toString());
+    import('./databaseSync').then(module => module.scheduleDatabaseSync());
   },
 
   async getItem(key: string): Promise<any> {
-    try {
-      const masterKey = await getMasterKey();
-      const encryptedValue = await AsyncStorage.getItem(key);
-      if (!encryptedValue) return null;
-
-      const bytes = CryptoJS.AES.decrypt(encryptedValue, masterKey);
-      let decryptedString = '';
-      
-      try {
-        decryptedString = bytes.toString(CryptoJS.enc.Utf8);
-        if (!decryptedString) throw new Error('Decryption resulted in empty string');
-      } catch (e) {
-        // If decryption fails, it might be legacy plain JSON data from older app version
-        try {
-          return JSON.parse(encryptedValue);
-        } catch {
-          return null;
-        }
+    const fullKey = await scopedKey(key);
+    let raw = await AsyncStorage.getItem(fullKey);
+    if (raw === null) {
+      const legacyOwner = await AsyncStorage.getItem('superapp_legacy_data_owner');
+      const owner = fullKey.slice(0, -(key.length + 1));
+      const legacy = await AsyncStorage.getItem(key);
+      if (legacy !== null && (!legacyOwner || legacyOwner === owner)) {
+        await AsyncStorage.setItem('superapp_legacy_data_owner', owner);
+        await AsyncStorage.setItem(fullKey, legacy);
+        raw = legacy;
       }
-      
-      return JSON.parse(decryptedString);
-    } catch (e) {
-      console.error(`EncryptedStorage getItem error for key ${key}:`, e);
-      return null;
+    }
+    if (raw === null) return null;
+    // Web/legacy restores contain JSON. Native writes stay encrypted at rest.
+    try { return JSON.parse(raw); } catch { /* encrypted native value */ }
+    try {
+      const bytes = CryptoJS.AES.decrypt(raw, await getMasterKey());
+      return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+    } catch {
+      throw new Error(`Data ${key} tidak dapat didekripsi. Data lokal tetap dipertahankan.`);
     }
   },
 
   async removeItem(key: string): Promise<void> {
-    try {
-      await AsyncStorage.removeItem(key);
-    } catch (e) {
-      console.error(`EncryptedStorage removeItem error for key ${key}:`, e);
-    }
+    await this.setItem(key, null);
   }
 };

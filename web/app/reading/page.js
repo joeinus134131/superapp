@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId } from '@/lib/helpers';
+import { generateId, normalizeBook } from '@superapp/shared/helpers';
 import {
   Library, BookOpen, CheckCircle2, Bookmark,
   Star, Book, Trash2, X, Plus
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 const BOOK_COLORS = [
-  'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+  'linear-gradient(135deg, #52745a, #6d28d9)',
   'linear-gradient(135deg, #06b6d4, #0891b2)',
   'linear-gradient(135deg, #ec4899, #db2777)',
   'linear-gradient(135deg, #f59e0b, #d97706)',
@@ -21,6 +21,7 @@ const BOOK_COLORS = [
 ];
 
 export default function ReadingPage() {
+  const { tx: translateCopy } = useLanguage();
   const { t } = useLanguage();
   const [books, setBooks] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -34,12 +35,16 @@ export default function ReadingPage() {
 
   useEffect(() => {
     getData(STORAGE_KEYS.READING).then(saved => {
-      if (saved && Array.isArray(saved)) setBooks(saved);
+      if (saved && Array.isArray(saved)) setBooks(saved.map(normalizeBook));
       setLoading(false);
     });
   }, []);
 
-  const save = (b) => { setBooks(b); setData(STORAGE_KEYS.READING, b); };
+  const save = (b) => {
+    const normalized = b.map(normalizeBook);
+    setBooks(normalized);
+    setData(STORAGE_KEYS.READING, normalized);
+  };
 
   const openAdd = () => {
     setEditBook(null);
@@ -75,7 +80,7 @@ export default function ReadingPage() {
     ? (books.filter(b => b.rating > 0).reduce((s, b) => s + b.rating, 0) / books.filter(b => b.rating > 0).length).toFixed(1)
     : '—';
 
-  const StarRating = ({ rating, onRate, size = 20 }) => (
+  const StarRating = ({ rating, onRate = null, size = 20 }) => (
     <div className="star-rating" style={{ display: 'flex', gap: '2px' }}>
       {[1, 2, 3, 4, 5].map(s => (
         <span key={s} className="star"
@@ -97,7 +102,7 @@ export default function ReadingPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data bacaan...
+        {translateCopy("Memuat data bacaan...")}
       </div>
     );
   }
@@ -137,7 +142,7 @@ export default function ReadingPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Star size={28} fill="currentColor" /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><Star size={28} fill="currentColor" /></div>
           <div className="stat-info">
             <h3>{avgRating}</h3>
             <p>{t('reading.avg_rating')}</p>
@@ -148,7 +153,7 @@ export default function ReadingPage() {
       <div className="tabs mb-2">
         <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Library size={16} /> {t('reading.tab_all')} ({books.length})</button>
         <button className={`tab ${activeTab === 'reading' ? 'active' : ''}`} onClick={() => setActiveTab('reading')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16} /> {t('reading.tab_reading')} ({reading})</button>
-        <button className={`tab ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab('completed')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} /> {t('reading.status_completed')} ({completed})</button>
+        <button className={`tab ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab(translateCopy("completed"))} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={16} /> {t('reading.status_completed')} ({completed})</button>
         <button className={`tab ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Bookmark size={16} /> {t('reading.status_wishlist')} ({wishlist})</button>
       </div>
 

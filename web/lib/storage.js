@@ -23,8 +23,16 @@ const STORAGE_KEYS = {
 
 function getCurrentUserId() {
   if (typeof window === 'undefined') return null;
-  // still keep current user in localStorage for fast synchronous auth bootstraps
-  return localStorage.getItem('superapp_current_user'); 
+  // Auth data is JSON encoded by the shared storage adapter. Older builds also
+  // wrote a plain ID, so accept both formats.
+  const stored = localStorage.getItem('superapp_current_user');
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored);
+    return typeof parsed === 'string' ? parsed : null;
+  } catch {
+    return stored;
+  }
 }
 
 function buildKey(key) {
@@ -53,16 +61,66 @@ async function migrateFromLocalStorage(namespacedKey) {
   return null;
 }
 
+function buildLegacyQuotedKey(key) {
+  const userId = getCurrentUserId();
+  return userId ? `${JSON.stringify(userId)}_${key}` : null;
+}
+
+async function readLegacyQuotedData(key) {
+  const legacyKey = buildLegacyQuotedKey(key);
+  if (!legacyKey) return null;
+  let data = await localforage.getItem(legacyKey);
+  if (data === null) {
+    const raw = localStorage.getItem(legacyKey);
+    if (raw !== null) {
+      try { data = JSON.parse(raw); } catch { data = raw; }
+    }
+  }
+  if (data !== null) {
+    const normalizedKey = buildKey(key);
+    await localforage.setItem(normalizedKey, data);
+    localStorage.setItem(normalizedKey, JSON.stringify(data));
+  }
+  return data;
+}
+
 // Now returns a Promise
 export async function getData(key) {
   if (typeof window === 'undefined') return null;
   const namespacedKey = buildKey(key);
   try {
-    const data = await localforage.getItem(namespacedKey);
-    if (data !== null) return data;
+    let data = await localforage.getItem(namespacedKey);
+    if (data !== null) {
+      if (typeof data === 'string') {
+        const trimmed = data.trim();
+        if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+          try { data = JSON.parse(trimmed); } catch {}
+        }
+      }
+      return data;
+    }
+    const lsVal = localStorage.getItem(namespacedKey);
+    if (lsVal === 'null') return null;
+    if (lsVal !== null) {
+      try {
+        let parsed = JSON.parse(lsVal);
+        if (typeof parsed === 'string') {
+          const trimmed = parsed.trim();
+          if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+            try { parsed = JSON.parse(trimmed); } catch {}
+          }
+        }
+        await localforage.setItem(namespacedKey, parsed);
+        return parsed;
+      } catch {
+        return lsVal;
+      }
+    }
     
     // Fallback migration check
-    return await migrateFromLocalStorage(namespacedKey);
+    const migrated = await migrateFromLocalStorage(namespacedKey);
+    if (migrated !== null) return migrated;
+    return await readLegacyQuotedData(key);
   } catch {
     return null;
   }
@@ -78,7 +136,11 @@ export async function getData(key) {
 export function getDataSync(key) {
    if (typeof window === 'undefined') return null;
    const namespacedKey = buildKey(key);
-   const data = localStorage.getItem(namespacedKey);
+   let data = localStorage.getItem(namespacedKey);
+   if (data === null) {
+     const legacyKey = buildLegacyQuotedKey(key);
+     if (legacyKey) data = localStorage.getItem(legacyKey);
+   }
    return data ? JSON.parse(data) : null;
 }
 
@@ -91,8 +153,8 @@ export async function setData(key, value) {
     localStorage.setItem(namespacedKey, JSON.stringify(value));
     
     // Trigger Auto Sync seamlessly on mutate
-    import('./cloudSync').then(syncModule => {
-       syncModule.triggerAutoSync();
+    import('./databaseSync').then(syncModule => {
+       syncModule.scheduleDatabaseSync();
     }).catch(e => console.error("Auto Sync Module Load Error", e));
 
   } catch (e) {
@@ -104,12 +166,43 @@ export async function removeData(key) {
   if (typeof window === 'undefined') return;
   const namespacedKey = buildKey(key);
   await localforage.removeItem(namespacedKey);
-  localStorage.removeItem(namespacedKey);
+  localStorage.setItem(namespacedKey, 'null');
 
   // Trigger Auto Sync seamlessly on mutate
-  import('./cloudSync').then(syncModule => {
-     syncModule.triggerAutoSync();
+  import('./databaseSync').then(syncModule => {
+     syncModule.scheduleDatabaseSync();
   }).catch(e => console.error("Auto Sync Module Load Error", e));
 }
 
 export { STORAGE_KEYS };
+
+// Restore both stores before reporting success; preserve prior values on failure.
+export async function persistRestoredEntries(entries) {
+  const previous = await Promise.all(entries.map(async ([key]) => [key, await localforage.getItem(key), localStorage.getItem(key)]));
+  try {
+    for (const [key, raw] of entries) {
+      let value;
+      try {
+        value = JSON.parse(raw);
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+            try { value = JSON.parse(trimmed); } catch {}
+          }
+        }
+      } catch {
+        value = raw;
+      }
+      await localforage.setItem(key, value);
+      localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+    }
+  } catch (error) {
+    for (const [key, cached, raw] of previous) {
+      if (cached === null) await localforage.removeItem(key);
+      else await localforage.setItem(key, cached);
+      if (raw === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, raw);
+    }
+    throw error;
+  }
+}

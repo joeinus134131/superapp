@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, getDaysInMonth, getFirstDayOfMonth, getToday, formatDate } from '@/lib/helpers';
+import { generateId, getDaysInMonth, getFirstDayOfMonth, getToday, formatDate } from '@superapp/shared/helpers';
 import { CalendarDays, Plus, ChevronLeft, ChevronRight, Trash2, Pin, X } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 export default function CalendarPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { t } = useLanguage();
 
   const EVENT_COLORS = [
-    { id: 'purple', label: t('calendar.cat_default'), color: '#8b5cf6' },
+    { id: 'purple', label: t('calendar.cat_default'), color: '#52745a' },
     { id: 'blue', label: t('calendar.cat_work'), color: '#3b82f6' },
     { id: 'green', label: t('calendar.cat_personal'), color: '#10b981' },
     { id: 'red', label: t('calendar.cat_important'), color: '#ef4444' },
@@ -81,8 +84,8 @@ export default function CalendarPage() {
   const getEventsForDate = (dateStr) => events.filter(e => e.date === dateStr);
   const selectedEvents = getEventsForDate(selectedDate).sort((a, b) => a.time.localeCompare(b.time));
 
-  const DAY_NAMES = t('calendar.day_names');
-  const MONTH_NAMES = t('calendar.month_names');
+  const DAY_NAMES = /** @type {string[]} */ (t('calendar.day_names'));
+  const MONTH_NAMES = /** @type {string[]} */ (t('calendar.month_names'));
 
   // Previous month days to fill
   const prevMonthDays = getDaysInMonth(year, month - 1);
@@ -103,7 +106,7 @@ export default function CalendarPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data kalender...
+        {translateCopy("Memuat data kalender...")}
       </div>
     );
   }
@@ -166,7 +169,7 @@ export default function CalendarPage() {
                     <div className="flex gap-1" style={{ position: 'absolute', bottom: '4px' }}>
                       {dayEvents.slice(0, 3).map((e, j) => {
                         const colorInfo = EVENT_COLORS.find(c => c.id === e.colorId);
-                        return <div key={j} className="event-dot" style={{ background: colorInfo?.color || '#8b5cf6' }} />;
+                        return <div key={j} className="event-dot" style={{ background: colorInfo?.color || '#52745a' }} />;
                       })}
                     </div>
                   )}
@@ -188,7 +191,7 @@ export default function CalendarPage() {
           {/* Selected Day Events */}
           <div className="card card-padding">
             <div className="flex justify-between items-center mb-2">
-              <div className="card-title">{formatDate(selectedDate)}</div>
+              <div className="card-title">{formatDate(selectedDate, uiLanguage)}</div>
               <button className="btn btn-primary btn-sm" onClick={() => openAdd(selectedDate)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={16} /></button>
             </div>
             {selectedEvents.length === 0 ? (
@@ -201,7 +204,7 @@ export default function CalendarPage() {
                   const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
                   return (
                     <div key={event.id} className="list-item" style={{ cursor: 'pointer' }} onClick={() => openEdit(event)}>
-                      <div style={{ width: '4px', borderRadius: '2px', alignSelf: 'stretch', background: colorInfo?.color || '#8b5cf6' }} />
+                      <div style={{ width: '4px', borderRadius: '2px', alignSelf: 'stretch', background: colorInfo?.color || '#52745a' }} />
                       <div className="flex-1">
                         <div className="font-semibold" style={{ fontSize: '14px' }}>{event.title}</div>
                         <div className="text-xs text-muted">{event.time} • {colorInfo?.label || t('calendar.cat_default')}</div>
@@ -237,10 +240,10 @@ export default function CalendarPage() {
                   const colorInfo = EVENT_COLORS.find(c => c.id === event.colorId);
                   return (
                     <div key={i} className="activity-item">
-                      <div className="activity-icon" style={{ background: `${colorInfo?.color || '#8b5cf6'}22`, color: colorInfo?.color }}><CalendarDays size={20} /></div>
+                      <div className="activity-icon" style={{ background: `${colorInfo?.color || '#52745a'}22`, color: colorInfo?.color }}><CalendarDays size={20} /></div>
                       <div>
                         <div className="text-sm font-semibold">{event.title}</div>
-                        <div className="activity-time">{formatDate(event.dateStr)} • {event.time}</div>
+                        <div className="activity-time">{formatDate(event.dateStr, uiLanguage)} • {event.time}</div>
                       </div>
                     </div>
                   );

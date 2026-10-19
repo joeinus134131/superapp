@@ -59,14 +59,16 @@ function resolveConfig() {
 }
 
 function getClientOptions() {
+  const isBrowser = typeof window !== 'undefined';
   return {
     auth: {
       autoRefreshToken: true,
       persistSession: false,
-      detectSessionInUrl: false,
+      detectSessionInUrl: isBrowser,
     },
   };
 }
+
 
 export function configureSupabaseRuntime(config = {}) {
   runtimeConfig = {

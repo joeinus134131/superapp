@@ -1,37 +1,47 @@
 {
   "expo": {
-    "name": "SelfOne - Smart Assistant",
+    "name": "Whenya",
     "slug": "selfone-mobile",
     "version": "1.0.0",
     "scheme": "selfone",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "icon": "./assets/branding/app-icon.png",
+    "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/branding/splash-mark.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f0f17"
+      "backgroundColor": "#F7F4EC"
     },
     "ios": {
-      "supportsTabletMode": true,
+      "supportsTablet": true,
       "bundleIdentifier": "com.selfone.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "Digunakan untuk mengambil foto profil.",
-        "NSPhotoLibraryUsageDescription": "Digunakan untuk memilih foto dari galeri.",
-        "NSPhotoLibraryAddUsageDescription": "Digunakan untuk menyimpan foto.",
-        "NSLocalNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
-        "NSUserNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
-        "NSHealthShareUsageDescription": "Digunakan untuk membaca data kesehatan (opsional).",
+        "NSCameraUsageDescription": "Used to take your profile photo.",
+        "NSPhotoLibraryUsageDescription": "Used to choose a photo from your library.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save photos.",
+        "NSLocalNotificationUsageDescription": "Used for habit, task, and pomodoro reminders.",
+        "NSUserNotificationUsageDescription": "Used for habit, task, and pomodoro reminders.",
+        "NSHealthShareUsageDescription": "Used to read health data (optional).",
         "UIBackgroundModes": [
           "fetch",
+          "remote-notification",
+          "fetch",
           "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": [
+          "en",
+          "id",
+          "en",
+          "id"
         ]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/branding/adaptive-foreground.png",
+        "backgroundColor": "#F7F4EC"
       },
       "package": "com.selfone.mobile",
       "permissions": [
@@ -39,9 +49,13 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"
-      ],
-      "googleServicesFile": "./google-services.json"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,17 +64,33 @@
       "expo-asset",
       "expo-font",
       "expo-router",
-      "expo-audio",
       "@react-native-community/datetimepicker",
       "expo-localization",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/branding/splash-mark.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F4EC",
+          "dark": {
+            "image": "./assets/branding/splash-mark-dark.png",
+            "backgroundColor": "#101D17"
+          }
+        }
+      ]
     ],
-    "extra": {
-      "supabaseUrl": "https://bdtsztphkqmpzrqascdl.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkdHN6dHBoa3FtcHpycWFzY2RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMDYxNjUsImV4cCI6MjA5Mjc4MjE2NX0.vfeQlQy-eeltUWiYLzW9MDrFiGGiypH53soeCC5AsNM",
-      "eas": {
-        "projectId": "bdtsztphkqmpzrqascdl"
-      }
+    "extra": {},
+    "locales": {
+      "en": "./locales/en.json",
+      "id": "./locales/id.json"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0e27df85-2a2b-4246-8305-f4490db28bbb"
     }
   }
 }

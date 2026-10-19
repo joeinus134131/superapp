@@ -61,7 +61,7 @@ Format:
 Data:
 %s`, sb.String())
 
-	res, err := e.aiService.CallGroq(prompt)
+	res, err := e.aiService.CallGroqJSON(prompt)
 	if err != nil {
 		return err
 	}

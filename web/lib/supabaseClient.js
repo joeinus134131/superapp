@@ -1,10 +1,2 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Create a single supabase client for interacting with your database
-export const supabase = createClient(
-    supabaseUrl || 'https://placeholder.supabase.co',
-    supabaseAnonKey || 'placeholder_key'
-);
+// Re-export from shared package — single source of truth for Supabase client
+export { supabase, getSupabaseClient, configureSupabaseRuntime, getSupabaseConfigStatus, checkSupabaseConnection, assertSupabaseReady } from '@superapp/shared/supabase';

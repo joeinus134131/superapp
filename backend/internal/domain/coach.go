@@ -20,5 +20,5 @@ type CoachMessage struct {
 type CoachRepository interface {
 	Save(msg *CoachMessage) error
 	GetUnreadByUserID(userID uuid.UUID) ([]CoachMessage, error)
-	MarkAsRead(messageIDs []uuid.UUID) error
+	MarkAsRead(userID uuid.UUID, messageIDs []uuid.UUID) error
 }

@@ -1,103 +1,15 @@
-/**
- * SUPERAPP - CLOUD SYNC SERVICE
- * Synchronizes local data with the Golang PostgreSQL backend.
- */
-import { getData, STORAGE_KEYS, getRawData } from './storage';
-import { encryptData, decryptData } from './encryption';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
-
-/**
- * Pushes all local modules to the cloud.
- */
-export async function pushToCloud() {
-  const userId = await getRawData(STORAGE_KEYS.AUTH_USER);
-  if (!userId) return;
-
-  // Retrieve sync password if set
-  const syncPassword = await getRawData('SYNC_PASSWORD');
-
-  // List of modules to sync
-  const modules = [
-    { type: 'TASK', key: STORAGE_KEYS.TASKS },
-    { type: 'HABIT', key: STORAGE_KEYS.HABITS },
-    { type: 'FINANCE', key: STORAGE_KEYS.TRANSACTIONS },
-    { type: 'JOURNAL', key: STORAGE_KEYS.JOURNAL },
-    { type: 'HEALTH', key: STORAGE_KEYS.HEALTH },
-    { type: 'GOALS', key: STORAGE_KEYS.GOALS },
-  ];
-
-  try {
-    for (const mod of modules) {
-      const data = await getData(mod.key);
-      if (data) {
-        // Encrypt the payload before sending
-        const encryptedPayload = encryptData(data, syncPassword);
-        
-        await fetch(`${API_URL}/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: userId,
-            module_type: mod.type,
-            data_payload: encryptedPayload
-          })
-        });
-      }
-    }
-    console.log('[Sync] All modules pushed to cloud successfully');
-  } catch (e) {
-    console.error('[Sync] Push failed:', e);
-  }
+// Shared consumers use the same authenticated database transport as their host.
+// Platform adapters configure the driver at startup; never call the retired /sync API.
+let driver = null;
+let timer;
+export function setCloudSyncDriver(sync) { driver = sync; }
+function runSync() {
+  if (!driver) return Promise.reject(new Error('Sinkronisasi cloud belum dikonfigurasi pada platform ini.'));
+  return driver();
 }
-
-/**
- * Pulls all data from the cloud and updates local storage.
- */
-export async function pullFromCloud() {
-  const userId = await getRawData(STORAGE_KEYS.AUTH_USER);
-  if (!userId) return;
-
-  const syncPassword = await getRawData('SYNC_PASSWORD');
-
-  try {
-    const response = await fetch(`${API_URL}/sync?user_id=${userId}`);
-    const cloudData = await response.json();
-
-    // Map cloud data back to our local storage keys
-    const keyMap = {
-      'TASK': STORAGE_KEYS.TASKS,
-      'HABIT': STORAGE_KEYS.HABITS,
-      'FINANCE': STORAGE_KEYS.TRANSACTIONS,
-      'JOURNAL': STORAGE_KEYS.JOURNAL,
-      'HEALTH': STORAGE_KEYS.HEALTH,
-      'GOALS': STORAGE_KEYS.GOALS,
-    };
-
-    for (const [modType, encryptedData] of Object.entries(cloudData)) {
-      const localKey = keyMap[modType];
-      if (localKey) {
-        // Decrypt data before saving locally
-        const decryptedData = decryptData(encryptedData, syncPassword);
-        if (decryptedData) {
-          import('./storage').then(s => s.setData(localKey, decryptedData));
-        }
-      }
-    }
-    
-    return true;
-  } catch (e) {
-    console.error('[Sync] Pull failed:', e);
-    return false;
-  }
-}
-
-let syncTimeout = null;
-export async function triggerAutoSync() {
-  if (syncTimeout) clearTimeout(syncTimeout);
-  
-  syncTimeout = setTimeout(async () => {
-    console.log('[Sync] Auto-Syncing...');
-    await pushToCloud();
-  }, 3000); // Wait 3 seconds
+export async function pushToCloud() { return runSync(); }
+export async function pullFromCloud() { return runSync(); }
+export function triggerAutoSync() {
+  clearTimeout(timer);
+  timer = setTimeout(() => runSync().catch(error => console.error('[Cloud sync]', error)), 3000);
 }

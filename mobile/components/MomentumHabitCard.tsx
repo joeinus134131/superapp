@@ -20,6 +20,7 @@ interface MomentumHabitCardProps {
 export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
   habit, isDone, colors, onToggle, onDelete, onComplete
 }) => {
+  const { tx: translateCopy } = useLanguage();
   const { t } = useLanguage();
   const [isPressing, setIsPressing] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
@@ -35,7 +36,7 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
     if (isDone) return;
     setIsPressing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     Animated.timing(progress, {
       toValue: 1,
       duration: 1800,
@@ -85,7 +86,7 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
     clearInterval(timerRef.current);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onComplete(habit.id);
-    
+
     // Quick reset for next time
     setTimeout(() => progress.setValue(0), 500);
   };
@@ -106,9 +107,9 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
   });
 
   return (
-    <Card 
+    <Card
       style={[
-        styles.container, 
+        styles.container,
         isPressing && { transform: [{ scale: 1.02 }], borderColor: colors.purple }
       ]}
     >
@@ -120,15 +121,15 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
         style={styles.content}
       >
         {/* Burst Effect */}
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.burst, 
-            { 
+            styles.burst,
+            {
               backgroundColor: colors.purple,
               transform: [{ scale: burstScale }],
               opacity: burstOpacity,
             }
-          ]} 
+          ]}
         />
 
         {/* Progress Overlay */}
@@ -172,15 +173,15 @@ export const MomentumHabitCard: React.FC<MomentumHabitCardProps> = ({
 
         <View style={{ flex: 1 }}>
           <Text style={[
-            styles.name, 
+            styles.name,
             { color: colors.textPrimary, textDecorationLine: isDone ? 'line-through' : 'none', opacity: isDone ? 0.6 : 1 }
           ]}>
             {habit.name}
           </Text>
           <View style={styles.meta}>
             <MaterialIcons name="local-fire-department" size={14} color={colors.red} />
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}>{habit.streak} DAY STREAK</Text>
-            
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>{habit.streak} {translateCopy("DAY STREAK")}</Text>
+
             {!isDone && (
               <View style={[styles.microBadge, { backgroundColor: colors.purple + '15' }]}>
                 <Text style={[styles.microBadgeText, { color: colors.purple }]}>

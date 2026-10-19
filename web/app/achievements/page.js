@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getXP, getCurrentLevel, getXPProgress, LEVELS, ACHIEVEMENTS, checkAchievements } from '@/lib/gamification';
+import { getXP, getCurrentLevel, getXPProgress, LEVELS, ACHIEVEMENTS, checkAchievements } from '@superapp/shared/gamification';
 import { getData, STORAGE_KEYS } from '@/lib/storage';
-import { formatCurrency, getToday } from '@/lib/helpers';
+import { formatCurrency, getToday, ensureArray } from '@superapp/shared/helpers';
 import Confetti from '@/components/Confetti';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 export default function AchievementsPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { t, language } = useLanguage();
   const [gamData, setGamData] = useState({ totalXP: 0, unlockedAchievements: [], xpHistory: [] });
   const [activeTab, setActiveTab] = useState('achievements');
@@ -19,27 +22,20 @@ export default function AchievementsPage() {
 
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const data = getXP();
-    setGamData(data);
-    
-    checkAchievements().then(achResult => {
-      setAchievementStatus(achResult);
-      if (achResult.newlyUnlocked.length > 0) setShowConfetti(true);
-    });
-    
-    generateWeeklyReport().finally(() => setLoading(false));
-  }, []);
-
-  const generateWeeklyReport = async () => {
-    const [tasks, habits, transactions, pomodoro, journal, health] = await Promise.all([
-      getData(STORAGE_KEYS.TASKS).then(d => d || []),
-      getData(STORAGE_KEYS.HABITS).then(d => d || []),
-      getData(STORAGE_KEYS.TRANSACTIONS).then(d => d || []),
+  const generateWeeklyReport = useCallback(async () => {
+    const [rawTasks, rawHabits, rawTransactions, pomodoro, rawJournal, health] = await Promise.all([
+      getData(STORAGE_KEYS.TASKS),
+      getData(STORAGE_KEYS.HABITS),
+      getData(STORAGE_KEYS.TRANSACTIONS),
       getData(STORAGE_KEYS.POMODORO).then(d => d || { sessions: [] }),
-      getData(STORAGE_KEYS.JOURNAL).then(d => d || []),
+      getData(STORAGE_KEYS.JOURNAL),
       getData(STORAGE_KEYS.HEALTH).then(d => d || { workouts: [] })
     ]);
+
+    const tasks = ensureArray(rawTasks);
+    const habits = ensureArray(rawHabits);
+    const transactions = ensureArray(rawTransactions);
+    const journal = ensureArray(rawJournal);
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -47,14 +43,14 @@ export default function AchievementsPage() {
 
     const weekTasks = tasks.filter(t => t.status === 'done').length;
     const weekHabitDays = habits.reduce((acc, h) => {
-      return acc + (h.completedDates || []).filter(d => d >= weekStr).length;
+      return acc + (ensureArray(h.completedDates)).filter(d => d >= weekStr).length;
     }, 0);
-    const weekSessions = (pomodoro.sessions || []).filter(s => s.date >= weekStr).length;
+    const weekSessions = (ensureArray(pomodoro.sessions)).filter(s => s.date >= weekStr).length;
     const weekJournals = journal.filter(j => j.createdAt && j.createdAt >= weekStr).length;
-    const weekWorkouts = (health.workouts || []).filter(w => w.date >= weekStr).length;
+    const weekWorkouts = (ensureArray(health.workouts)).filter(w => w.date >= weekStr).length;
 
-    const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
 
     // Grade calculation
     const grades = {
@@ -75,7 +71,19 @@ export default function AchievementsPage() {
       weekTasks, weekHabitDays, weekSessions, weekJournals, weekWorkouts,
       income, expense, grades, overallGrade,
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const data = getXP();
+    setGamData(data);
+
+    checkAchievements().then(achResult => {
+      setAchievementStatus(achResult);
+      if (achResult.newlyUnlocked.length > 0) setShowConfetti(true);
+    });
+
+    generateWeeklyReport().finally(() => setLoading(false));
+  }, [generateWeeklyReport]);
 
   function gradeFromScore(score, thresholds) {
     if (score >= thresholds[4]) return 'A';
@@ -95,7 +103,7 @@ export default function AchievementsPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data pencapaian...
+        {translateCopy("Memuat data pencapaian...")}
       </div>
     );
   }
@@ -116,7 +124,7 @@ export default function AchievementsPage() {
             Lv.{level.level}
           </div>
           <div>
-            <h2 style={{ fontSize: '22px', color: level.color }}>{level.title}</h2>
+            <h2 style={{ fontSize: '22px', color: level.color }}>{translateCopy(level.title)}</h2>
             <p className="text-sm text-secondary">{gamData.totalXP} {t('achievements.total_xp')}</p>
           </div>
         </div>
@@ -139,7 +147,7 @@ export default function AchievementsPage() {
                 {l.level}
               </div>
               <span className="level-item-title" style={{ color: l.level <= level.level ? l.color : 'var(--text-muted)' }}>
-                {l.title}
+                {translateCopy(l.title)}
               </span>
               <span className="text-xs text-muted">{l.minXP} XP</span>
             </div>
@@ -168,8 +176,8 @@ export default function AchievementsPage() {
             return (
               <div key={ach.id} className={`achievement-card ${unlocked ? 'unlocked' : 'locked'}`}>
                 <div className="achievement-icon">{ach.icon}</div>
-                <h4>{ach.title}</h4>
-                <p>{ach.desc}</p>
+                <h4>{translateCopy(ach.title)}</h4>
+                <p>{translateCopy(ach.desc)}</p>
                 {unlocked && <div className="achievement-badge">{t('achievements.unlocked_badge')}</div>}
               </div>
             );
@@ -197,7 +205,7 @@ export default function AchievementsPage() {
               { label: t('achievements.focus_label'), value: `${weeklyReport.weekSessions} ${t('achievements.focus_unit')}`, grade: weeklyReport.grades.focus },
               { label: t('achievements.ref_label'), value: `${weeklyReport.weekJournals} ${t('achievements.ref_unit')}`, grade: weeklyReport.grades.reflection },
               { label: t('achievements.health_label'), value: `${weeklyReport.weekWorkouts} ${t('achievements.health_unit')}`, grade: weeklyReport.grades.health },
-              { label: t('achievements.fin_label'), value: formatCurrency(weeklyReport.income - weeklyReport.expense), grade: weeklyReport.grades.finance },
+              { label: t('achievements.fin_label'), value: formatCurrency(weeklyReport.income - weeklyReport.expense, uiLanguage), grade: weeklyReport.grades.finance },
             ].map((item, i) => (
               <div key={i} className="card card-padding">
                 <div className="flex justify-between items-center mb-1">
@@ -226,9 +234,9 @@ export default function AchievementsPage() {
             <>
               {[...(gamData.xpHistory || [])].reverse().slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE).map((h, i) => (
                 <div key={i} className="activity-item">
-                  <div className="activity-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>⚡</div>
+                  <div className="activity-icon" style={{ background: 'rgba(25, 63, 48, 0.15)' }}>⚡</div>
                   <div className="flex-1">
-                    <div className="text-sm font-semibold">{h.label}</div>
+                    <div className="text-sm font-semibold">{translateCopy(h.label)}</div>
                     <div className="activity-time">
                       {new Date(h.date).toLocaleString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -236,10 +244,10 @@ export default function AchievementsPage() {
                   <span className="xp-gain-badge">+{h.xp} XP</span>
                 </div>
               ))}
-              
+
               {Math.ceil((gamData.xpHistory || []).length / ITEMS_PER_PAGE) > 1 && (
                 <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <button 
+                  <button
                     className="btn btn-secondary btn-sm"
                     disabled={historyPage === 1}
                     onClick={() => setHistoryPage(p => p - 1)}
@@ -249,7 +257,7 @@ export default function AchievementsPage() {
                   <span className="text-sm text-secondary">
                     {t('achievements.page')} {historyPage} {t('achievements.of')} {Math.ceil((gamData.xpHistory || []).length / ITEMS_PER_PAGE)}
                   </span>
-                  <button 
+                  <button
                     className="btn btn-secondary btn-sm"
                     disabled={historyPage === Math.ceil((gamData.xpHistory || []).length / ITEMS_PER_PAGE)}
                     onClick={() => setHistoryPage(p => p + 1)}

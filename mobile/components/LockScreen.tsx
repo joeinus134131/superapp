@@ -6,10 +6,13 @@ import { useColors } from '../lib/theme';
 import { useTheme } from '../context/themeContext';
 import { triggerHaptic } from '../lib/haptics';
 import { BrandLogo } from './BrandLogo';
+import { useLanguage } from "../context/languageContext";
+
 
 const { width } = Dimensions.get('window');
 
 export const LockScreen = () => {
+  const { tx: translateCopy } = useLanguage();
   const { unlockApp, isBiometricsEnabled, authenticateWithBiometrics } = useSecurity();
   const { isDark } = useTheme();
   const c = useColors(isDark);
@@ -89,8 +92,8 @@ export const LockScreen = () => {
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
       <View style={styles.header}>
         <BrandLogo size={60} showText={false} />
-        <Text style={[styles.title, { color: c.textPrimary }]}>SelfOne Secure</Text>
-        <Text style={[styles.subtitle, { color: c.textSecondary }]}>Masukkan PIN Anda</Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>{translateCopy("Whenya Secure")}</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>{translateCopy("Masukkan PIN Anda")}</Text>
       </View>
 
       <Animated.View style={[styles.dotsRow, { transform: [{ translateX: shake }] }]}>
@@ -150,24 +153,24 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 15, marginTop: 8, textAlign: 'center', opacity: 0.6, fontWeight: '600' },
   dotsRow: { flexDirection: 'row', gap: 24, marginBottom: 60, height: 20, alignItems: 'center' },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
-  
+
   // Fixed width for the numpad to keep it consistent across all devices (Mobile/Tablet)
-  numpad: { 
+  numpad: {
     width: 280, // Fixed static width
     gap: 15,    // Tighter gaps
-    alignItems: 'center' 
+    alignItems: 'center'
   },
-  row: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     gap: 15 // Consistent gap between buttons
   },
-  numBtn: { 
-    width: 75, 
-    height: 75, 
-    borderRadius: 37.5, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  numBtn: {
+    width: 75,
+    height: 75,
+    borderRadius: 37.5,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },

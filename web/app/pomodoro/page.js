@@ -1,10 +1,10 @@
 'use client';
 
 import { usePomodoro, MODES, SESSION_NOTIFICATIONS } from '@/lib/pomodoroContext';
-import { getToday } from '@/lib/helpers';
+import { getToday } from '@superapp/shared/helpers';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 import {
   Timer, Target, Clock, BarChart2, Flame, Coffee,
   TreePalm, Play, Pause, RefreshCw, Lightbulb, Zap, X
@@ -12,7 +12,8 @@ import {
 import PomodoroSoundscapes from '@/components/PomodoroSoundscapes';
 
 export default function PomodoroPage() {
-  const { t } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+  const { t, tx: translateCopy } = useLanguage();
   const {
     mode, isRunning, timeLeft, sessions, todaySessions, totalFocusMin,
     notification, levelUpData, showConfetti, xpToast, wakeLockActive,
@@ -38,7 +39,7 @@ export default function PomodoroPage() {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       const count = sessions.filter(s => s.date === dateStr).length;
-      stats.push({ date: dateStr, count, day: d.toLocaleDateString('id-ID', { weekday: 'short' }) });
+      stats.push({ date: dateStr, count, day: d.toLocaleDateString(uiLanguage === 'id' ? 'id-ID' : 'en-US', { weekday: 'short' }) });
     }
     return stats;
   };
@@ -74,16 +75,16 @@ export default function PomodoroPage() {
             <span style={{ fontSize: '40px', lineHeight: 1, flexShrink: 0 }}>{notification.emoji}</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: '15px', color: notification.color, letterSpacing: '0.5px', marginBottom: '6px' }}>
-                {notification.title}
+                {translateCopy(notification.title)}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: '10px' }}>
-                {notification.message}
+                {translateCopy(notification.message)}
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', background: notification.color, color: '#fff', fontSize: '11px', fontWeight: 700 }}>
-                  {notification.badge}
+                  {translateCopy(notification.badge)}
                 </span>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{notification.nextHint}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{translateCopy(notification.nextHint)}</span>
               </div>
             </div>
             <button onClick={dismissNotification} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={14} /></button>
@@ -117,7 +118,7 @@ export default function PomodoroPage() {
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Target size={28} /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><Target size={28} /></div>
           <div className="stat-info"><h3>{todaySessions}</h3><p>{t('pomodoro.sessions_today')}</p></div>
         </div>
         <div className="stat-card">
@@ -154,7 +155,7 @@ export default function PomodoroPage() {
                 style={{ transition: 'stroke-dashoffset 1s linear' }} />
             </svg>
             <div className="timer-time">{formatTime(timeLeft)}</div>
-            <div className="timer-label">{MODES[mode].label}</div>
+            <div className="timer-label">{translateCopy(MODES[mode].label)}</div>
           </div>
 
           <div className="timer-controls">
@@ -166,13 +167,13 @@ export default function PomodoroPage() {
 
           <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
-              <input 
-                type="checkbox" 
-                checked={autoStart} 
+              <input
+                type="checkbox"
+                checked={autoStart}
                 onChange={toggleAutoStart}
                 style={{ width: '16px', height: '16px', accentColor: 'var(--accent-purple)', cursor: 'pointer' }}
               />
-              {t('pomodoro.auto_start', 'Auto-start Next Session')}
+              {t('pomodoro.auto_start')}
             </label>
           </div>
 
@@ -194,7 +195,7 @@ export default function PomodoroPage() {
                 <div style={{
                   width: '100%', maxWidth: '40px',
                   height: `${Math.max((s.count / maxSessions) * 160, 4)}px`,
-                  background: s.date === getToday() ? 'var(--gradient-primary)' : 'rgba(139, 92, 246, 0.3)',
+                  background: s.date === getToday() ? 'var(--gradient-primary)' : 'rgba(25, 63, 48, 0.3)',
                   borderRadius: 'var(--radius-sm)', transition: 'height 0.3s ease',
                 }} />
                 <span className="text-xs text-muted">{s.day}</span>

@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { STORAGE_KEYS } from '../lib/storage';
 import { EncryptedStorage } from '../lib/secureStorage';
@@ -31,14 +32,10 @@ export function useFinance() {
     setLoading(true);
     try {
       const savedTransactions = await EncryptedStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      if (savedTransactions && Array.isArray(savedTransactions)) {
-        setTransactions(savedTransactions);
-      }
+      setTransactions(Array.isArray(savedTransactions) ? savedTransactions : []);
       
       const savedCats = await EncryptedStorage.getItem(STORAGE_KEYS.CUSTOM_CATEGORIES);
-      if (savedCats && Array.isArray(savedCats)) {
-        setCustomCategories(savedCats);
-      }
+      setCustomCategories(Array.isArray(savedCats) ? savedCats : []);
     } catch (e) {
       console.error('Failed to load finance data:', e);
     } finally {
@@ -48,6 +45,8 @@ export function useFinance() {
 
   useEffect(() => {
     loadFinanceData();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadFinanceData);
+    return () => subscription.remove();
   }, [loadFinanceData]);
 
   const saveTransactions = async (newTransactions: Transaction[]) => {

@@ -1,5 +1,17 @@
 export const DICTIONARIES = {
   id: {
+    gamification: {
+      "level1": "Bab 1: Kebangkitan",
+      "level2": "Bab 2: Membangun Fondasi",
+      "level3": "Bab 3: Kerja Keras",
+      "level4": "Bab 4: Menembus Batas",
+      "level5": "Bab 5: Pantang Menyerah",
+      "level6": "Bab 6: Penguasaan",
+      "level7": "Bab 7: Sang Arsitek",
+      "level8": "Bab 8: Sang Inspirator",
+      "level9": "Bab 9: Legenda",
+      "level10": "Bab 10: Puncak"
+},
     // AuthGuard / Login Page
     login: {
       title: "SuperApp Manajemen Personal",
@@ -21,7 +33,7 @@ export const DICTIONARIES = {
       new_user_placeholder: "Ketik namamu di sini...",
       avatar_label: "Pilih Avatar Kerenmu",
       avatar_btn: "Foto Sendiri",
-      submit_new_user: "Mulai Petualangan!",
+      submit_new_user: "Lanjut ke hari ini",
       
       no_account: "Belum ada riwayat akun yang tersimpan.",
       existing_found_title: "Selamat Datang Kembali! 👋",
@@ -83,14 +95,14 @@ export const DICTIONARIES = {
       skip: "Skip",
       start: "Mulai Sekarang!",
       
-      step1_title: "Selamat Datang di SuperApp! 👋",
-      step1_desc: "Aplikasi all-in-one untuk manajemen personal kamu. Kelola tugas, waktu, uang, dan kesehatan di satu tempat keren tanpa ribet.",
+      step1_title: "Mulai dari hari ini",
+      step1_desc: "Pilih satu hal penting, lalu simpan tugas, waktu, uang, dan catatanmu di ruang yang tenang.",
       step2_title: "Task Manager Detail",
       step2_desc: "Catat semua yang harus dilakukan. Ada sistem Kanban board (Todo, Doing, Done) biar kerjaan makin rapi dan terpantau.",
       step3_title: "Habit Tracker",
       step3_desc: "Bangun kebiasaan baik dengan Habit Tracker. Lacak streak harian kamu dan lihat grafik performa mingguan yang bikin makin semangat.",
       step4_title: "Fokus Penuh dengan Pomodoro",
-      step4_desc: "Butuh fokus? Pakai Pomodoro Timer terintegrasi. Set waktu fokus dan istirahat biar produktivitas kamu makin dewa.",
+      step4_desc: "Atur waktu fokus dan jeda agar pekerjaan terasa lebih terarah dan tetap manusiawi.",
       step5_title: "Tetapkan Goal Kamu",
       step5_desc: "Punya target besar tahun ini? Pecah jadi milestone kecil di Goal Setting. Semuanya disimpan aman di perangkatmu sendiri.",
       step6_title: "Install sebagai Aplikasi (PWA)",
@@ -317,6 +329,7 @@ export const DICTIONARIES = {
     
     finance: {
       title: "Finance Tracker",
+      edit_transaction: "Edit Transaksi",
       desc: "Kelola pemasukan dan pengeluaran kamu",
       export: "Export",
       add_transaction: "Tambah Transaksi",
@@ -442,8 +455,8 @@ export const DICTIONARIES = {
     },
     
     reading: {
-      title: "Reading List",
-      desc: "Track buku yang kamu baca dan ingin baca",
+      title: "Daftar Bacaan",
+      desc: "Kelola buku yang sedang dan ingin kamu baca",
       add_book: "Tambah Buku",
       status_reading: "Sedang Dibaca",
       status_completed: "Selesai",
@@ -578,6 +591,18 @@ export const DICTIONARIES = {
   },
   
   en: {
+    gamification: {
+      "level1": "Chapter 1: The Awakening",
+      "level2": "Chapter 2: Building Foundations",
+      "level3": "Chapter 3: The Grind",
+      "level4": "Chapter 4: Breaking Through",
+      "level5": "Chapter 5: Relentless",
+      "level6": "Chapter 6: Mastery",
+      "level7": "Chapter 7: The Architect",
+      "level8": "Chapter 8: Luminary",
+      "level9": "Chapter 9: Legend",
+      "level10": "Chapter 10: Apex"
+},
     // AuthGuard / Login Page
     login: {
       title: "SuperApp Personal Management",
@@ -895,6 +920,7 @@ export const DICTIONARIES = {
     
     finance: {
       title: "Finance Tracker",
+      edit_transaction: "Edit Transaction",
       desc: "Manage your income and expenses",
       export: "Export",
       add_transaction: "Add Transaction",

@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react'
+import React, { createContext, useState, useEffect, useContext, useCallback, ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Localization from 'expo-localization'
+import { translateText } from '@superapp/shared/translations'
 import { DICTIONARIES } from '@superapp/shared'
 
 type Language = 'en' | 'id'
@@ -10,6 +10,7 @@ interface LanguageContextType {
   isChangingLanguage: boolean
   setLanguage: (lang: Language) => Promise<void>
   t: (key: string) => string
+  tx: (text: string, values?: any[]) => string
 }
 
 const LanguageContext = createContext<LanguageContextType>({
@@ -17,6 +18,7 @@ const LanguageContext = createContext<LanguageContextType>({
   isChangingLanguage: false,
   setLanguage: async () => {},
   t: (key) => key,
+  tx: (text) => translateText(text, 'en'),
 })
 
 interface LanguageProviderProps {
@@ -28,35 +30,27 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
   const [isChangingLanguage, setIsChangingLanguage] = useState(false)
 
   useEffect(() => {
-    // Load saved language or detect device locale
+    // Respect an explicit choice; first launch always uses English.
     const loadLanguage = async () => {
-      const savedLang = await AsyncStorage.getItem('superapp_language')
-      if (savedLang === 'id' || savedLang === 'en') {
-        setLanguageState(savedLang as Language)
-      } else {
-        // Auto-detect device language
-        try {
-          const locales = Localization.getLocales();
-          const deviceLangCode = locales && locales.length > 0 ? locales[0].languageCode : 'en';
-          const initialLang: Language = deviceLangCode === 'id' ? 'id' : 'en';
-          setLanguageState(initialLang);
-          await AsyncStorage.setItem('superapp_language', initialLang);
-        } catch (e) {
-          console.warn('Locale detection failed', e);
-          setLanguageState('en');
-        }
+      try {
+        const savedLang = await AsyncStorage.getItem('superapp_language')
+        if (savedLang === 'id' || savedLang === 'en') setLanguageState(savedLang)
+      } catch (error) {
+        console.warn('Could not load language preference', error)
       }
     }
     loadLanguage()
   }, [])
 
   const setLanguage = async (newLanguage: Language): Promise<void> => {
+    if (newLanguage !== 'en' && newLanguage !== 'id') return
     setIsChangingLanguage(true)
-    // Artificial delay to show loading effect
-    await new Promise(resolve => setTimeout(resolve, 800))
     setLanguageState(newLanguage)
-    await AsyncStorage.setItem('superapp_language', newLanguage)
-    setIsChangingLanguage(false)
+    try {
+      await AsyncStorage.setItem('superapp_language', newLanguage)
+    } finally {
+      setIsChangingLanguage(false)
+    }
   }
 
   /**
@@ -102,8 +96,10 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
     return key.split('.').pop() || key
   }
 
+  const tx = useCallback((text: string, values: any[] = []) => translateText(text, language, values), [language])
+
   return (
-    <LanguageContext.Provider value={{ language, isChangingLanguage, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, isChangingLanguage, setLanguage, t, tx }}>
       {children}
     </LanguageContext.Provider>
   )

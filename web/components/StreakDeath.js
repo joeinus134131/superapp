@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from "@superapp/shared/language";
+
 
 export default function StreakDeath({ message, onDismiss }) {
+  const { tx: translateCopy } = useLanguage();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -21,8 +24,8 @@ export default function StreakDeath({ message, onDismiss }) {
     <div className="streak-death-overlay" onClick={() => { setVisible(false); onDismiss && onDismiss(); }}>
       <div className="streak-death-content">
         <div className="streak-death-skull">💀</div>
-        <div className="streak-death-text">{message}</div>
-        <div className="streak-death-sub">Tap untuk menutup</div>
+        <div className="streak-death-text">{translateCopy(message)}</div>
+        <div className="streak-death-sub">{translateCopy("Tap untuk menutup")}</div>
       </div>
     </div>
   );

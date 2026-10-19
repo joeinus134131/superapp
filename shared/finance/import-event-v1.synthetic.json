@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "event_id": "00000000-0000-4000-8000-000000000001",
+  "event_type": "finance.document.received",
+  "connection_id": "00000000-0000-4000-8000-000000000002",
+  "provider": "gmail",
+  "provider_message_id": "synthetic-message-001",
+  "received_at": "2026-10-16T01:00:00Z",
+  "document": {
+    "kind": "bank_notification",
+    "content_sha256": "b7ac440c89c61f11766c35ddd9f4c6709cb513f2641d47391a4a399863679b81",
+    "text": "SYNTHETIC ONLY: pembayaran merchant contoh IDR 250000; rekening belum dipetakan.",
+    "storage_ref": null,
+    "metadata": {
+      "language": "id",
+      "source": "gmail",
+      "synthetic": true
+    }
+  }
+}

@@ -1,13 +1,19 @@
-import { supabase } from './supabaseClient';
+import { prepareRestore } from '@superapp/shared/backup';
+import { persistRestoredEntries } from './storage';
+import { getSupabaseClient } from '@superapp/shared/supabase';
 import CryptoJS from 'crypto-js';
+import { normalizeStorageIdentity } from '@superapp/shared/storage';
 
 const SYNC_KEY = 'superapp_sync_id';
-const DEFAULT_SECRET = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'superapp_secure_vault_2026';
-
 function getEncryptionSecret() {
-  if (typeof window === 'undefined') return DEFAULT_SECRET;
-  const userPass = localStorage.getItem('SYNC_PASSWORD');
-  return userPass ? userPass : DEFAULT_SECRET;
+  if (typeof window === 'undefined') throw new Error('Kunci enkripsi hanya tersedia di perangkat pengguna.');
+  const storedPassword = localStorage.getItem(`${normalizeStorageIdentity(localStorage.getItem('superapp_current_user'))}_SYNC_PASSWORD`) || localStorage.getItem('SYNC_PASSWORD');
+  let userPass = storedPassword;
+  try { userPass = JSON.parse(storedPassword); } catch { /* legacy plain password */ }
+  if (typeof userPass !== 'string' || userPass.length < 12) {
+    throw new Error('Buat kunci sinkronisasi minimal 12 karakter di Pengaturan sebelum memakai cloud sync.');
+  }
+  return userPass;
 }
 
 function getSyncId() {
@@ -21,7 +27,7 @@ function setSyncId(id) {
 }
 
 function collectAllData() {
-  const userId = localStorage.getItem('superapp_current_user');
+  const userId = normalizeStorageIdentity(localStorage.getItem('superapp_current_user'));
   let uniqueCode = null;
   let isPremium = false;
 
@@ -61,12 +67,13 @@ function collectAllData() {
   };
 }
 
-function restoreData(payload) {
-  if (!payload || !payload.data) throw new Error('Data tidak valid');
-  Object.entries(payload.data).forEach(([key, value]) => {
-    localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-  });
-  return Object.keys(payload.data).length;
+async function restoreData(payload) {
+  if (!payload?.data) throw new Error('Data tidak valid');
+  const active = normalizeStorageIdentity(localStorage.getItem('superapp_current_user'));
+  const owner = normalizeStorageIdentity(payload.data.superapp_current_user) || active;
+  const entries = prepareRestore({ version: 1, userId: owner, data: payload.data }, active);
+  await persistRestoredEntries(entries);
+  return entries.length;
 }
 
 export async function pushToCloud() {
@@ -80,7 +87,7 @@ export async function pushToCloud() {
     const secret = getEncryptionSecret();
     const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(payload.data), secret).toString();
 
-    const { data: result, error } = await supabase
+    const { data: result, error } = await getSupabaseClient()
       .from('user_sync_data')
       .upsert({
         sync_id: syncId,
@@ -108,10 +115,10 @@ export async function pullFromCloud(syncId) {
   if (!syncId) throw new Error('Sync ID/Kode Unik diperlukan');
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from('user_sync_data')
       .select('data, synced_at')
-      .eq('sync_id', syncId.toUpperCase())
+      .eq('sync_id', /^[0-9a-f-]{36}$/i.test(syncId) ? syncId.toLowerCase() : syncId.toUpperCase())
       .maybeSingle();
 
     if (error) {
@@ -148,7 +155,7 @@ export async function pullFromCloud(syncId) {
     }
 
     const payload = parsedData;
-    const keysRestored = restoreData(payload);
+    const keysRestored = await restoreData(payload);
 
     setSyncId(syncId);
     return { keysRestored, syncedAt: payload.syncedAt };
@@ -162,7 +169,7 @@ export async function pullFromCloud(syncId) {
 let syncTimeout = null;
 export function triggerAutoSync() {
   if (typeof window === 'undefined') return;
-  const userId = localStorage.getItem('superapp_current_user');
+  const userId = normalizeStorageIdentity(localStorage.getItem('superapp_current_user'));
   if (!userId) return; // Only sync if logged in
 
   if (syncTimeout) clearTimeout(syncTimeout);

@@ -1,6 +1,7 @@
+import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '../lib/storage';
-import { generateId } from '../lib/helpers';
+import { generateId, normalizeBook } from '../lib/helpers';
 import { addXP } from '../lib/gamification';
 import * as Haptics from 'expo-haptics';
 
@@ -19,6 +20,7 @@ export interface Book {
   startDate: string;
   finishDate: string;
   createdAt: string;
+  pagesRead?: number;
 }
 
 export function useReading() {
@@ -30,9 +32,8 @@ export function useReading() {
     setLoading(true);
     try {
       const data = await getData(STORAGE_KEYS.READING);
-      if (data && Array.isArray(data)) {
-        setBooks(data);
-      }
+      const list = Array.isArray(data) ? data.map(normalizeBook) : [];
+      setBooks(list);
     } catch (e) {
       console.error('Failed to load books:', e);
     } finally {
@@ -42,11 +43,14 @@ export function useReading() {
 
   useEffect(() => {
     loadBooks();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadBooks);
+    return () => subscription.remove();
   }, [loadBooks]);
 
   const saveBooks = async (newBooks: Book[]) => {
-    setBooks(newBooks);
-    await setData(STORAGE_KEYS.READING, newBooks);
+    const normalized = newBooks.map(normalizeBook);
+    setBooks(normalized);
+    await setData(STORAGE_KEYS.READING, normalized);
   };
 
   const addBook = async (form: Omit<Book, 'id' | 'createdAt'>) => {
@@ -84,15 +88,20 @@ export function useReading() {
   };
 
   const updateProgress = async (bookId: string, delta: number) => {
-    const book = books.find(b => b.id === bookId);
-    if (!book) return;
+    const rawBook = books.find(b => b.id === bookId);
+    if (!rawBook) return;
+    const book = normalizeBook(rawBook);
 
-    const newPage = Math.min(book.totalPages, Math.max(0, book.currentPage + delta));
+    const totalPages = Math.max(0, Number(book.totalPages) || 0);
+    const current = Math.max(0, Number(book.currentPage) || 0);
+    const newPage = totalPages > 0 ? Math.min(totalPages, Math.max(0, current + delta)) : Math.max(0, current + delta);
     const wasCompleted = book.status === 'completed';
-    const nowCompleted = book.totalPages > 0 && newPage >= book.totalPages;
+    const nowCompleted = totalPages > 0 && newPage >= totalPages;
     
     const updates: Partial<Book> = {
       currentPage: newPage,
+      pagesRead: newPage,
+      totalPages,
       status: nowCompleted ? 'completed' : (book.status === 'want_to_read' ? 'reading' : book.status) as ReadingStatus
     };
 

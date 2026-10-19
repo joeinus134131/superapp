@@ -2,25 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, formatDate, getToday, MOOD_EMOJIS } from '@/lib/helpers';
-import { addXP, checkAchievements } from '@/lib/gamification';
-import { playTaskComplete } from '@/lib/sounds';
+import { generateId, formatDate, getToday, MOOD_EMOJIS } from '@superapp/shared/helpers';
+import { addXP, checkAchievements } from '@superapp/shared/gamification';
+import { playTaskComplete } from '@superapp/shared/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
 import {
   NotebookPen, Plus, Notebook, Trash2, Edit3,
   BookOpen, X, Save
 } from 'lucide-react';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 
 export default function JournalPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const { t } = useLanguage();
   const [entries, setEntries] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
   const [listPage, setListPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
-  const [form, setForm] = useState({ title: '', content: '', mood: 'good', date: getToday() });
+  const [form, setForm] = useState(/** @type {{id?: string, title: string, content: string, mood: string, date: string}} */ ({ title: '', content: '', mood: 'good', date: getToday() }));
   const [showEditor, setShowEditor] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [levelUpData, setLevelUpData] = useState(null);
@@ -35,9 +38,9 @@ export default function JournalPage() {
     });
   }, []);
 
-  const save = (e) => { 
-    setEntries(e); 
-    setData(STORAGE_KEYS.JOURNAL, e); 
+  const save = (e) => {
+    setEntries(e);
+    setData(STORAGE_KEYS.JOURNAL, e);
   };
 
   const createNew = () => {
@@ -57,7 +60,7 @@ export default function JournalPage() {
 
   const handleSave = () => {
     if (!form.title.trim() || !form.content.trim()) return;
-    
+
     const existingIndex = entries.findIndex(e => e.id === form.id);
 
     if (existingIndex !== -1) {
@@ -70,7 +73,7 @@ export default function JournalPage() {
       const updated = [newEntry, ...entries];
       save(updated);
       setSelected(newEntry);
-      
+
       // XP Rewards for new entry
       playTaskComplete();
       const result = addXP('JOURNAL_WRITE');
@@ -95,8 +98,8 @@ export default function JournalPage() {
 
   const filtered = search
     ? entries.filter(e =>
-        e.title.toLowerCase().includes(search.toLowerCase()) ||
-        e.content.toLowerCase().includes(search.toLowerCase()))
+        (e.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (e.content || '').toLowerCase().includes(search.toLowerCase()))
     : entries;
 
   const moodCount = {};
@@ -106,7 +109,7 @@ export default function JournalPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data jurnal...
+        {translateCopy("Memuat data jurnal...")}
       </div>
     );
   }
@@ -116,7 +119,7 @@ export default function JournalPage() {
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
       {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
       {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
-      
+
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
@@ -129,7 +132,7 @@ export default function JournalPage() {
 
       <div className="stats-grid mb-3">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-purple)' }}><Notebook size={28} /></div>
+          <div className="stat-icon" style={{ background: 'rgba(25, 63, 48, 0.15)', color: 'var(--accent-purple)' }}><Notebook size={28} /></div>
           <div className="stat-info">
             <h3>{entries.length}</h3>
             <p>{t('journal.total_notes')}</p>
@@ -163,7 +166,7 @@ export default function JournalPage() {
                     className="list-item"
                     style={{
                       cursor: 'pointer',
-                      background: selected?.id === entry.id ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                      background: selected?.id === entry.id ? 'rgba(25, 63, 48, 0.1)' : 'transparent',
                       borderLeft: selected?.id === entry.id ? '3px solid var(--accent-purple)' : '3px solid transparent',
                       margin: '0',
                       borderRadius: '0',
@@ -174,7 +177,7 @@ export default function JournalPage() {
                         <span>{MOOD_EMOJIS[entry.mood] || '🙂'}</span>
                         <span className="font-semibold truncate" style={{ fontSize: '14px' }}>{entry.title}</span>
                       </div>
-                      <div className="text-xs text-muted mt-1">{formatDate(entry.date)}</div>
+                      <div className="text-xs text-muted mt-1">{formatDate(entry.date, uiLanguage)}</div>
                     </div>
                     <button className="btn btn-danger btn-icon sm" onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                   </div>
@@ -202,7 +205,7 @@ export default function JournalPage() {
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted">
                     <span style={{ textTransform: 'capitalize' }}>{MOOD_EMOJIS[selected.mood]} {selected.mood}</span>
                     <span>•</span>
-                    <span>{formatDate(selected.date)}</span>
+                    <span>{formatDate(selected.date, uiLanguage)}</span>
                   </div>
                 </div>
                 <button className="btn btn-secondary btn-sm" onClick={openEdit} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Edit3 size={14} /> {t('journal.edit')}</button>
@@ -230,7 +233,7 @@ export default function JournalPage() {
               <h2>{form.id ? t('journal.edit_note') : t('journal.write_new')}</h2>
               <button className="btn btn-icon btn-secondary" onClick={() => setShowEditor(false)}><X size={16} /></button>
             </div>
-            
+
             <div className="modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
               <div className="form-group">
                 <label className="form-label">{t('journal.note_title')}</label>

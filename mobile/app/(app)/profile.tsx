@@ -1,9 +1,11 @@
+import { syncDatabase } from '../../lib/databaseSync';
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Alert, StyleSheet, Image, TextInput, Modal
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -18,6 +20,7 @@ import { useLanguage } from '../../context/languageContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const { user, logout, updateProfile: updateAuthProfile } = useAuth();
@@ -29,9 +32,13 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<{ avatarUri?: string, bio?: string }>({});
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user?.name || '');
+  const [lastSyncError, setLastSyncError] = useState('');
+  const [syncing, setSyncing] = useState(false);
   const [syncPassword, setSyncPassword] = useState('');
 
   const loadData = useCallback(async () => {
+    const status = await AsyncStorage.getItem('whenya_last_sync_status');
+    try { const parsed = JSON.parse(status || 'null'); setLastSyncError(parsed?.ok === false ? parsed.error : ''); } catch { /* ignore old status */ }
     const [xp, prof, savedPwd] = await Promise.all([
       getXP(),
       getData(STORAGE_KEYS.USER_PROFILE),
@@ -43,6 +50,26 @@ export default function ProfileScreen() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleSync = async (resolutions: Record<string, any> = {}) => {
+    setSyncing(true);
+    try {
+      const result = await syncDatabase({ resolutions });
+      await loadData();
+      Alert.alert(translateCopy("Cloud terverifikasi"), translateCopy("{0} unggahan, {1} unduhan. Buka ulang halaman untuk melihat data terbaru.", [result.uploaded, result.downloaded]));
+    } catch (error) {
+      if (error && typeof error === 'object' && 'conflicts' in error && Array.isArray(error.conflicts)) {
+        const conflicts = error.conflicts;
+        Alert.alert(translateCopy("Konflik data"), conflicts.map(item => translateCopy("{0}\nLokal: {1}\nCloud: {2}", [item.key, JSON.stringify(item.local).slice(0, 250), JSON.stringify(item.cloud).slice(0, 250)])).join('\n\n') + translateCopy("\nPilihan mengganti seluruh modul yang konflik. Ekspor backup dari web dahulu bila kedua versi diperlukan."), [
+          { text: translateCopy("Batal"), style: 'cancel' },
+          { text: translateCopy("Gunakan lokal"), onPress: () => { void handleSync(Object.fromEntries(conflicts.map(item => [item.key, { choice: 'local', localHash: item.localHash, revision: item.revision, checksum: item.checksum }]))); } },
+          { text: translateCopy("Gunakan cloud"), onPress: () => { void handleSync(Object.fromEntries(conflicts.map(item => [item.key, { choice: 'cloud', localHash: item.localHash, revision: item.revision, checksum: item.checksum }]))); } },
+        ]);
+        return;
+      }
+      Alert.alert(translateCopy("Sinkronisasi gagal"), translateCopy(error instanceof Error ? error.message : String(error)));
+    } finally { setSyncing(false); }
+  };
 
   const handleSaveSyncPassword = async () => {
     try {
@@ -57,7 +84,7 @@ export default function ProfileScreen() {
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
@@ -98,17 +125,18 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Premium Profile Header */}
-      <View style={[styles.headerBg, { backgroundColor: c.purple + '08', paddingTop: layout.topPadding + 20 }]}>
-        <View style={styles.headerTopActions}>
-          <TouchableOpacity onPress={() => router.back()} style={[styles.roundBtn, { backgroundColor: c.bgCard, borderColor: c.border }]}>
-            <MaterialIcons name="arrow-back" size={20} color={c.textPrimary} />
-          </TouchableOpacity>
-          <View />
-          <TouchableOpacity style={[styles.roundBtn, { backgroundColor: c.bgCard, borderColor: c.border }]} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={20} color={c.red} />
-          </TouchableOpacity>
-        </View>
+      <WhenyaHeader
+        title={translateCopy("Profil Pengguna")}
+        subtitle={translateCopy("Pengaturan akun & sinkronisasi data")}
+        showBack={router.canGoBack()}
+        rightAction={{
+          materialIcon: 'logout',
+          variant: 'secondary',
+          onPress: handleLogout,
+          accessibilityLabel: translateCopy("Keluar"),
+        }}
+      />
+      <View style={[styles.headerBg, { backgroundColor: c.purple + '08', paddingTop: 16 }]}>
 
         <TouchableOpacity style={styles.avatarWrapper} onPress={handlePickImage} activeOpacity={0.9}>
           <View style={[styles.avatarGlow, { backgroundColor: level.color + '30' }]} />
@@ -127,7 +155,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.nameContainer}>
-          <Text style={[styles.userName, { color: c.textPrimary }]}>{user?.name || 'SelfOne Explorer'}</Text>
+          <Text style={[styles.userName, { color: c.textPrimary }]}>{user?.name || 'Whenya Explorer'}</Text>
           <View style={[styles.premiumBadge, { backgroundColor: c.purple + '15' }]}>
             <MaterialIcons name="verified" size={14} color={c.purple} />
             <Text style={[styles.premiumText, { color: c.purple }]}>PREMIUM</Text>
@@ -140,13 +168,18 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: layout.bottomPadding + 40 }}
       >
+        <TouchableOpacity disabled={syncing} onPress={() => handleSync()} accessibilityRole="button" style={{ padding: 16, margin: 16, backgroundColor: c.bgCard, borderRadius: 12 }}>
+          <Text style={{ color: c.textPrimary }}>{syncing ? translateCopy("Menyinkronkan…") : translateCopy("Sinkronkan akun cloud")}</Text>
+        </TouchableOpacity>
+        {lastSyncError ? <Text style={{ color: c.textPrimary, marginHorizontal: 16 }}>{translateCopy("Sinkronisasi terakhir gagal:")} {lastSyncError}</Text> : null}
+
         {/* Statistics & Progress Section */}
         <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border, elevation: 4 }]}>
           <View style={styles.cardHeader}>
             <MaterialIcons name="insights" size={20} color={c.purple} />
             <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('profile.progress_analysis')}</Text>
           </View>
-          
+
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={[styles.statVal, { color: level.color }]}>{level.level}</Text>
@@ -155,7 +188,7 @@ export default function ProfileScreen() {
             <View style={[styles.statDivider, { backgroundColor: c.border }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statVal, { color: c.purple }]}>{gamData.totalXP}</Text>
-              <Text style={[styles.statLab, { color: c.textMuted }]}>Total XP</Text>
+              <Text style={[styles.statLab, { color: c.textMuted }]}>{translateCopy("Total XP")}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: c.border }]} />
             <View style={styles.statItem}>
@@ -188,7 +221,7 @@ export default function ProfileScreen() {
               </View>
               <View>
                 <Text style={[styles.settingLabel, { color: c.textPrimary }]}>{t('profile.full_name')}</Text>
-                <Text style={[styles.settingVal, { color: c.textMuted }]}>{user?.name || 'SelfOne Explorer'}</Text>
+                <Text style={[styles.settingVal, { color: c.textMuted }]}>{user?.name || 'Whenya Explorer'}</Text>
               </View>
             </View>
             <MaterialIcons name="edit" size={18} color={c.purple} />
@@ -211,7 +244,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Security & Encryption Section */}
-        <Text style={[styles.sectionTitle, { color: c.textMuted }]}>KEAMANAN & PRIVASI</Text>
+        <Text style={[styles.sectionTitle, { color: c.textMuted }]}>{translateCopy("KEAMANAN & PRIVASI")}</Text>
         <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border }]}>
           <View style={[styles.settingRow, { paddingVertical: 8, flexDirection: 'column', alignItems: 'flex-start' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
@@ -219,13 +252,13 @@ export default function ProfileScreen() {
                 <MaterialIcons name="security" size={20} color={c.green} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, { color: c.textPrimary }]}>Enkripsi E2E Cloud Sync</Text>
-                <Text style={[styles.settingVal, { color: c.textMuted, fontSize: 11 }]}>Password untuk enkripsi data sebelum sync ke cloud</Text>
+                <Text style={[styles.settingLabel, { color: c.textPrimary }]}>{translateCopy("Password backup lama")}</Text>
+                <Text style={[styles.settingVal, { color: c.textMuted, fontSize: 11 }]}>{translateCopy("Khusus backup lama; sinkronisasi database memakai akses akun, tanpa enkripsi password.")}</Text>
               </View>
             </View>
             <TextInput
               style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border, width: '100%', marginBottom: 0, paddingVertical: 10 }]}
-              placeholder="Masukkan password E2E"
+              placeholder={translateCopy("Masukkan password E2E")}
               placeholderTextColor={c.textMuted}
               secureTextEntry
               value={syncPassword}
@@ -273,14 +306,14 @@ const styles = StyleSheet.create({
   headerBg: { alignItems: 'center', paddingBottom: 40, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
   headerTopActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingHorizontal: 24, marginBottom: 20 },
   roundBtn: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  
+
   avatarWrapper: { marginBottom: 16, position: 'relative' },
   avatarGlow: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 44, opacity: 0.3 },
   avatar: { width: 100, height: 100, borderRadius: 36, alignItems: 'center', justifyContent: 'center', elevation: 10, shadowOpacity: 0.15, shadowRadius: 12, overflow: 'hidden' },
   avatarImg: { width: '100%', height: '100%' },
   avatarInitials: { fontSize: 40, fontWeight: '900' },
   editIcon: { position: 'absolute', bottom: -4, right: -4, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
-  
+
   nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   userName: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
   premiumBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
@@ -290,7 +323,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 28, padding: 20, marginBottom: 20, borderWidth: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
   cardTitle: { fontSize: 15, fontWeight: '800' },
-  
+
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   statItem: { flex: 1, alignItems: 'center' },
   statVal: { fontSize: 20, fontWeight: '900' },

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { 
-  View, Text, TextInput, TouchableOpacity, ActivityIndicator, 
+import {
+  View, Text, TextInput, TouchableOpacity, ActivityIndicator,
   ScrollView, KeyboardAvoidingView, StyleSheet, Alert
 } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -11,7 +11,10 @@ import { BrandLogo } from '../../components/BrandLogo'
 import { MaterialIcons } from '@expo/vector-icons'
 import { useLanguage } from '../../context/languageContext'
 
+const authClient: any = supabase
+
 export default function ResetPasswordScreen() {
+  const { tx: translateCopy } = useLanguage();
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,11 +26,11 @@ export default function ResetPasswordScreen() {
 
   const handleUpdate = async () => {
     if (!password || password.length < 6) {
-      setError('Password minimal 6 karakter')
+      setError(translateCopy("Password minimal 6 karakter"))
       return
     }
     if (password !== confirmPassword) {
-      setError('Password tidak cocok')
+      setError(translateCopy("Password tidak cocok"))
       return
     }
 
@@ -35,9 +38,9 @@ export default function ResetPasswordScreen() {
     setError('')
 
     try {
-      const { error } = await supabase.auth.updateUser({ password })
+      const { error } = await authClient.auth.updateUser({ password })
       if (error) throw error
-      
+
       Alert.alert(t('profile.update_success_title'), t('profile.update_success_desc'), [
         { text: 'Login', onPress: () => router.replace('/(auth)/login') }
       ])
@@ -53,20 +56,20 @@ export default function ResetPasswordScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
         <View style={{ marginBottom: 40, alignItems: 'center' }}>
           <BrandLogo size={80} showText={false} />
-          <Text style={[styles.title, { color: c.textPrimary, marginTop: 24 }]}>Set Password Baru</Text>
+          <Text style={[styles.title, { color: c.textPrimary, marginTop: 24 }]}>{translateCopy("Set Password Baru")}</Text>
           <Text style={[styles.subtitle, { color: c.textSecondary, marginTop: 8 }]}>
-            Masukkan password baru Anda di bawah ini.
+            {translateCopy("Masukkan password baru Anda di bawah ini.")}
           </Text>
         </View>
 
         {error ? (
           <View style={[styles.errorContainer, { backgroundColor: c.red + '10', borderLeftColor: c.red }]}>
-            <Text style={{ color: c.red }}>{error}</Text>
+            <Text style={{ color: c.red }}>{translateCopy(error)}</Text>
           </View>
         ) : null}
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: c.textPrimary }]}>Password Baru</Text>
+          <Text style={[styles.label, { color: c.textPrimary }]}>{translateCopy("Password Baru")}</Text>
           <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
             <MaterialIcons name="lock-outline" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
             <TextInput
@@ -81,7 +84,7 @@ export default function ResetPasswordScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: c.textPrimary }]}>Konfirmasi Password</Text>
+          <Text style={[styles.label, { color: c.textPrimary }]}>{translateCopy("Konfirmasi Password")}</Text>
           <View style={[styles.inputWrapper, { backgroundColor: c.bgInput, borderColor: c.border }]}>
             <MaterialIcons name="lock-clock" size={20} color={c.textMuted} style={{ marginRight: 10 }} />
             <TextInput
@@ -100,7 +103,7 @@ export default function ResetPasswordScreen() {
           disabled={loading}
           style={[styles.btn, { backgroundColor: c.purple, opacity: loading ? 0.6 : 1 }]}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Simpan Password</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{translateCopy("Simpan Password")}</Text>}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

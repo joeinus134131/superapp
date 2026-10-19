@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '../lib/storage';
 import { generateId } from '../lib/helpers';
@@ -24,9 +25,7 @@ export function useCalendar() {
     setLoading(true);
     try {
       const data = await getData(STORAGE_KEYS.EVENTS);
-      if (data && Array.isArray(data)) {
-        setEvents(data);
-      }
+      setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Failed to load events:', e);
     } finally {
@@ -36,6 +35,8 @@ export function useCalendar() {
 
   useEffect(() => {
     loadEvents();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadEvents);
+    return () => subscription.remove();
   }, [loadEvents]);
 
   const saveEvents = async (newEvents: CalendarEvent[]) => {

@@ -12,15 +12,14 @@ type InsightHandler struct {
 	insightRepo domain.InsightRepository
 }
 
-func NewInsightHandler(app *fiber.App, engine *usecase.CorrelationEngine, repo domain.InsightRepository) {
+func NewInsightHandler(router fiber.Router, engine *usecase.CorrelationEngine, repo domain.InsightRepository) {
 	handler := &InsightHandler{
 		engine:      engine,
 		insightRepo: repo,
 	}
 
-	api := app.Group("/api/v1")
-	api.Get("/insights", handler.GetInsights)
-	api.Post("/insights/generate", handler.GenerateInsights)
+	router.Get("/insights", handler.GetInsights)
+	router.Post("/insights/generate", handler.GenerateInsights)
 }
 
 func (h *InsightHandler) GetInsights(c *fiber.Ctx) error {

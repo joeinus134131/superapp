@@ -1,5 +1,5 @@
-// 🎮 Gamification Engine — XP, Levels, Achievements
 import { getData, setData, STORAGE_KEYS } from './storage';
+import { ensureArray } from './helpers';
 
 const GAMIFICATION_KEY = 'superapp_gamification';
 
@@ -77,7 +77,9 @@ export const ACHIEVEMENTS = [
 // ===== CORE FUNCTIONS =====
 function getGamificationData() {
   if (typeof window === 'undefined') return getDefaultData();
-  const userId = localStorage.getItem('superapp_current_user');
+  const storedUserId = localStorage.getItem('superapp_current_user');
+  let userId = storedUserId;
+  try { userId = JSON.parse(storedUserId); } catch { /* legacy plain value */ }
   const key = userId ? `${userId}_${GAMIFICATION_KEY}` : GAMIFICATION_KEY;
   try {
     const data = localStorage.getItem(key);
@@ -87,7 +89,9 @@ function getGamificationData() {
 
 function saveGamificationData(data) {
   if (typeof window === 'undefined') return;
-  const userId = localStorage.getItem('superapp_current_user');
+  const storedUserId = localStorage.getItem('superapp_current_user');
+  let userId = storedUserId;
+  try { userId = JSON.parse(storedUserId); } catch { /* legacy plain value */ }
   const key = userId ? `${userId}_${GAMIFICATION_KEY}` : GAMIFICATION_KEY;
   localStorage.setItem(key, JSON.stringify(data));
 }
@@ -199,18 +203,24 @@ export async function checkAchievements() {
 }
 
 async function gatherStats() {
-  const [tasks, habits, journal, pomodoro, transactions, books, health] = await Promise.all([
-    getData(STORAGE_KEYS.TASKS).then(d => d || []),
-    getData(STORAGE_KEYS.HABITS).then(d => d || []),
-    getData(STORAGE_KEYS.JOURNAL).then(d => d || []),
+  const [rawTasks, rawHabits, rawJournal, pomodoro, rawTransactions, rawBooks, health] = await Promise.all([
+    getData(STORAGE_KEYS.TASKS),
+    getData(STORAGE_KEYS.HABITS),
+    getData(STORAGE_KEYS.JOURNAL),
     getData(STORAGE_KEYS.POMODORO).then(d => d || { sessions: [] }),
-    getData(STORAGE_KEYS.TRANSACTIONS).then(d => d || []),
-    getData(STORAGE_KEYS.READING).then(d => d || []),
+    getData(STORAGE_KEYS.TRANSACTIONS),
+    getData(STORAGE_KEYS.READING),
     getData(STORAGE_KEYS.HEALTH).then(d => d || { workouts: [] })
   ]);
 
-  const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const tasks = ensureArray(rawTasks);
+  const habits = ensureArray(rawHabits);
+  const journal = ensureArray(rawJournal);
+  const transactions = ensureArray(rawTransactions);
+  const books = ensureArray(rawBooks);
+
+  const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
 
   return {
     tasksCompleted: tasks.filter(t => t.status === 'done').length,

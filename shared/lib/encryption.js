@@ -1,7 +1,11 @@
 import CryptoJS from 'crypto-js';
 
-// The default secret key used if the user hasn't set a custom one
-const DEFAULT_KEY = 'superapp-default-e2e-key-123';
+function requireKey(customKey) {
+  if (typeof customKey !== 'string' || customKey.length < 12) {
+    throw new Error('Kunci enkripsi minimal 12 karakter wajib diisi.');
+  }
+  return customKey;
+}
 
 /**
  * Encrypts an object or string using AES
@@ -12,7 +16,7 @@ const DEFAULT_KEY = 'superapp-default-e2e-key-123';
 export function encryptData(data, customKey) {
   if (!data) return null;
   const stringData = typeof data === 'string' ? data : JSON.stringify(data);
-  const key = customKey || DEFAULT_KEY;
+  const key = requireKey(customKey);
   return CryptoJS.AES.encrypt(stringData, key).toString();
 }
 
@@ -24,7 +28,7 @@ export function encryptData(data, customKey) {
  */
 export function decryptData(ciphertext, customKey) {
   if (!ciphertext) return null;
-  const key = customKey || DEFAULT_KEY;
+  const key = requireKey(customKey);
   try {
     const bytes = CryptoJS.AES.decrypt(ciphertext, key);
     const decryptedString = bytes.toString(CryptoJS.enc.Utf8);

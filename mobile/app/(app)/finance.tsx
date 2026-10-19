@@ -1,9 +1,11 @@
+import { HeaderText } from '../../components/HeaderText';
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Modal, Alert, StyleSheet, Dimensions, RefreshControl,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
@@ -11,6 +13,7 @@ import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
 import { formatCurrency, formatDate, formatRupiahInput, parseRupiahInput } from '../../lib/helpers';
 import { useLanguage } from '../../context/languageContext';
 import { useSettings } from '../../context/settingsContext';
+import { useRouter } from 'expo-router';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 
 import { useFinance, Transaction, CustomCategory } from '../../hooks/useFinance';
@@ -24,12 +27,12 @@ const CATEGORY_CONFIG: Record<string, { icon: string, color: string, key: string
   'Transport': { icon: 'directions-car', color: '#3b82f6', key: 'finance.cat_transport' },
   'Belanja': { icon: 'shopping-bag', color: '#ec4899', key: 'finance.cat_shopping' },
   'Tagihan': { icon: 'receipt', color: '#f59e0b', key: 'finance.cat_bills' },
-  'Hiburan': { icon: 'sports-esports', color: '#8b5cf6', key: 'finance.cat_entertainment' },
+  'Hiburan': { icon: 'sports-esports', color: '#52745a', key: 'finance.cat_entertainment' },
   'Kesehatan': { icon: 'medical-services', color: '#10b981', key: 'finance.cat_health' },
   'Pendidikan': { icon: 'school', color: '#6366f1', key: 'finance.cat_education' },
   'Gaji': { icon: 'payments', color: '#10b981', key: 'finance.cat_salary' },
   'Freelance': { icon: 'laptop-mac', color: '#3b82f6', key: 'finance.cat_freelance' },
-  'Investasi': { icon: 'trending-up', color: '#8b5cf6', key: 'finance.cat_investment' },
+  'Investasi': { icon: 'trending-up', color: '#52745a', key: 'finance.cat_investment' },
   'Bonus': { icon: 'card-giftcard', color: '#f59e0b', key: 'finance.cat_bonus' },
   'Lainnya': { icon: 'more-horiz', color: '#94a3b8', key: 'finance.cat_others' },
 };
@@ -38,16 +41,18 @@ const INCOME_CATS = ['Gaji', 'Freelance', 'Investasi', 'Bonus', 'Lainnya'];
 const EXPENSE_CATS = ['Makanan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan', 'Kesehatan', 'Pendidikan', 'Lainnya'];
 
 export default function FinanceScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const layout = useMobileLayout();
   const { settings } = useSettings();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
-  const { 
-    transactions, customCategories, loading, 
-    addTransaction, deleteTransaction, addCustomCategory, 
-    deleteCustomCategory, refreshFinance 
+  const {
+    transactions, customCategories, loading,
+    addTransaction, deleteTransaction, addCustomCategory,
+    deleteCustomCategory, refreshFinance
   } = useFinance();
 
   const [showModal, setShowModal] = useState(false);
@@ -61,18 +66,18 @@ export default function FinanceScreen() {
   });
   const [listPage, setListPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
-  
+
   const [showCatModal, setShowCatModal] = useState(false);
   const [showCatSelect, setShowCatSelect] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [newCat, setNewCat] = useState({ label: '', emoji: '✨', color: '#8b5cf6', type: 'expense' as 'income' | 'expense' });
+  const [newCat, setNewCat] = useState({ label: '', emoji: '✨', color: '#52745a', type: 'expense' as 'income' | 'expense' });
 
   const translateCategory = (cat: string) => {
     return CATEGORY_CONFIG[cat] ? t(CATEGORY_CONFIG[cat].key) : cat;
   };
 
   const maskCurrency = (val: number | string) => {
-    if (settings.hideFinanceBalance) return language === 'id' ? 'Rp ******' : '$ ******';
+    if (settings.hideFinanceBalance) return 'Rp ******';
     return typeof val === 'number' ? formatCurrency(val, language) : val;
   };
 
@@ -92,13 +97,13 @@ export default function FinanceScreen() {
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert(t('finance.title'), t('finance.delete_confirm') || 'Yakin hapus transaksi ini?', [
+    Alert.alert(t('finance.title'), t('finance.delete_confirm') || translateCopy("Yakin hapus transaksi ini?"), [
       { text: t('finance.cancel'), style: 'cancel' },
-      { text: t('tasks.delete_btn') || 'Hapus', style: 'destructive', onPress: () => deleteTransaction(id) },
+      { text: t('tasks.delete_btn') || translateCopy("Hapus"), style: 'destructive', onPress: () => deleteTransaction(id) },
     ]);
   };
 
-  const filtered = useMemo(() => 
+  const filtered = useMemo(() =>
     tab === 'all' ? transactions : transactions.filter(t => t.type === tab),
   [transactions, tab]);
 
@@ -108,17 +113,21 @@ export default function FinanceScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.green + '15' }]}>
-            <MaterialIcons name="account-balance-wallet" size={24} color={c.green} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('finance.title')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('finance.desc')}</Text>
-          </View>
-        </View>
-      </View>
+      <WhenyaHeader
+        title={t('finance.title')}
+        subtitle={t('finance.desc')}
+        showBack={router.canGoBack()}
+        tabs={['all', 'income', 'expense'].map(tKey => ({
+          key: tKey,
+          label: tKey === 'all' ? t('finance.all') : tKey === 'income' ? t('finance.income') : t('finance.expense'),
+          count: tKey === 'all' ? transactions.length : transactions.filter(t => t.type === tKey).length,
+        }))}
+        activeTab={tab}
+        onTabChange={(k) => {
+          setTab(k as any);
+          setListPage(1);
+        }}
+      />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshFinance} tintColor={c.purple} />}
@@ -141,6 +150,8 @@ export default function FinanceScreen() {
             </View>
           </View>
         </View>
+
+        <Button label={translateCopy("Buka Buku Keuangan · Inbox · Riset")} variant="secondary" onPress={() => router.push('/finance-repository' as any)} style={{ marginBottom: 20 }} />
 
         {/* Category summary */}
         <Card style={{ padding: 20, marginBottom: 20 }}>
@@ -167,20 +178,7 @@ export default function FinanceScreen() {
           ))}
         </Card>
 
-        {/* Filter Tabs */}
-        <View style={styles.tabRow}>
-          {(['all', 'income', 'expense'] as const).map(tKey => (
-            <TouchableOpacity
-              key={tKey}
-              style={[styles.tabBtn, tab === tKey && { backgroundColor: c.purple + '22', borderColor: c.purple }]}
-              onPress={() => { setTab(tKey); setListPage(1); }}
-            >
-              <Text style={[styles.tabText, { color: tab === tKey ? c.purple : c.textSecondary }]}>
-                {tKey === 'all' ? t('finance.all') : tKey === 'income' ? t('finance.income') : t('finance.expense')}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+
 
         {/* Transactions List */}
         {filtered.length === 0 ? (
@@ -206,7 +204,7 @@ export default function FinanceScreen() {
                 </View>
                 <View style={styles.txRight}>
                   <Text style={[styles.txAmount, { color: tx.type === 'income' ? c.green : c.red }]}>
-                    {tx.type === 'income' ? '+' : '-'}{maskCurrency(tx.amount)}
+                    {tx.type === 'income' ? '+' : translateCopy("-")}{maskCurrency(tx.amount)}
                   </Text>
                   <TouchableOpacity onPress={() => handleDelete(tx.id)} style={{ marginTop: 4 }}>
                     <MaterialIcons name="delete-outline" size={18} color={c.textMuted} />
@@ -214,23 +212,23 @@ export default function FinanceScreen() {
                 </View>
               </Card>
             ))}
-            
+
             {filtered.length > ITEMS_PER_PAGE && (
               <View style={styles.paginationRow}>
                 <Text style={{ color: c.textSecondary, fontSize: 13 }}>
                   {t('finance.page')} {listPage} {t('finance.of')} {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity 
-                    style={[styles.pageBtn, { borderColor: c.border }]} 
-                    disabled={listPage === 1} 
+                  <TouchableOpacity
+                    style={[styles.pageBtn, { borderColor: c.border }]}
+                    disabled={listPage === 1}
                     onPress={() => setListPage(p => Math.max(1, p - 1))}
                   >
                     <Text style={{ color: listPage === 1 ? c.textMuted : c.textPrimary }}>{t('finance.prev')}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.pageBtn, { borderColor: c.border }]} 
-                    disabled={listPage * ITEMS_PER_PAGE >= filtered.length} 
+                  <TouchableOpacity
+                    style={[styles.pageBtn, { borderColor: c.border }]}
+                    disabled={listPage * ITEMS_PER_PAGE >= filtered.length}
                     onPress={() => setListPage(p => p + 1)}
                   >
                     <Text style={{ color: listPage * ITEMS_PER_PAGE >= filtered.length ? c.textMuted : c.textPrimary }}>{t('finance.next')}</Text>
@@ -263,7 +261,7 @@ export default function FinanceScreen() {
                       backgroundColor: (tKey === 'income' ? c.green : c.red) + '22',
                       borderColor: tKey === 'income' ? c.green : c.red,
                     }]}
-                    onPress={() => setForm({ ...form, type: tKey, category: tKey === 'income' ? 'Gaji' : 'Makanan' })}
+                    onPress={() => setForm({ ...form, type: tKey, category: tKey === 'income' ? translateCopy("Gaji") : translateCopy("Makanan") })}
                   >
                     <MaterialIcons
                       name={tKey === 'income' ? 'arrow-upward' : 'arrow-downward'}
@@ -277,7 +275,7 @@ export default function FinanceScreen() {
                 ))}
               </View>
 
-              <Input 
+              <Input
                 label={t('finance.amount')}
                 value={form.amount}
                 onChangeText={v => setForm({ ...form, amount: formatRupiahInput(v) })}
@@ -286,16 +284,16 @@ export default function FinanceScreen() {
               />
 
               <Text style={[styles.inputLabel, { color: c.textSecondary, marginBottom: 12 }]}>{t('finance.category')}</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.selectBtn, { backgroundColor: c.bgInput, borderColor: c.border }]}
                 onPress={() => setShowCatSelect(true)}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={[styles.miniIcon, { backgroundColor: (CATEGORY_CONFIG[form.category]?.color || c.purple) }]}>
-                    <MaterialIcons 
-                      name={(CATEGORY_CONFIG[form.category]?.icon || 'star') as any} 
-                      size={14} 
-                      color="#fff" 
+                    <MaterialIcons
+                      name={(CATEGORY_CONFIG[form.category]?.icon || 'star') as any}
+                      size={14}
+                      color="#fff"
                     />
                   </View>
                   <Text style={{ color: c.textPrimary, fontSize: 15, fontWeight: '700' }}>
@@ -318,6 +316,7 @@ export default function FinanceScreen() {
 
               {showDatePicker && (
                 <DateTimePicker
+                  locale={language === 'id' ? 'id-ID' : 'en-US'}
                   value={new Date(form.date)}
                   mode="date"
                   display="default"
@@ -330,7 +329,7 @@ export default function FinanceScreen() {
                 />
               )}
 
-              <Input 
+              <Input
                 label={t('finance.description')}
                 value={form.description}
                 onChangeText={v => setForm({ ...form, description: v })}
@@ -392,8 +391,8 @@ export default function FinanceScreen() {
                   />
                 </View>
 
-                <Button 
-                  label={t('finance.save')} 
+                <Button
+                  label={t('finance.save')}
                   onPress={async () => {
                     if (!newCat.label) return;
                     await addCustomCategory({
@@ -447,19 +446,19 @@ export default function FinanceScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.categoryGrid}>
-                {(form.type === 'income' 
-                  ? [...INCOME_CATS, ...customCategories.filter(cat => cat.type === 'income').map(cat => cat.label)] 
+                {(form.type === 'income'
+                  ? [...INCOME_CATS, ...customCategories.filter(cat => cat.type === 'income').map(cat => cat.label)]
                   : [...EXPENSE_CATS, ...customCategories.filter(cat => cat.type === 'expense').map(cat => cat.label)]
                 ).map(catLabel => {
                   const isCustom = customCategories.find(cat => cat.label === catLabel);
                   const config = CATEGORY_CONFIG[catLabel] || { icon: 'star', color: c.purple };
                   const isSelected = form.category === catLabel;
-                  
+
                   return (
                     <TouchableOpacity
                       key={catLabel}
                       style={[
-                        styles.gridItem, 
+                        styles.gridItem,
                         { backgroundColor: c.bgInput },
                         isSelected && { backgroundColor: config.color + '22', borderColor: config.color, borderWidth: 1.5 }
                       ]}
@@ -475,7 +474,7 @@ export default function FinanceScreen() {
                           <MaterialIcons name={config.icon as any} size={20} color={isSelected ? '#fff' : config.color} />
                         )}
                       </View>
-                      <Text 
+                      <Text
                         style={[styles.gridLabel, { color: isSelected ? c.textPrimary : c.textSecondary }]}
                         numberOfLines={1}
                       >
@@ -484,7 +483,7 @@ export default function FinanceScreen() {
                     </TouchableOpacity>
                   );
                 })}
-                
+
                 <TouchableOpacity
                   style={[styles.gridItem, { borderStyle: 'dashed', borderColor: c.border, borderWidth: 1.5 }]}
                   onPress={() => { setShowCatSelect(false); setShowCatModal(true); }}
@@ -492,7 +491,7 @@ export default function FinanceScreen() {
                   <View style={[styles.gridIcon, { backgroundColor: c.border }]}>
                     <MaterialIcons name="add" size={24} color={c.textMuted} />
                   </View>
-                  <Text style={[styles.gridLabel, { color: c.textMuted }]}>Tambah</Text>
+                  <Text style={[styles.gridLabel, { color: c.textMuted }]}>{translateCopy("Tambah")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -506,10 +505,11 @@ export default function FinanceScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 2 },
-  
+
   balanceCard: { borderRadius: 24, padding: 24, marginBottom: 20, alignItems: 'center' },
   balanceLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '800', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
   balanceAmount: { color: '#fff', fontSize: 36, fontWeight: '900', marginBottom: 20 },
@@ -554,14 +554,14 @@ const styles = StyleSheet.create({
   dateInput: { borderRadius: 16, padding: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   categoryScroll: { gap: 10, paddingBottom: 8 },
-  categoryChip: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-    paddingHorizontal: 16, 
-    paddingVertical: 12, 
-    borderRadius: 100, 
-    borderWidth: 1 
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 100,
+    borderWidth: 1
   },
   miniIcon: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   categoryChipText: { fontSize: 14, fontWeight: '800' },
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 24, fontWeight: '900' },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 40, marginBottom: 12 },
-  
+
   selectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 40 },
   gridItem: { width: (Dimensions.get('window').width - 72) / 3, alignItems: 'center', padding: 16, borderRadius: 20, gap: 10 },

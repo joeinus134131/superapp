@@ -1,15 +1,18 @@
+import { HeaderText } from '../../components/HeaderText';
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Modal, StyleSheet, RefreshControl,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { MOBILE_SPACING, useMobileLayout } from '../../lib/layout';
 import { getToday, formatDate } from '../../lib/helpers';
 import * as Haptics from 'expo-haptics';
 import { useLanguage } from '../../context/languageContext';
+import { useRouter } from 'expo-router';
 
 import { useHealth, Workout, DailyHealth } from '../../hooks/useHealth';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
@@ -20,21 +23,108 @@ import { Input } from '../../components/ui/Input';
 
 const WORKOUT_TYPES = ['Run', 'Gym', 'Yoga', 'Swim', 'Cycle', 'HIIT', 'Walk', 'Others'];
 
+const WORKOUT_CATEGORY_MAP: Record<string, string> = {
+  run: 'run',
+  lari: 'run',
+  jogging: 'run',
+  gym: 'gym',
+  fitness: 'gym',
+  workout: 'gym',
+  yoga: 'yoga',
+  pilates: 'yoga',
+  swim: 'swim',
+  renang: 'swim',
+  swimming: 'swim',
+  cycle: 'cycle',
+  sepeda: 'cycle',
+  bersepeda: 'cycle',
+  cycling: 'cycle',
+  hiit: 'hiit',
+  tabata: 'hiit',
+  walk: 'walk',
+  jalan: 'walk',
+  walking: 'walk',
+  strength: 'strength',
+  beban: 'strength',
+  cardio: 'cardio',
+  kardio: 'cardio',
+  flexibility: 'flexibility',
+  other: 'others',
+  others: 'others',
+  lainnya: 'others',
+  lain: 'others',
+};
+
+const WORKOUT_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  run: 'directions-run',
+  gym: 'fitness-center',
+  strength: 'fitness-center',
+  yoga: 'self-improvement',
+  flexibility: 'self-improvement',
+  swim: 'pool',
+  cycle: 'directions-bike',
+  hiit: 'bolt',
+  cardio: 'favorite',
+  walk: 'directions-walk',
+  others: 'fitness-center',
+};
+
+const getWorkoutDetails = (workout: Workout | any, t: (key: string) => string) => {
+  if (workout.exercise && typeof workout.exercise === 'string' && workout.exercise.trim()) {
+    const rawType = String(workout.type || '').trim().toLowerCase().replace(/^cat_/, '');
+    const normalized = WORKOUT_CATEGORY_MAP[rawType] || 'others';
+    return {
+      title: workout.exercise.trim(),
+      icon: WORKOUT_ICONS[normalized] || 'fitness-center',
+    };
+  }
+
+  const rawType = String(workout.type || workout.category || '').trim().replace(/^cat_/, '');
+  const lower = rawType.toLowerCase();
+  const normalized = WORKOUT_CATEGORY_MAP[lower] || lower;
+  const icon = WORKOUT_ICONS[normalized] || 'fitness-center';
+
+  const translated = t(`health.cat_${normalized}`);
+  if (translated && !translated.startsWith('cat_') && translated !== `health.cat_${normalized}`) {
+    return { title: translated, icon };
+  }
+
+  const direct = t(`health.cat_${lower}`);
+  if (direct && !direct.startsWith('cat_') && direct !== `health.cat_${lower}`) {
+    return { title: direct, icon };
+  }
+
+  const fallbackTitle = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : (t('health.cat_others') || 'Lainnya');
+  return { title: fallbackTitle, icon };
+};
+
+const getWorkoutTypeLabel = (type: string, t: (key: string) => string) => {
+  const clean = String(type || '').trim().replace(/^cat_/, '');
+  const normalized = WORKOUT_CATEGORY_MAP[clean.toLowerCase()] || clean.toLowerCase();
+  const translated = t(`health.cat_${normalized}`);
+  if (translated && !translated.startsWith('cat_') && translated !== `health.cat_${normalized}`) {
+    return translated;
+  }
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : (t('health.cat_others') || 'Lainnya');
+};
+
 export default function HealthScreen() {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
   const today = getToday();
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
+  const router = useRouter();
 
-  const { 
-    workouts, dailyData, dailyHistory, loading, xpToast, 
-    addWorkout, updateDailyData, refreshHealth 
+  const {
+    workouts, dailyData, dailyHistory, loading, xpToast,
+    addWorkout, updateDailyData, refreshHealth
   } = useHealth();
 
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [showDailyModal, setShowDailyModal] = useState(false);
-  
+
   const [form, setForm] = useState({ type: 'Run', duration: '', calories: '', notes: '' });
   const [dailyForm, setDailyForm] = useState({ steps: '', water: '', sleep: '', weight: '' });
 
@@ -82,12 +172,12 @@ export default function HealthScreen() {
 
   const last7Days = useMemo(() => getVisibleDays(7), []);
   const last30Days = useMemo(() => getVisibleDays(30), []);
-  
-  const maxSteps = useMemo(() => 
+
+  const maxSteps = useMemo(() =>
     Math.max(...last7Days.map(d => dailyHistory[d]?.steps || 0), 8000),
   [last7Days, dailyHistory]);
 
-  const totalCalories = useMemo(() => 
+  const totalCalories = useMemo(() =>
     workouts
       .filter(w => {
         const d = new Date(w.date);
@@ -100,18 +190,11 @@ export default function HealthScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
-      {/* Header */}
-      <View style={[styles.pageHeader, { borderBottomColor: c.border, paddingTop: layout.topPadding }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.headerIconBox, { backgroundColor: c.green + '15' }]}>
-            <MaterialIcons name="favorite" size={24} color={c.green} />
-          </View>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('sidebar.health')}</Text>
-            <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{t('health.subtitle')}</Text>
-          </View>
-        </View>
-      </View>
+      <WhenyaHeader
+        title={t('sidebar.health')}
+        subtitle={t('health.subtitle')}
+        showBack={router.canGoBack()}
+      />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshHealth} tintColor={c.purple} />}
@@ -126,9 +209,9 @@ export default function HealthScreen() {
             { label: t('health.sleep'), value: `${dailyData.sleep}h`, icon: 'bedtime' as const, color: c.purple },
             { label: t('health.weight'), value: `${dailyData.weight}kg`, icon: 'monitor-weight' as const, color: c.orange },
           ].map((m, i) => (
-            <Card 
-              key={i} 
-              style={styles.metricCard} 
+            <Card
+              key={i}
+              style={styles.metricCard}
               onPress={openDailyModal}
             >
               <View style={[styles.metricIcon, { backgroundColor: m.color + '15' }]}>
@@ -147,9 +230,9 @@ export default function HealthScreen() {
               <MaterialIcons name="bar-chart" size={18} color={c.green} />
               <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('health.trend_steps')}</Text>
             </View>
-            <Badge label="GOAL: 10K" color={c.green} />
+            <Badge label={translateCopy("GOAL: 10K")} color={c.green} />
           </View>
-          
+
           <View style={styles.chartContainer}>
             {last7Days.map(d => {
               const val = dailyHistory[d]?.steps || 0;
@@ -161,7 +244,7 @@ export default function HealthScreen() {
                   <View style={styles.barTrack}>
                     <View style={[styles.barFill, { height: `${h}%`, backgroundColor: isToday ? c.green : c.green + '30' }]} />
                   </View>
-                  <Text style={[styles.chartDateText, { color: isToday ? c.green : c.textMuted, fontWeight: isToday ? '900' : '600' }]}>{d.split('-')[2]}</Text>
+                  <Text style={[styles.chartDateText, { color: isToday ? c.green : c.textMuted, fontWeight: isToday ? '900' : '600' }]}>{d.split(translateCopy("-"))[2]}</Text>
                 </View>
               );
             })}
@@ -185,12 +268,12 @@ export default function HealthScreen() {
                 return (
                   <View key={d} style={styles.heatCol}>
                     <View style={[
-                      styles.heatCell, 
+                      styles.heatCell,
                       { backgroundColor: c.bgInput },
                       val > 0 && { backgroundColor: c.blue, opacity: 0.2 + (level * 0.8) },
                       isToday && !val && { borderColor: c.blue, borderWidth: 1, borderStyle: 'dashed' }
                     ]} />
-                    <Text style={[styles.heatLabel, { color: isToday ? c.blue : c.textMuted }]}>{d.split('-')[2]}</Text>
+                    <Text style={[styles.heatLabel, { color: isToday ? c.blue : c.textMuted }]}>{d.split(translateCopy("-"))[2]}</Text>
                   </View>
                 );
               })}
@@ -212,18 +295,21 @@ export default function HealthScreen() {
               <MaterialIcons name="fitness-center" size={40} color={c.textMuted} />
               <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('health.empty_workout')}</Text>
             </View>
-          ) : workouts.slice(0, 5).map(w => (
-            <View key={w.id} style={[styles.workoutItem, { borderBottomColor: c.border + '10' }]}>
-              <View style={[styles.workoutIconBox, { backgroundColor: c.bgInput }]}>
-                <MaterialIcons name="fitness-center" size={20} color={c.purple} />
+          ) : workouts.slice(0, 5).map(w => {
+            const details = getWorkoutDetails(w, t);
+            return (
+              <View key={w.id} style={[styles.workoutItem, { borderBottomColor: c.border + '10' }]}>
+                <View style={[styles.workoutIconBox, { backgroundColor: c.bgInput }]}>
+                  <MaterialIcons name={details.icon} size={20} color={c.purple} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.workoutName, { color: c.textPrimary }]}>{details.title}</Text>
+                  <Text style={[styles.workoutMeta, { color: c.textSecondary }]}>{w.duration} min • {w.calories} cal • {formatDate(w.date, language)}</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={c.textMuted} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.workoutName, { color: c.textPrimary }]}>{t(`health.cat_${w.type.toLowerCase()}`)}</Text>
-                <Text style={[styles.workoutMeta, { color: c.textSecondary }]}>{w.duration} min • {w.calories} cal • {formatDate(w.date, language)}</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={20} color={c.textMuted} />
-            </View>
-          ))}
+            );
+          })}
         </Card>
       </ScrollView>
 
@@ -237,55 +323,55 @@ export default function HealthScreen() {
               <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.add_activity')}</Text>
               <TouchableOpacity onPress={() => setShowWorkoutModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
             </View>
-            
+
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('health.workout_type')}</Text>
               <View style={styles.optionGrid}>
                 {WORKOUT_TYPES.map(type => (
-                  <TouchableOpacity 
-                    key={type} 
-                    style={[styles.optionChip, { backgroundColor: c.bgInput, borderColor: c.border }, form.type === type && { backgroundColor: c.green + '20', borderColor: c.green }]} 
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.optionChip, { backgroundColor: c.bgInput, borderColor: c.border }, form.type === type && { backgroundColor: c.green + '20', borderColor: c.green }]}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setForm({ ...form, type: type }); }}
                   >
-                    <Text style={[styles.optionChipText, { color: form.type === type ? c.green : c.textSecondary }]}>{t(`health.cat_${type.toLowerCase()}`)}</Text>
+                    <Text style={[styles.optionChipText, { color: form.type === type ? c.green : c.textSecondary }]}>{getWorkoutTypeLabel(type, t)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <View style={{ flexDirection: 'row', gap: 16, marginTop: 24 }}>
                 <View style={{ flex: 1 }}>
-                  <Input 
+                  <Input
                     label={t('health.duration')}
-                    value={form.duration} 
-                    onChangeText={v => setForm({ ...form, duration: v })} 
-                    keyboardType="numeric" 
+                    value={form.duration}
+                    onChangeText={v => setForm({ ...form, duration: v })}
+                    keyboardType="numeric"
                     placeholder="30"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Input 
+                  <Input
                     label={t('health.calories')}
-                    value={form.calories} 
-                    onChangeText={v => setForm({ ...form, calories: v })} 
-                    keyboardType="numeric" 
+                    value={form.calories}
+                    onChangeText={v => setForm({ ...form, calories: v })}
+                    keyboardType="numeric"
                     placeholder="200"
                   />
                 </View>
               </View>
 
-              <Input 
+              <Input
                 label={t('health.notes')}
-                value={form.notes} 
-                onChangeText={v => setForm({ ...form, notes: v })} 
+                value={form.notes}
+                onChangeText={v => setForm({ ...form, notes: v })}
                 placeholder={t('health.notes_placeholder')}
                 multiline
                 inputStyle={{ height: 80, textAlignVertical: 'top' }}
               />
 
-              <Button 
-                label={t('health.save_workout')} 
-                onPress={handleAddWorkout} 
-                variant="primary" 
+              <Button
+                label={t('health.save_workout')}
+                onPress={handleAddWorkout}
+                variant="primary"
                 style={{ marginTop: 12, height: 60 }}
               />
             </ScrollView>
@@ -304,20 +390,20 @@ export default function HealthScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <View style={styles.inputItem}>
-                  <Input 
+                  <Input
                     label={t('health.steps')}
-                    value={dailyForm.steps} 
-                    onChangeText={v => setDailyForm({ ...dailyForm, steps: v })} 
-                    keyboardType="numeric" 
+                    value={dailyForm.steps}
+                    onChangeText={v => setDailyForm({ ...dailyForm, steps: v })}
+                    keyboardType="numeric"
                     placeholder="0"
                   />
                 </View>
                 <View style={styles.inputItem}>
-                  <Input 
+                  <Input
                     label={`${t('health.water')} (L)`}
-                    value={dailyForm.water} 
-                    onChangeText={v => setDailyForm({ ...dailyForm, water: v })} 
-                    keyboardType="decimal-pad" 
+                    value={dailyForm.water}
+                    onChangeText={v => setDailyForm({ ...dailyForm, water: v })}
+                    keyboardType="decimal-pad"
                     placeholder="0"
                   />
                 </View>
@@ -325,28 +411,28 @@ export default function HealthScreen() {
 
               <View style={styles.inputGroup}>
                 <View style={styles.inputItem}>
-                  <Input 
+                  <Input
                     label={`${t('health.sleep')} (h)`}
-                    value={dailyForm.sleep} 
-                    onChangeText={v => setDailyForm({ ...dailyForm, sleep: v })} 
-                    keyboardType="decimal-pad" 
+                    value={dailyForm.sleep}
+                    onChangeText={v => setDailyForm({ ...dailyForm, sleep: v })}
+                    keyboardType="decimal-pad"
                     placeholder="0"
                   />
                 </View>
                 <View style={styles.inputItem}>
-                  <Input 
+                  <Input
                     label={`${t('health.weight')} (kg)`}
-                    value={dailyForm.weight} 
-                    onChangeText={v => setDailyForm({ ...dailyForm, weight: v })} 
-                    keyboardType="decimal-pad" 
+                    value={dailyForm.weight}
+                    onChangeText={v => setDailyForm({ ...dailyForm, weight: v })}
+                    keyboardType="decimal-pad"
                     placeholder="0"
                   />
                 </View>
               </View>
 
-              <Button 
-                label={t('health.save_daily')} 
-                onPress={handleSaveDaily} 
+              <Button
+                label={t('health.save_daily')}
+                onPress={handleSaveDaily}
                 variant="primary"
                 style={{ marginTop: 12, height: 60 }}
               />
@@ -367,19 +453,20 @@ export default function HealthScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: { paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1 },
-  headerIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerIconBox: { flexShrink: 0, width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 28, fontWeight: '900' },
   pageSubtitle: { fontSize: 14, marginTop: 4 },
-  
+
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 20, marginBottom: 10 },
   metricCard: { width: '47%', padding: 20 },
   metricIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   metricValue: { fontSize: 24, fontWeight: '900' },
   metricLabel: { fontSize: 12, fontWeight: '700', marginTop: 2 },
-  
+
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   cardTitle: { fontSize: 16, fontWeight: '900' },
-  
+
   chartContainer: { height: 180, width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingTop: 10 },
   chartBarCol: { alignItems: 'center', gap: 8, flex: 1 },
   chartValText: { fontSize: 9, fontWeight: '800' },
@@ -391,15 +478,15 @@ const styles = StyleSheet.create({
   heatCol: { alignItems: 'center', gap: 8 },
   heatCell: { width: 28, height: 28, borderRadius: 8 },
   heatLabel: { fontSize: 9, fontWeight: '800' },
-  
+
   workoutItem: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, borderBottomWidth: 1 },
   workoutIconBox: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   workoutName: { fontSize: 16, fontWeight: '800' },
   workoutMeta: { fontSize: 12, fontWeight: '600', marginTop: 4 },
-  
+
   emptyState: { alignItems: 'center', paddingVertical: 40, opacity: 0.5 },
   emptyText: { fontSize: 14, fontWeight: '800', marginTop: 12 },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingTop: 28, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
@@ -410,7 +497,7 @@ const styles = StyleSheet.create({
   optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   optionChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1 },
   optionChipText: { fontSize: 13, fontWeight: '800' },
-  
-  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#8b5cf6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
+
+  toast: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#52745a', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, zIndex: 1000 },
   toastText: { color: '#fff', fontWeight: '800' },
 });

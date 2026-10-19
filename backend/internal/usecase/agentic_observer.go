@@ -14,14 +14,16 @@ type AgenticObserver struct {
 	aiService   *AIService
 	socialRepo  domain.SocialRepository
 	userRepo    domain.UserRepository
+	insightRepo domain.InsightRepository
 }
 
-func NewAgenticObserver(ai *AIService, social domain.SocialRepository, user domain.UserRepository) *AgenticObserver {
+func NewAgenticObserver(ai *AIService, social domain.SocialRepository, user domain.UserRepository, insight domain.InsightRepository) *AgenticObserver {
 	o := &AgenticObserver{
 		ContextChan: make(chan domain.UserContext, 100),
 		aiService:   ai,
 		socialRepo:  social,
 		userRepo:    user,
+		insightRepo: insight,
 	}
 	// Jalankan listener di goroutine permanen
 	go o.Listen()
@@ -118,6 +120,19 @@ func (o *AgenticObserver) ProcessWithAI(ctx domain.UserContext) {
 		}
 
 		log.Printf("[Agentic AI Insight] Module %s: %s", ctx.ModuleType, result)
-		// Di sini Anda bisa menyimpan result ini ke tabel 'insights' di database
+		if o.insightRepo != nil && result != "" {
+			insight := &domain.Insight{
+				UserID:         ctx.UserID,
+				InsightType:    "automated_analysis",
+				Content:        result,
+				RelatedModules: ctx.ModuleType,
+				Confidence:     85,
+			}
+			if err := o.insightRepo.Save(insight); err != nil {
+				log.Printf("[Agentic AI Error] Failed to persist insight to database: %v", err)
+			} else {
+				log.Printf("[Agentic AI Success] Insight saved to database for user %s", ctx.UserID)
+			}
+		}
 	}()
 }

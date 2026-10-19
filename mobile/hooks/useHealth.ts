@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '../lib/storage';
 import { generateId, getToday } from '../lib/helpers';
@@ -36,12 +37,15 @@ export function useHealth() {
       const today = getToday();
       const saved = await getData(STORAGE_KEYS.HEALTH);
       if (saved) {
-        if (saved.workouts) setWorkouts(saved.workouts);
-        if (saved.daily) setDailyHistory(saved.daily);
+        setWorkouts(saved.workouts || []);
+        setDailyHistory(saved.daily || {});
         const todayData = saved.daily?.[today] || { 
           date: today, steps: 0, water: 0, sleep: 0, weight: 0 
         };
         setDailyData(todayData);
+      } else {
+        setWorkouts([]); setDailyHistory({});
+        setDailyData({ date: today, steps: 0, water: 0, sleep: 0, weight: 0 });
       }
     } catch (e) {
       console.error('Failed to load health data:', e);
@@ -52,6 +56,8 @@ export function useHealth() {
 
   useEffect(() => {
     loadHealthData();
+    const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadHealthData);
+    return () => subscription.remove();
   }, [loadHealthData]);
 
   const saveToStorage = async (updates: { workouts?: Workout[]; daily?: Record<string, DailyHealth> }) => {

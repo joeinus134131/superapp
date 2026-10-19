@@ -2,6 +2,8 @@ import React, { createContext, useState, useEffect, useContext, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '@superapp/shared'
 
+const databaseClient: any = supabase
+
 interface PremiumContextType {
   isPremium: boolean
   checkoutUrl: string | null
@@ -32,7 +34,7 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
       const userId = await AsyncStorage.getItem('superapp_user_id')
       if (userId) {
         // Fetch from Supabase
-        const { data, error } = await supabase
+        const { data, error } = await databaseClient
           .from('users')
           .select('is_premium')
           .eq('id', userId)

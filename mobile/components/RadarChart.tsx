@@ -1,3 +1,4 @@
+import { useLanguage } from '../context/languageContext';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Polygon, Line, Circle, G, Text as SvgText, Defs, RadialGradient, Stop, LinearGradient, Filter, FeGaussianBlur, FeComposite } from 'react-native-svg';
@@ -13,6 +14,7 @@ interface RadarChartProps {
 }
 
 export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 200 }) => {
+  const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
 
@@ -104,7 +106,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 200 }) => {
             const labelRadius = radius + 18; // Balanced distance
             const x = center + labelRadius * Math.cos(angle);
             const y = center + labelRadius * Math.sin(angle);
-            
+
             let anchor: any = "middle";
             if (Math.cos(angle) > 0.2) anchor = "start";
             else if (Math.cos(angle) < -0.2) anchor = "end";
@@ -121,7 +123,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 200 }) => {
                 alignmentBaseline="middle"
                 opacity={0.6}
               >
-                {d.label}
+                {translateCopy(d.label)}
               </SvgText>
             );
           })}

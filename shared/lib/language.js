@@ -2,16 +2,19 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { DICTIONARIES } from './dictionaries';
+import { translateText, resolveTranslation } from './translations';
 
-const LanguageContext = createContext();
+const LanguageContext = createContext(/** @type {{language: string, changeLanguage: (l: string) => void, t: (key: string) => any, tx: (text: string, values?: any[]) => string}} */ ({ language: 'en', changeLanguage: () => {}, t: (k) => k, tx: (text) => translateText(text, 'en') }));
 
-export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState('id'); // Default is Indonesian
+/** @param {{children: React.ReactNode, dictionaries?: Record<string, any>}} props */
+export function LanguageProvider({ children, dictionaries = DICTIONARIES }) {
+  const [language, setLanguage] = useState('en'); // English unless the user has chosen another language
   const [mounted, setMounted] = useState(false);
 
   // Initialize from local storage
   useEffect(() => {
-    const savedLang = localStorage.getItem('superapp_language');
+    let savedLang;
+    try { savedLang = localStorage.getItem('superapp_language'); } catch { /* Storage may be unavailable. */ }
     if (savedLang && (savedLang === 'id' || savedLang === 'en')) {
       setLanguage(savedLang);
     }
@@ -22,28 +25,22 @@ export function LanguageProvider({ children }) {
   const changeLanguage = useCallback((newLang) => {
     if (newLang === 'id' || newLang === 'en') {
       setLanguage(newLang);
-      localStorage.setItem('superapp_language', newLang);
+      try { localStorage.setItem('superapp_language', newLang); } catch { /* Keep the in-memory choice. */ }
     }
   }, []);
 
   // Translation function
   // Usage: t('login.title') -> looks up DICTIONARIES[language].login.title
   const t = useCallback((path) => {
-    const keys = path.split('.');
-    let current = DICTIONARIES[language];
-    
-    for (const key of keys) {
-      if (current[key] === undefined) {
-        console.warn(`Translation key not found: ${path} for language: ${language}`);
-        return path; // Fallback to raw key path if missing
-      }
-      current = current[key];
-    }
-    
-    return current;
+    return resolveTranslation(dictionaries, language, path);
+  }, [language, dictionaries]);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
   }, [language]);
 
-  const contextValue = React.useMemo(() => ({ language, changeLanguage, t }), [language, changeLanguage, t]);
+  const tx = useCallback((text, values = []) => translateText(text, language, values), [language]);
+  const contextValue = React.useMemo(() => ({ language, changeLanguage, t, tx }), [language, changeLanguage, t, tx]);
 
   if (!mounted) {
     // Avoid hydration mismatch on initial render, but still provide context

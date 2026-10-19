@@ -34,6 +34,9 @@
       ],
       "@superapp/shared/*": [
         "../shared/lib/*"
+      ],
+      "@superapp/shared/brand-visuals": [
+        "../shared/lib/brandVisuals.js"
       ]
     }
   },

@@ -1,7 +1,8 @@
 export const DICTIONARIES = {
   id: {
+
     login: {
-      title: "SelfOne Manajemen Personal",
+      title: "Whenya Manajemen Personal",
       subtitle: "Satu aplikasi untuk atur waktu, uang, dan target hidupmu.",
       lang_select: "Pilih Bahasa",
       new_user_tab: "Pengguna Baru",
@@ -62,7 +63,7 @@ export const DICTIONARIES = {
     },
     social: {
       title: "Social Hub",
-      subtitle: "Komunitas SelfOne - Saling Menginspirasi",
+      subtitle: "Komunitas Whenya - Saling Menginspirasi",
       leaderboard: "Papan Peringkat Global",
       challenges: "Tantangan Komunitas",
       activity: "Aktivitas Terbaru",
@@ -92,6 +93,16 @@ export const DICTIONARIES = {
       setup_pin: "Atur PIN Keamanan"
     },
     gamification: {
+      "level1": "Bab 1: Kebangkitan",
+      "level2": "Bab 2: Membangun Fondasi",
+      "level3": "Bab 3: Kerja Keras",
+      "level4": "Bab 4: Menembus Batas",
+      "level5": "Bab 5: Pantang Menyerah",
+      "level6": "Bab 6: Penguasaan",
+      "level7": "Bab 7: Sang Arsitek",
+      "level8": "Bab 8: Sang Inspirator",
+      "level9": "Bab 9: Legenda",
+      "level10": "Bab 10: Puncak",
       to_next: "menuju",
       level: "Level",
       points: "Poin",
@@ -115,6 +126,7 @@ export const DICTIONARIES = {
     },
     tasks: {
       title: "Daftar Tugas",
+      required_msg: "Judul tugas wajib diisi.",
       subtitle: "Kelola tugas dan prioritaskan produktivitasmu",
       status_todo: "To Do",
       status_in_progress: "Diproses",
@@ -288,6 +300,10 @@ export const DICTIONARIES = {
       cat_cycle: "Bersepeda",
       cat_hiit: "HIIT",
       cat_walk: "Jalan Kaki",
+      cat_strength: "Latihan Beban",
+      cat_cardio: "Kardio",
+      cat_flexibility: "Kelenturan",
+      cat_other: "Lainnya",
       cat_others: "Lainnya",
       last_weight: "Berat Terakhir",
       water_intake: "Asupan Air",
@@ -297,6 +313,8 @@ export const DICTIONARIES = {
     },
     journal: {
       title: "Jurnal & Catatan",
+      delete_title: "Hapus Catatan",
+      delete_confirm: "Yakin ingin menghapus catatan ini?",
       subtitle: "Sudah ada {count} entri tersimpan",
       analysis_title: "Analisis Mood (30 Hari)",
       today_prompt: "Bagaimana harimu?",
@@ -406,6 +424,7 @@ export const DICTIONARIES = {
     },
     finance: {
       title: "Keuangan",
+      desc: "Kelola pemasukan dan pengeluaranmu",
       subtitle: "Kelola pemasukan dan pengeluaran kamu",
       balance: "Saldo",
       total_income: "Total Pemasukan",
@@ -445,6 +464,7 @@ export const DICTIONARIES = {
     },
     achievements: {
       title: "Pencapaian",
+      level_up_desc: "Progresmu bertambah. Lanjutkan dengan ritme yang nyaman.",
       subtitle: "Koleksi lencana dan milestone Anda",
       badges_label: "Lencana",
       xp_label: "Total XP",
@@ -526,6 +546,7 @@ export const DICTIONARIES = {
       overview: "Ringkasan",
       dashboard: "Beranda",
       achievements: "Pencapaian",
+      social: "Komunitas",
       productivity: "Produktivitas",
       tasks: "Daftar Tugas",
       habits: "Kebiasaan",
@@ -550,9 +571,27 @@ export const DICTIONARIES = {
       menu_backup: "Export Data",
       menu_restore: "Import Data",
       menu_logout: "Keluar",
-      menu_restore: "Hapus Data",
+      menu_delete: "Hapus Data",
       pomodoro_running: "Sesi fokus berjalan...",
       more: "Lainnya"
+    },
+    destinations: {
+      today: "Hari Ini",
+      plan: "Rencana",
+      plan_desc: "Susun tugas, target, dan jadwalmu.",
+      notes: "Catatan",
+      notes_desc: "Simpan hal penting dari hidupmu.",
+      me: "Saya",
+      capture: "Catat",
+      tasks_desc: "Hal yang perlu kamu selesaikan.",
+      habits_desc: "Bangun kebiasaan harian secara konsisten.",
+      pomodoro_desc: "Sesi fokus dan timer untuk produktivitas.",
+      goals_desc: "Arah dan pencapaian jangka panjang.",
+      calendar_desc: "Agenda dan waktu yang sudah kamu sisihkan.",
+      finance_desc: "Pemasukan, pengeluaran, dan saldo.",
+      health_desc: "Aktivitas, berat, air, dan kebugaran.",
+      journal_desc: "Pikiran dan refleksi yang ingin kamu simpan.",
+      reading_desc: "Buku yang sedang atau ingin kamu baca."
     },
     onboarding: {
       next: "Lanjut",
@@ -682,8 +721,9 @@ export const DICTIONARIES = {
     ]
   },
   en: {
+
     login: {
-      title: "SelfOne Personal Management",
+      title: "Whenya Personal Management",
       subtitle: "One app to manage your time, money, and life goals.",
       lang_select: "Select Language",
       new_user_tab: "New User",
@@ -744,7 +784,7 @@ export const DICTIONARIES = {
     },
     social: {
       title: "Social Hub",
-      subtitle: "SelfOne Community - Inspiring Each Other",
+      subtitle: "Whenya Community - Inspiring Each Other",
       leaderboard: "Global Leaderboard",
       challenges: "Community Challenges",
       activity: "Recent Activity",
@@ -774,6 +814,16 @@ export const DICTIONARIES = {
       setup_pin: "Setup Security PIN"
     },
     gamification: {
+      "level1": "Chapter 1: The Awakening",
+      "level2": "Chapter 2: Building Foundations",
+      "level3": "Chapter 3: The Grind",
+      "level4": "Chapter 4: Breaking Through",
+      "level5": "Chapter 5: Relentless",
+      "level6": "Chapter 6: Mastery",
+      "level7": "Chapter 7: The Architect",
+      "level8": "Chapter 8: Luminary",
+      "level9": "Chapter 9: Legend",
+      "level10": "Chapter 10: Apex",
       to_next: "to",
       level: "Level",
       points: "Points",
@@ -797,6 +847,7 @@ export const DICTIONARIES = {
     },
     tasks: {
       title: "Tasks",
+      required_msg: "Task title is required.",
       subtitle: "Manage tasks and prioritize your productivity",
       status_todo: "To Do",
       status_in_progress: "In Progress",
@@ -970,6 +1021,10 @@ export const DICTIONARIES = {
       cat_cycle: "Cycle",
       cat_hiit: "HIIT",
       cat_walk: "Walk",
+      cat_strength: "Strength",
+      cat_cardio: "Cardio",
+      cat_flexibility: "Flexibility",
+      cat_other: "Others",
       cat_others: "Others",
       last_weight: "Last Weight",
       water_intake: "Water Intake",
@@ -979,6 +1034,8 @@ export const DICTIONARIES = {
     },
     journal: {
       title: "Journal & Notes",
+      delete_title: "Delete Note",
+      delete_confirm: "Are you sure you want to delete this note?",
       subtitle: "{count} entries saved so far",
       analysis_title: "Mood Analysis (30 Days)",
       today_prompt: "How was your day?",
@@ -1088,6 +1145,7 @@ export const DICTIONARIES = {
     },
     finance: {
       title: "Finance",
+      desc: "Manage your income and expenses",
       subtitle: "Manage your income and expenses",
       balance: "Balance",
       total_income: "Total Income",
@@ -1127,6 +1185,7 @@ export const DICTIONARIES = {
     },
     achievements: {
       title: "Achievements",
+      level_up_desc: "Your progress has grown. Keep going at a pace that works for you.",
       subtitle: "Your collection of badges and milestones",
       badges_label: "Badges",
       xp_label: "Total XP",
@@ -1208,6 +1267,7 @@ export const DICTIONARIES = {
       overview: "Overview",
       dashboard: "Dashboard",
       achievements: "Achievements",
+      social: "Community",
       productivity: "Productivity",
       tasks: "Tasks",
       habits: "Habits",
@@ -1232,9 +1292,27 @@ export const DICTIONARIES = {
       menu_backup: "Export Data",
       menu_restore: "Import Data",
       menu_logout: "Logout",
-      menu_restore: "Clear Data",
+      menu_delete: "Clear Data",
       pomodoro_running: "Focus session running...",
       more: "More"
+    },
+    destinations: {
+      today: "Today",
+      plan: "Plan",
+      plan_desc: "Organize your tasks, goals, and schedule.",
+      notes: "Notes",
+      notes_desc: "Keep the important parts of your life together.",
+      me: "Me",
+      capture: "Capture",
+      tasks_desc: "What you need to get done.",
+      habits_desc: "Build daily habits consistently.",
+      pomodoro_desc: "Focus sessions and timer for productivity.",
+      goals_desc: "Your longer-term direction and progress.",
+      calendar_desc: "Plans and time you have set aside.",
+      finance_desc: "Income, spending, and balance.",
+      health_desc: "Activity, weight, water, and wellbeing.",
+      journal_desc: "Thoughts and reflections worth keeping.",
+      reading_desc: "Books you are reading or want to read."
     },
     onboarding: {
       next: "Next",

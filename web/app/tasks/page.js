@@ -1,13 +1,15 @@
 'use client';
 
+import { normalizeTasks } from '@superapp/shared/tasks';
+
 import { useState, useEffect } from 'react';
 import { getData, setData, STORAGE_KEYS } from '@/lib/storage';
-import { generateId, formatDate, PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/helpers';
-import { addXP, checkAchievements } from '@/lib/gamification';
-import { playTaskComplete, playXPGain, playError } from '@/lib/sounds';
+import { generateId, formatDate, PRIORITY_COLORS, PRIORITY_LABELS } from '@superapp/shared/helpers';
+import { addXP, checkAchievements } from '@superapp/shared/gamification';
+import { playTaskComplete, playXPGain, playError } from '@superapp/shared/sounds';
 import Confetti from '@/components/Confetti';
 import LevelUpModal from '@/components/LevelUpModal';
-import { useLanguage } from '@/lib/language';
+import { useLanguage } from '@superapp/shared/language';
 import {
   CalendarDays, ArrowLeft, RefreshCw, Check, Trash2,
   CheckSquare, LayoutDashboard, List as ListIcon, ListTodo,
@@ -17,11 +19,15 @@ import {
 const CATEGORIES = ['Personal', 'Kerja', 'Proyek', 'Belajar', 'Lainnya'];
 
 export default function TasksPage() {
+  const { tx: translateCopy } = useLanguage();
+  const { language: uiLanguage } = useLanguage();
+
   const [tasks, setTasks] = useState([]);
   const { t } = useLanguage();
   const [view, setView] = useState('kanban');
   const [showModal, setShowModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
+  const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [showConfetti, setShowConfetti] = useState(false);
   const [levelUpData, setLevelUpData] = useState(null);
@@ -40,15 +46,19 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getData(STORAGE_KEYS.TASKS).then(saved => {
-      if (saved && Array.isArray(saved)) setTasks(saved);
-      setLoading(false);
+    let active = true;
+    const reload = () => getData(STORAGE_KEYS.TASKS).then(saved => {
+      if (active) { setTasks(normalizeTasks(saved)); setLoading(false); }
     });
+    reload();
+    window.addEventListener('whenya:data-synced', reload);
+    return () => { active = false; window.removeEventListener('whenya:data-synced', reload); };
   }, []);
 
   const save = (newTasks) => {
-    setTasks(newTasks);
-    setData(STORAGE_KEYS.TASKS, newTasks);
+    const normalized = normalizeTasks(newTasks);
+    setTasks(normalized);
+    setData(STORAGE_KEYS.TASKS, normalized);
   };
 
   const openAdd = () => {
@@ -104,9 +114,9 @@ export default function TasksPage() {
     checkAchievements();
   };
 
-  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.category === filter);
+  const filtered = tasks.filter(task => (filter === 'all' || task.category === filter) && `${task.title} ${task.description || ''}`.toLocaleLowerCase('id').includes(search.toLocaleLowerCase('id')));
   const todo = filtered.filter(t => t.status === 'todo');
-  const inProgress = filtered.filter(t => t.status === 'in-progress');
+  const inProgress = filtered.filter(t => t.status === 'in_progress');
   const done = filtered.filter(t => t.status === 'done');
 
   const TaskCard = ({ task }) => (
@@ -121,23 +131,23 @@ export default function TasksPage() {
       </div>
       <div className="kanban-card-title">{task.title}</div>
       <div className="kanban-card-meta">
-        <span>{task.category}</span>
-        {task.deadline && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarDays size={12} /> {formatDate(task.deadline)}</span>}
+        <span>{translateCopy(task.category)}</span>
+        {task.deadline && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarDays size={12} /> {formatDate(task.deadline, uiLanguage)}</span>}
       </div>
       <div className="flex gap-1 mt-1">
         {task.status !== 'todo' && (
           <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'todo'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <ArrowLeft size={14} /> Todo
+            <ArrowLeft size={14} /> {translateCopy("Todo")}
           </button>
         )}
-        {task.status !== 'in-progress' && (
-          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'in-progress'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <RefreshCw size={14} /> Progress
+        {task.status !== 'in_progress' && (
+          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'in_progress'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <RefreshCw size={14} /> {translateCopy("Progress")}
           </button>
         )}
         {task.status !== 'done' && (
           <button className="btn btn-success btn-sm" onClick={(e) => { e.stopPropagation(); moveTask(task.id, 'done'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Check size={14} /> Done
+            <Check size={14} /> {translateCopy("Done")}
           </button>
         )}
         <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -151,7 +161,7 @@ export default function TasksPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-        Memuat data tugas...
+        {translateCopy("Memuat data tugas...")}
       </div>
     );
   }
@@ -162,6 +172,7 @@ export default function TasksPage() {
       {levelUpData && <LevelUpModal level={levelUpData} onClose={() => setLevelUpData(null)} />}
       {xpToast && <div className="xp-toast">⚡ {xpToast}</div>}
 
+      <label className="form-group" style={{ display: 'block', marginBottom: 16 }}>{translateCopy("Cari tugas")}<input type="search" className="form-input" value={search} onChange={e => { setSearch(e.target.value); setTodoPage(1); setInProgressPage(1); setDonePage(1); setListPage(1); }} placeholder={translateCopy("Cari judul atau deskripsi…")} /></label>
       <div className="page-header">
         <div className="flex justify-between items-center">
           <div>
@@ -180,7 +191,7 @@ export default function TasksPage() {
         <div className="flex gap-1">
           <select className="form-select" value={filter} onChange={e => setFilter(e.target.value)} style={{ width: 'auto' }}>
             <option value="all">{t('tasks.all_categories')}</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {CATEGORIES.map(c => <option key={c} value={c}>{translateCopy(c)}</option>)}
           </select>
         </div>
       </div>
@@ -189,7 +200,7 @@ export default function TasksPage() {
         <div className="kanban-board">
           <div className="kanban-column">
             <div className="kanban-column-header">
-              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListTodo size={18} /> To Do <span className="kanban-count">{todo.length}</span></span>
+              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ListTodo size={18} /> {translateCopy("To Do")} <span className="kanban-count">{todo.length}</span></span>
             </div>
             {todo.slice((todoPage - 1) * ITEMS_PER_PAGE, todoPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {todo.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>{t('tasks.no_task')}</div>}
@@ -203,7 +214,7 @@ export default function TasksPage() {
           </div>
           <div className="kanban-column">
             <div className="kanban-column-header">
-              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><RefreshCw size={18} /> In Progress <span className="kanban-count">{inProgress.length}</span></span>
+              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><RefreshCw size={18} /> {translateCopy("In Progress")} <span className="kanban-count">{inProgress.length}</span></span>
             </div>
             {inProgress.slice((inProgressPage - 1) * ITEMS_PER_PAGE, inProgressPage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {inProgress.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>{t('tasks.no_task')}</div>}
@@ -217,7 +228,7 @@ export default function TasksPage() {
           </div>
           <div className="kanban-column">
             <div className="kanban-column-header">
-              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={18} /> Done <span className="kanban-count">{done.length}</span></span>
+              <span className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={18} /> {translateCopy("Done")} <span className="kanban-count">{done.length}</span></span>
             </div>
             {done.slice((donePage - 1) * ITEMS_PER_PAGE, donePage * ITEMS_PER_PAGE).map(t => <TaskCard key={t.id} task={t} />)}
             {done.length === 0 && <div className="text-center text-muted text-sm" style={{ padding: '20px' }}>{t('tasks.no_task')}</div>}
@@ -252,9 +263,9 @@ export default function TasksPage() {
                       <div style={{ textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.6 : 1 }}>
                         {task.title}
                       </div>
-                      <div className="text-xs text-muted">{task.category} • {task.priority}</div>
+                      <div className="text-xs text-muted">{translateCopy(task.category)} • {task.priority}</div>
                     </div>
-                    {task.deadline && <span className="badge badge-blue" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarDays size={12} /> {formatDate(task.deadline)}</span>}
+                    {task.deadline && <span className="badge badge-blue" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarDays size={12} /> {formatDate(task.deadline, uiLanguage)}</span>}
                     <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={16} /></button>
                   </div>
                 ))}
@@ -293,16 +304,16 @@ export default function TasksPage() {
                   <div className="form-group">
                     <label className="form-label">{t('tasks.priority')}</label>
                     <select className="form-select" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
-                      <option value="P1">🔴 P1 — Urgent</option>
-                      <option value="P2">🟡 P2 — High</option>
-                      <option value="P3">🔵 P3 — Medium</option>
-                      <option value="P4">⚪ P4 — Low</option>
+                      <option value="P1">{translateCopy("🔴 P1 — Urgent")}</option>
+                      <option value="P2">{translateCopy("🟡 P2 — High")}</option>
+                      <option value="P3">{translateCopy("🔵 P3 — Medium")}</option>
+                      <option value="P4">{translateCopy("⚪ P4 — Low")}</option>
                     </select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">{t('tasks.category')}</label>
                     <select className="form-select" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {CATEGORIES.map(c => <option key={c} value={c}>{translateCopy(c)}</option>)}
                     </select>
                   </div>
                 </div>
@@ -314,9 +325,9 @@ export default function TasksPage() {
                   <div className="form-group">
                     <label className="form-label">{t('tasks.status')}</label>
                     <select className="form-select" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
-                      <option value="todo">To Do</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="done">Done</option>
+                      <option value="todo">{translateCopy("To Do")}</option>
+                      <option value="in-progress">{translateCopy("In Progress")}</option>
+                      <option value="done">{translateCopy("Done")}</option>
                     </select>
                   </div>
                 </div>
