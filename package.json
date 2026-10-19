@@ -1,18 +1,39 @@
 {
-  "name": "superapp",
-  "version": "0.1.0",
+  "name": "superapp-monorepo",
+  "version": "1.0.0",
   "private": true,
+  "description": "Whenya - Personal Life Management (Web + Mobile + Shared)",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@superapp/web",
+    "dev:mobile": "turbo run dev --filter=@superapp/mobile",
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=@superapp/web",
+    "build:mobile": "turbo run build --filter=@superapp/mobile",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "audit:i18n": "node scripts/audit-multilingual.cjs"
   },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.97.0",
-    "lucide-react": "^0.575.0",
-    "midtrans-client": "^1.4.3",
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+  "devDependencies": {
+    "@swc/core": "^1.16.1",
+    "@swc/jest": "^0.2.39",
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react": "18 || 19",
+        "react-dom": "18 || 19"
+      },
+      "ignoreMissing": [
+        "babel-plugin-react-compiler"
+      ]
+    }
   }
 }

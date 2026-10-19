@@ -1,0 +1,96 @@
+{
+  "expo": {
+    "name": "Whenya",
+    "slug": "selfone-mobile",
+    "version": "1.0.0",
+    "scheme": "selfone",
+    "orientation": "portrait",
+    "icon": "./assets/branding/app-icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/branding/splash-mark.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F4EC"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.selfone.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to take your profile photo.",
+        "NSPhotoLibraryUsageDescription": "Used to choose a photo from your library.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save photos.",
+        "NSLocalNotificationUsageDescription": "Used for habit, task, and pomodoro reminders.",
+        "NSUserNotificationUsageDescription": "Used for habit, task, and pomodoro reminders.",
+        "NSHealthShareUsageDescription": "Used to read health data (optional).",
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification",
+          "fetch",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": [
+          "en",
+          "id",
+          "en",
+          "id"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/adaptive-foreground.png",
+        "backgroundColor": "#F7F4EC"
+      },
+      "package": "com.selfone.mobile",
+      "permissions": [
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      "expo-localization",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/branding/splash-mark.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F4EC",
+          "dark": {
+            "image": "./assets/branding/splash-mark-dark.png",
+            "backgroundColor": "#101D17"
+          }
+        }
+      ]
+    ],
+    "extra": {},
+    "locales": {
+      "en": "./locales/en.json",
+      "id": "./locales/id.json"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0e27df85-2a2b-4246-8305-f4490db28bbb"
+    }
+  }
+}

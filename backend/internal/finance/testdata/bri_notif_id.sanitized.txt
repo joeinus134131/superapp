@@ -1,0 +1,3 @@
+SYNTHETIC ONLY — format contoh gaya notifikasi BRI (BUKAN email asli, sudah disamarkan).
+Contoh: Transaksi kartu debit ****1234 sebesar Rp250.000 pada 15-10-2026 08:00 WIB di MERCHANT CONTOH. Ref: BRI202610150001. Saldo tidak dicantumkan penuh di fixture ini.
+Catatan: bank_hint bukan bukti kepemilikan rekening; kandidat wajib manual_review + account_unresolved sampai ada mapping alias terverifikasi.

@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Used to take your profile photo.",
+    "NSPhotoLibraryUsageDescription": "Used to choose a photo from your library.",
+    "NSPhotoLibraryAddUsageDescription": "Used to save photos.",
+    "NSLocalNotificationUsageDescription": "Used for habit, task, and pomodoro reminders.",
+    "NSUserNotificationUsageDescription": "Used for habit, task, and pomodoro reminders.",
+    "NSHealthShareUsageDescription": "Used to read health data (optional)."
+  }
+}

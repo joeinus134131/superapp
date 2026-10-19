@@ -1,0 +1,75 @@
+name: VPS deployment checks
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'web/**'
+      - 'shared/**'
+      - 'deploy/vps/**'
+      - '.dockerignore'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/vps-*.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: whenya
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: whenya_migrations_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U whenya -d whenya_migrations_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Verify migration contracts and rollback against PostgreSQL
+        working-directory: backend
+        env:
+          MIGRATIONS_TEST_DATABASE_URL: postgres://whenya:test-only@localhost:5432/whenya_migrations_test?sslmode=disable
+        run: go test -v ./migrations
+      - name: Validate installer configuration
+        run: |
+          deploy/vps/package.sh /tmp/whenya-installer.tar.gz
+          tar -xzf /tmp/whenya-installer.tar.gz -C /tmp
+          cd /tmp/whenya
+          cp .env.example .env
+          sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=test-only/;s/^SUPABASE_ANON_KEY=$/SUPABASE_ANON_KEY=test-public-key/' .env
+          touch api.env web.env
+          docker compose config --quiet
+      - name: Build API image
+        run: docker build -t whenya-api:test backend
+      - name: Build standalone web image
+        run: >-
+          docker build -f web/Dockerfile -t whenya-web:test
+          --build-arg NEXT_PUBLIC_API_URL=https://app.example.com/api/v1
+          --build-arg NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co
+          --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=test-public-key .
+      - name: Validate Caddy routing
+        run: >-
+          docker run --rm -e APP_DOMAIN=app.example.com -e ACME_EMAIL=admin@example.com
+          -v "$PWD/deploy/vps/Caddyfile:/etc/caddy/Caddyfile:ro"
+          caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+      - name: Smoke test first installation
+        working-directory: /tmp/whenya
+        run: |
+          printf '\nWHENYA_RELEASE=test\n' >> .env
+          docker compose up -d --wait db api web
+          docker compose exec -T web node -e "Promise.all([fetch('http://api:8080/health').then(r=>{if(!r.ok)throw Error('API health')}),fetch('http://api:8080/api/v1/storage').then(r=>{if(r.status!==401)throw Error('auth guard')})]).catch(e=>{console.error(e);process.exit(1)})"
+      - name: Container diagnostics
+        if: failure()
+        working-directory: /tmp/whenya
+        run: docker compose logs --tail=100
+      - name: Clean test containers
+        if: always()
+        working-directory: /tmp/whenya
+        run: docker compose down -v

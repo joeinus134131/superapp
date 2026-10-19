@@ -1,0 +1,3 @@
+SYNTHETIC ONLY — format contoh gaya notifikasi BNI (BUKAN email asli, sudah disamarkan).
+Contoh: Info transaksi: Kartu ****5678, nominal IDR 1.250.000, tanggal 15 Okt 2026 09:30 WIB, keterangan PEMBAYARAN MERCHANT CONTOH. No referensi: BNI202610150002.
+Catatan: nominal bertanda koma/titik harus dinormalisasi ke integer minor unit; rekening ambigu → conflict, bukan tebakan. Status settlement belum terverifikasi dari notifikasi saja.

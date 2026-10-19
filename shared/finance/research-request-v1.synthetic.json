@@ -1,0 +1,825 @@
+{
+  "schema_version": "1",
+  "as_of": "2025-05-01T00:00:00Z",
+  "universe": [
+    "BBCA.JK"
+  ],
+  "analysis": {
+    "kind": "screening",
+    "include_laya": false
+  },
+  "constraints": {
+    "base_currency": "IDR",
+    "budget": {
+      "amount": "10000000",
+      "currency": "IDR"
+    },
+    "horizon_months": 12
+  },
+  "market_data": {
+    "source": "inline_synthetic",
+    "synthetic": true,
+    "rows": [
+      {
+        "timestamp": "2025-01-01T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5000,
+        "high": 5010,
+        "low": 4990,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-02T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5024,
+        "high": 5034,
+        "low": 5014,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-03T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5048,
+        "high": 5058,
+        "low": 5038,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-04T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5012,
+        "high": 5022,
+        "low": 5002,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-05T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5036,
+        "high": 5046,
+        "low": 5026,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-06T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5060,
+        "high": 5070,
+        "low": 5050,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-07T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5024,
+        "high": 5034,
+        "low": 5014,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-08T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5048,
+        "high": 5058,
+        "low": 5038,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-09T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5072,
+        "high": 5082,
+        "low": 5062,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-10T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5036,
+        "high": 5046,
+        "low": 5026,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-11T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5060,
+        "high": 5070,
+        "low": 5050,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-12T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5084,
+        "high": 5094,
+        "low": 5074,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-13T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5048,
+        "high": 5058,
+        "low": 5038,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-14T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5072,
+        "high": 5082,
+        "low": 5062,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-15T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5096,
+        "high": 5106,
+        "low": 5086,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-16T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5060,
+        "high": 5070,
+        "low": 5050,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-17T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5084,
+        "high": 5094,
+        "low": 5074,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-18T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5108,
+        "high": 5118,
+        "low": 5098,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-19T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5072,
+        "high": 5082,
+        "low": 5062,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-20T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5096,
+        "high": 5106,
+        "low": 5086,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-21T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5120,
+        "high": 5130,
+        "low": 5110,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-22T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5084,
+        "high": 5094,
+        "low": 5074,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-23T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5108,
+        "high": 5118,
+        "low": 5098,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-24T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5132,
+        "high": 5142,
+        "low": 5122,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-25T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5096,
+        "high": 5106,
+        "low": 5086,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-26T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5120,
+        "high": 5130,
+        "low": 5110,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-27T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5144,
+        "high": 5154,
+        "low": 5134,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-28T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5108,
+        "high": 5118,
+        "low": 5098,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-29T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5132,
+        "high": 5142,
+        "low": 5122,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-30T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5156,
+        "high": 5166,
+        "low": 5146,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-01-31T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5120,
+        "high": 5130,
+        "low": 5110,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-01T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5144,
+        "high": 5154,
+        "low": 5134,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-02T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5168,
+        "high": 5178,
+        "low": 5158,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-03T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5132,
+        "high": 5142,
+        "low": 5122,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-04T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5156,
+        "high": 5166,
+        "low": 5146,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-05T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5180,
+        "high": 5190,
+        "low": 5170,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-06T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5144,
+        "high": 5154,
+        "low": 5134,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-07T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5168,
+        "high": 5178,
+        "low": 5158,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-08T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5192,
+        "high": 5202,
+        "low": 5182,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-09T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5156,
+        "high": 5166,
+        "low": 5146,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-10T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5180,
+        "high": 5190,
+        "low": 5170,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-11T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5204,
+        "high": 5214,
+        "low": 5194,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-12T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5168,
+        "high": 5178,
+        "low": 5158,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-13T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5192,
+        "high": 5202,
+        "low": 5182,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-14T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5216,
+        "high": 5226,
+        "low": 5206,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-15T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5180,
+        "high": 5190,
+        "low": 5170,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-16T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5204,
+        "high": 5214,
+        "low": 5194,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-17T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5228,
+        "high": 5238,
+        "low": 5218,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-18T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5192,
+        "high": 5202,
+        "low": 5182,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-19T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5216,
+        "high": 5226,
+        "low": 5206,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-20T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5240,
+        "high": 5250,
+        "low": 5230,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-21T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5204,
+        "high": 5214,
+        "low": 5194,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-22T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5228,
+        "high": 5238,
+        "low": 5218,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-23T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5252,
+        "high": 5262,
+        "low": 5242,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-24T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5216,
+        "high": 5226,
+        "low": 5206,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-25T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5240,
+        "high": 5250,
+        "low": 5230,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-26T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5264,
+        "high": 5274,
+        "low": 5254,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-27T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5228,
+        "high": 5238,
+        "low": 5218,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-02-28T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5252,
+        "high": 5262,
+        "low": 5242,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-01T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5276,
+        "high": 5286,
+        "low": 5266,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-02T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5240,
+        "high": 5250,
+        "low": 5230,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-03T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5264,
+        "high": 5274,
+        "low": 5254,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-04T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5288,
+        "high": 5298,
+        "low": 5278,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-05T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5252,
+        "high": 5262,
+        "low": 5242,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-06T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5276,
+        "high": 5286,
+        "low": 5266,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-07T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5300,
+        "high": 5310,
+        "low": 5290,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-08T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5264,
+        "high": 5274,
+        "low": 5254,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-09T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5288,
+        "high": 5298,
+        "low": 5278,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-10T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5312,
+        "high": 5322,
+        "low": 5302,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-11T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5276,
+        "high": 5286,
+        "low": 5266,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-12T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5300,
+        "high": 5310,
+        "low": 5290,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-13T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5324,
+        "high": 5334,
+        "low": 5314,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-14T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5288,
+        "high": 5298,
+        "low": 5278,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-15T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5312,
+        "high": 5322,
+        "low": 5302,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-16T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5336,
+        "high": 5346,
+        "low": 5326,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-17T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5300,
+        "high": 5310,
+        "low": 5290,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-18T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5324,
+        "high": 5334,
+        "low": 5314,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-19T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5348,
+        "high": 5358,
+        "low": 5338,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-20T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5312,
+        "high": 5322,
+        "low": 5302,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-21T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5336,
+        "high": 5346,
+        "low": 5326,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-22T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5360,
+        "high": 5370,
+        "low": 5350,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-23T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5324,
+        "high": 5334,
+        "low": 5314,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-24T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5348,
+        "high": 5358,
+        "low": 5338,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-25T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5372,
+        "high": 5382,
+        "low": 5362,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-26T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5336,
+        "high": 5346,
+        "low": 5326,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-27T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5360,
+        "high": 5370,
+        "low": 5350,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-28T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5384,
+        "high": 5394,
+        "low": 5374,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-29T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5348,
+        "high": 5358,
+        "low": 5338,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-30T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5372,
+        "high": 5382,
+        "low": 5362,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-03-31T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5396,
+        "high": 5406,
+        "low": 5386,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-01T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5360,
+        "high": 5370,
+        "low": 5350,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-02T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5384,
+        "high": 5394,
+        "low": 5374,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-03T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5408,
+        "high": 5418,
+        "low": 5398,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-04T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5372,
+        "high": 5382,
+        "low": 5362,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-05T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5396,
+        "high": 5406,
+        "low": 5386,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-06T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5420,
+        "high": 5430,
+        "low": 5410,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-07T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5384,
+        "high": 5394,
+        "low": 5374,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-08T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5408,
+        "high": 5418,
+        "low": 5398,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-09T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5432,
+        "high": 5442,
+        "low": 5422,
+        "volume": 10000000
+      },
+      {
+        "timestamp": "2025-04-10T00:00:00+00:00",
+        "tic": "BBCA.JK",
+        "close": 5396,
+        "high": 5406,
+        "low": 5386,
+        "volume": 10000000
+      }
+    ]
+  }
+}

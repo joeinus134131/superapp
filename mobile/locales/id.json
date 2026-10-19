@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Digunakan untuk mengambil foto profil.",
+    "NSPhotoLibraryUsageDescription": "Digunakan untuk memilih foto dari galeri.",
+    "NSPhotoLibraryAddUsageDescription": "Digunakan untuk menyimpan foto.",
+    "NSLocalNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
+    "NSUserNotificationUsageDescription": "Digunakan untuk pengingat habit, task, dan pomodoro.",
+    "NSHealthShareUsageDescription": "Digunakan untuk membaca data kesehatan (opsional)."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "@superapp/shared",
+  "version": "1.0.0",
+  "description": "Shared logic and utilities for SuperApp web and mobile",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./auth": "./lib/auth.js",
+    "./gamification": "./lib/gamification.js",
+    "./token-system": "./lib/tokenSystem.js",
+    "./premium": "./lib/premium.js",
+    "./storage": "./lib/storage.js",
+    "./supabase": "./lib/supabaseClient.js",
+    "./cloud-auth": "./lib/cloudAuth.js",
+    "./helpers": "./lib/helpers.js",
+    "./notifications": "./lib/notifications.js",
+    "./backup": "./lib/backup.js",
+    "./cloud-sync": "./lib/cloudSync.js",
+    "./dictionaries": "./lib/dictionaries.js",
+    "./translations": "./lib/translations.js",
+    "./language": "./lib/language.js",
+    "./roast": "./lib/roast.js",
+    "./sounds": "./lib/sounds.js",
+    "./insights": "./lib/insights.js",
+    "./brand-visuals": "./lib/brandVisuals.js",
+    "./database-sync": "./lib/databaseSync.js",
+    "./tasks": "./lib/tasks.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "crypto-js": "^4.2.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "jest": "^29.7.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
