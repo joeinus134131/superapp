@@ -169,7 +169,7 @@ const DAY_NAMES = [translateCopy("Min"), translateCopy("Sen"), translateCopy("Se
             {permission === 'granted' ? <CheckCircle2 size={28} /> : <AlertTriangle size={28} />}
           </div>
           <div className="stat-info">
-            <h3>{permission === 'granted' ? 'Aktif' : 'Off'}</h3>
+            <h3>{permission === 'granted' ? translateCopy('Aktif') : 'Off'}</h3>
             <p>{translateCopy("Status Izin")}</p>
           </div>
         </div>

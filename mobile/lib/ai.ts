@@ -150,11 +150,14 @@ export async function analyzeJournalEntry(content: string, language: string = 'e
 /**
  * Processes a journal entry to get sentiment and coaching reflection via Backend AI Gateway
  */
-export async function processJournalAI(content: string, language: string = 'en'): Promise<{ mood: string; reflection: string }> {
+export async function processJournalAI(content: string, language: string = 'en'): Promise<{ mood: string; reflection: string; available?: boolean }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
   try {
     const headers = await getAuthHeaders(language);
     const response = await fetch(`${CONFIG.API_URL}/ai/journal`, {
       method: 'POST',
+      signal: controller.signal,
       headers,
       body: JSON.stringify({ content }),
     });
@@ -162,17 +165,17 @@ export async function processJournalAI(content: string, language: string = 'en')
     if (response.ok) {
       const data = await response.json();
       return {
+        available: true,
         mood: data.mood || 'neutral',
         reflection: data.reflection || translateText("Terus jaga konsistensi menulis jurnal harianmu!", language),
       };
     }
   } catch (e) {
-    console.warn('[AI] Journal analysis offline:', e);
-  }
+    console.warn('[AI] Journal analysis unavailable');
+  } finally { clearTimeout(timeout); }
 
   return {
-    mood: 'neutral',
-    reflection: translateText("Refleksi harianmu tersimpan aman di perangkat.", language),
+    mood: 'neutral', reflection: '', available: false,
   };
 }
 

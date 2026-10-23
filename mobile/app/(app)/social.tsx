@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Image, StyleSheet, RefreshControl, Dimensions,
-  Modal, TextInput
+  Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
@@ -317,11 +317,24 @@ export default function SocialScreen() {
       </ScrollView>
 
       {/* Create Squad Modal */}
-      <Modal visible={showCreateModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          <View style={[styles.modalContent, { backgroundColor: c.bgCard, borderColor: c.border, borderWidth: 1 }]}>
-            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{translateCopy("Bikin Squad Baru")}</Text>
+      <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={() => setShowCreateModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowCreateModal(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgCard, borderColor: c.border, borderWidth: 1, maxHeight: '90%' }]}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{translateCopy("Bikin Squad Baru")}</Text>
             <Text style={[styles.modalSubtitle, { color: c.textSecondary }]}>{translateCopy("Bangun komunitas produktivitasmu sendiri.")}</Text>
 
             <View style={styles.inputGroup}>
@@ -347,23 +360,25 @@ export default function SocialScreen() {
               />
             </View>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]}
-                onPress={() => setShowCreateModal(false)}
-              >
-                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: c.purple }]}
-                onPress={handleCreateSquad}
-                disabled={!squadName.trim() || loading}
-              >
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{loading ? 'Membuat...' : translateCopy("Bikin Squad")}</Text>
-              </TouchableOpacity>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]}
+                    onPress={() => setShowCreateModal(false)}
+                  >
+                    <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: c.purple }]}
+                    onPress={handleCreateSquad}
+                    disabled={!squadName.trim() || loading}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '800' }}>{loading ? 'Membuat...' : translateCopy("Bikin Squad")}</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

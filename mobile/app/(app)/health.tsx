@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Modal, StyleSheet, RefreshControl,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
@@ -316,15 +317,27 @@ export default function HealthScreen() {
       <FloatingActionButton onPress={() => setShowWorkoutModal(true)} />
 
       {/* Workout Modal */}
-      <Modal visible={showWorkoutModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.add_activity')}</Text>
-              <TouchableOpacity onPress={() => setShowWorkoutModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
-            </View>
+      <Modal visible={showWorkoutModal} animationType="slide" transparent onRequestClose={() => setShowWorkoutModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowWorkoutModal(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 16 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.add_activity')}</Text>
+                <TouchableOpacity onPress={() => setShowWorkoutModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
+              </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
               <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('health.workout_type')}</Text>
               <View style={styles.optionGrid}>
                 {WORKOUT_TYPES.map(type => (
@@ -377,17 +390,30 @@ export default function HealthScreen() {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Daily Modal */}
-      <Modal visible={showDailyModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.update_status')}</Text>
-              <TouchableOpacity onPress={() => setShowDailyModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
+      <Modal visible={showDailyModal} animationType="slide" transparent onRequestClose={() => setShowDailyModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowDailyModal(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 16 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('health.update_status')}</Text>
+                <TouchableOpacity onPress={() => setShowDailyModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
               <View style={styles.inputGroup}>
                 <View style={styles.inputItem}>
                   <Input
@@ -439,6 +465,7 @@ export default function HealthScreen() {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {xpToast && (

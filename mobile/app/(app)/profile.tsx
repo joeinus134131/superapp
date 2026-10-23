@@ -1,12 +1,17 @@
-import { syncDatabase } from '../../lib/databaseSync';
+import { SyncConflictSheet, SyncConflict } from '../../components/SyncConflictSheet';
+import { EncryptedStorage } from '../../lib/secureStorage';
+import { shareTextFile } from '../../lib/shareTextFile';
+import { useSettings } from '../../context/settingsContext';
+import { getSyncStatus, syncDatabase } from '../../lib/databaseSync';
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Alert, StyleSheet, Image, TextInput, Modal
+  Alert, StyleSheet, Image, TextInput, Modal, DeviceEventEmitter,
+  KeyboardAvoidingView, Platform, Keyboard
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 import { useTheme } from '../../context/themeContext';
@@ -16,6 +21,7 @@ import { getData, setData, STORAGE_KEYS } from '../../lib/storage';
 import { useAuth } from '../../hooks/useAuth';
 import { useMobileLayout } from '../../lib/layout';
 import { useLanguage } from '../../context/languageContext';
+import { statusAlert } from '../../lib/statusAlert';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,7 +32,12 @@ export default function ProfileScreen() {
   const { user, logout, updateProfile: updateAuthProfile } = useAuth();
   const router = useRouter();
   const layout = useMobileLayout();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const copy = (id: string, en: string) => language === 'id' ? id : en;
+  const { settings } = useSettings();
+  const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+  const [syncState, setSyncState] = useState('');
+  const [hasBackup, setHasBackup] = useState(false);
 
   const [gamData, setGamData] = useState({ totalXP: 0 });
   const [profile, setProfile] = useState<{ avatarUri?: string, bio?: string }>({});
@@ -37,8 +48,10 @@ export default function ProfileScreen() {
   const [syncPassword, setSyncPassword] = useState('');
 
   const loadData = useCallback(async () => {
-    const status = await AsyncStorage.getItem('whenya_last_sync_status');
-    try { const parsed = JSON.parse(status || 'null'); setLastSyncError(parsed?.ok === false ? parsed.error : ''); } catch { /* ignore old status */ }
+    const status = await getSyncStatus();
+    setLastSyncError(status?.error || '');
+    setSyncState(status?.state || '');
+    try { const backups = await EncryptedStorage.getItem('whenya_sync_conflict_backups_v1'); setHasBackup(Array.isArray(backups) && backups.length > 0); } catch { setHasBackup(false); }
     const [xp, prof, savedPwd] = await Promise.all([
       getXP(),
       getData(STORAGE_KEYS.USER_PROFILE),
@@ -49,33 +62,62 @@ export default function ProfileScreen() {
     if (savedPwd) setSyncPassword(savedPwd);
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useFocusEffect(useCallback(() => {
+    loadData();
+    const subscription = DeviceEventEmitter.addListener('whenya:sync-status', status => { setLastSyncError(status.error || ''); setSyncState(status.state); });
+    return () => subscription.remove();
+  }, [loadData]));
+  useEffect(() => { setConflicts([]); setLastSyncError(''); setSyncState(''); setHasBackup(false); }, [user?.id]);
 
   const handleSync = async (resolutions: Record<string, any> = {}) => {
+    if (syncing) return;
     setSyncing(true);
     try {
-      const result = await syncDatabase({ resolutions });
+      const result = await syncDatabase({ resolutions, expectedOwner: user?.id });
+      setConflicts([]);
       await loadData();
-      Alert.alert(translateCopy("Cloud terverifikasi"), translateCopy("{0} unggahan, {1} unduhan. Buka ulang halaman untuk melihat data terbaru.", [result.uploaded, result.downloaded]));
+      statusAlert.success(
+        translateCopy("Sinkronisasi Berhasil!"),
+        translateCopy("{0} data diunggah, {1} data diunduh. Akun cloud terhubung.", [result.uploaded, result.downloaded])
+      );
     } catch (error) {
       if (error && typeof error === 'object' && 'conflicts' in error && Array.isArray(error.conflicts)) {
-        const conflicts = error.conflicts;
-        Alert.alert(translateCopy("Konflik data"), conflicts.map(item => translateCopy("{0}\nLokal: {1}\nCloud: {2}", [item.key, JSON.stringify(item.local).slice(0, 250), JSON.stringify(item.cloud).slice(0, 250)])).join('\n\n') + translateCopy("\nPilihan mengganti seluruh modul yang konflik. Ekspor backup dari web dahulu bila kedua versi diperlukan."), [
-          { text: translateCopy("Batal"), style: 'cancel' },
-          { text: translateCopy("Gunakan lokal"), onPress: () => { void handleSync(Object.fromEntries(conflicts.map(item => [item.key, { choice: 'local', localHash: item.localHash, revision: item.revision, checksum: item.checksum }]))); } },
-          { text: translateCopy("Gunakan cloud"), onPress: () => { void handleSync(Object.fromEntries(conflicts.map(item => [item.key, { choice: 'cloud', localHash: item.localHash, revision: item.revision, checksum: item.checksum }]))); } },
-        ]);
+        setConflicts(error.conflicts as SyncConflict[]);
+        statusAlert.warning(
+          copy("Konflik Sinkronisasi", "Sync Conflict"),
+          copy("Ditemukan konflik data. Silakan pilih versi yang akan disimpan.", "Data conflict detected. Please select which version to keep.")
+        );
         return;
       }
-      Alert.alert(translateCopy("Sinkronisasi gagal"), translateCopy(error instanceof Error ? error.message : String(error)));
-    } finally { setSyncing(false); }
+      statusAlert.error(
+        translateCopy("Sinkronisasi Gagal"),
+        translateCopy(error instanceof Error ? error.message : String(error))
+      );
+    } finally { setSyncing(false); loadData().catch(() => {}); }
+  };
+
+  const exportConflictBackup = async () => {
+    if (settings.hideFinanceBalance) {
+      Alert.alert(copy('Nominal sedang disembunyikan', 'Amounts are hidden'), copy('Cadangan dapat berisi data keuangan. Tampilkan nominal melalui pengaturan sebelum mengekspor.', 'Backups may contain financial data. Turn off amount hiding in settings before exporting.'));
+      return;
+    }
+    try {
+      const backups = await EncryptedStorage.getItem('whenya_sync_conflict_backups_v1');
+      if (!Array.isArray(backups) || !backups.length) { Alert.alert(copy('Belum ada cadangan konflik', 'No conflict backups yet')); return; }
+      await shareTextFile(JSON.stringify({ version: 1, kind: 'whenya-sync-conflict-backup', backups }, null, 2), `whenya-conflict-backup-${Date.now()}.json`, 'application/json', 'public.json');
+    } catch { Alert.alert(copy('Cadangan gagal dibagikan. Coba lagi.', 'Could not share backup. Please retry.')); }
   };
 
   const handleSaveSyncPassword = async () => {
     try {
       await AsyncStorage.setItem('SYNC_PASSWORD', syncPassword);
+      statusAlert.success(
+        translateCopy("Password Disimpan"),
+        translateCopy("Password enkripsi backup lama berhasil disimpan.")
+      );
     } catch (e) {
       console.error(e);
+      statusAlert.error(translateCopy("Gagal Menyimpan"), translateCopy("Terjadi kesalahan saat menyimpan password."));
     }
   };
 
@@ -87,14 +129,34 @@ export default function ProfileScreen() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.35,
+      base64: true,
     });
 
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      const newProfile = { ...profile, avatarUri: uri };
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const dataUri = asset.base64
+        ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+        : asset.uri;
+
+      const newProfile = { ...profile, avatarUri: dataUri };
       setProfile(newProfile);
       await setData(STORAGE_KEYS.USER_PROFILE, newProfile);
+      DeviceEventEmitter.emit('whenya:profile-updated', newProfile);
+
+      // Sync to cloud metadata if user is logged in
+      if (updateAuthProfile) {
+        try {
+          await updateAuthProfile({ metadata: { avatar_url: dataUri } });
+        } catch (e) {
+          console.warn('Gagal sync avatar ke cloud auth:', e);
+        }
+      }
+
+      statusAlert.success(
+        translateCopy("Foto Profil Diperbarui"),
+        translateCopy("Avatar baru berhasil disimpan dan disinkronkan ke cloud.")
+      );
     }
   };
 
@@ -104,10 +166,20 @@ export default function ProfileScreen() {
       if (updateAuthProfile) {
         await updateAuthProfile({ name: newName.trim() });
       }
+      const updatedProfile = { ...profile, displayName: newName.trim() };
+      setProfile(updatedProfile);
+      await setData(STORAGE_KEYS.USER_PROFILE, updatedProfile);
+      DeviceEventEmitter.emit('whenya:profile-updated', updatedProfile);
       setIsEditing(false);
-      Alert.alert(`✅ ${t('profile.update_success_title')}`, t('profile.update_success_desc'));
+      statusAlert.success(
+        t('profile.update_success_title'),
+        t('profile.update_success_desc')
+      );
     } catch (e) {
-      Alert.alert(`❌ ${t('profile.update_fail_title')}`, t('profile.update_fail_desc'));
+      statusAlert.error(
+        t('profile.update_fail_title'),
+        t('profile.update_fail_desc')
+      );
     }
   };
 
@@ -116,8 +188,10 @@ export default function ProfileScreen() {
       { text: t('tasks.cancel'), style: 'cancel' },
       {
         text: t('profile.logout_btn'), style: 'destructive', onPress: async () => {
-          await logout();
-          router.replace('/(auth)/login');
+          try {
+            await logout();
+            router.replace('/(auth)/login');
+          } catch { Alert.alert('Logout belum selesai', 'Periksa koneksi dan coba lagi.'); }
         }
       },
     ]);
@@ -125,6 +199,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
+      <SyncConflictSheet conflicts={conflicts} busy={syncing} onClose={() => setConflicts([])} onApply={handleSync} />
       <WhenyaHeader
         title={translateCopy("Profil Pengguna")}
         subtitle={translateCopy("Pengaturan akun & sinkronisasi data")}
@@ -141,8 +216,8 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.avatarWrapper} onPress={handlePickImage} activeOpacity={0.9}>
           <View style={[styles.avatarGlow, { backgroundColor: level.color + '30' }]} />
           <View style={[styles.avatar, { backgroundColor: c.bgCard, borderColor: level.color, borderWidth: 3 }]}>
-            {profile.avatarUri ? (
-              <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
+            {(profile.avatarUri || user?.user_metadata?.avatar_url || user?.user_metadata?.picture) ? (
+              <Image source={{ uri: profile.avatarUri || user?.user_metadata?.avatar_url || user?.user_metadata?.picture }} style={styles.avatarImg} />
             ) : (
               <Text style={[styles.avatarInitials, { color: level.color }]}>
                 {(user?.name || 'S').charAt(0).toUpperCase()}
@@ -168,10 +243,109 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: layout.bottomPadding + 40 }}
       >
-        <TouchableOpacity disabled={syncing} onPress={() => handleSync()} accessibilityRole="button" style={{ padding: 16, margin: 16, backgroundColor: c.bgCard, borderRadius: 12 }}>
-          <Text style={{ color: c.textPrimary }}>{syncing ? translateCopy("Menyinkronkan…") : translateCopy("Sinkronkan akun cloud")}</Text>
-        </TouchableOpacity>
-        {lastSyncError ? <Text style={{ color: c.textPrimary, marginHorizontal: 16 }}>{translateCopy("Sinkronisasi terakhir gagal:")} {lastSyncError}</Text> : null}
+        {/* Cloud Sync Card */}
+        <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border, marginBottom: 20 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.iconBox, { backgroundColor: syncing ? c.purple + '20' : (syncState === 'success' ? '#10B98120' : c.purple + '15') }]}>
+                <MaterialIcons
+                  name={syncState === 'success' ? 'cloud-done' : (syncState === 'conflict' ? 'sync-problem' : 'cloud-sync')}
+                  size={22}
+                  color={syncState === 'success' ? '#10B981' : (syncState === 'conflict' ? '#F59E0B' : c.purple)}
+                />
+              </View>
+              <View>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: c.textPrimary }}>{translateCopy("Sinkronisasi Cloud")}</Text>
+                <Text style={{ fontSize: 11, color: c.textMuted }}>{user?.email || 'Akun Whenya'}</Text>
+              </View>
+            </View>
+
+            {/* Status Pill Badge */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+              backgroundColor: syncState === 'success' ? '#10B98118' : (syncState === 'conflict' ? '#F59E0B18' : (lastSyncError ? '#EF444418' : c.purple + '12'))
+            }}>
+              <MaterialIcons
+                name={syncState === 'success' ? 'check-circle' : (syncState === 'conflict' ? 'warning' : (lastSyncError ? 'error' : 'cloud'))}
+                size={12}
+                color={syncState === 'success' ? '#10B981' : (syncState === 'conflict' ? '#F59E0B' : (lastSyncError ? '#EF4444' : c.purple))}
+              />
+              <Text style={{
+                fontSize: 10,
+                fontWeight: '800',
+                color: syncState === 'success' ? '#10B981' : (syncState === 'conflict' ? '#F59E0B' : (lastSyncError ? '#EF4444' : c.purple))
+              }}>
+                {syncing
+                  ? translateCopy("Sinkron...")
+                  : (syncState === 'success'
+                      ? copy('Tersinkron', 'Synced')
+                      : (syncState === 'conflict'
+                          ? copy('Konflik', 'Conflict')
+                          : (lastSyncError ? copy('Gagal', 'Failed') : copy('Tersambung', 'Connected'))))}
+              </Text>
+            </View>
+          </View>
+
+          {syncState === 'conflict' && (
+            <View style={{ backgroundColor: '#F59E0B12', padding: 10, borderRadius: 10, marginBottom: 12, borderWidth: 1, borderColor: '#F59E0B30' }}>
+              <Text style={{ color: isDark ? '#FCD34D' : '#D97706', fontSize: 12, lineHeight: 17, fontWeight: '600' }}>
+                {copy('Sync otomatis dijeda karena ada perbedaan versi. Tekan tombol di bawah untuk memilih versi data yang ingin disimpan.', 'Automatic sync paused due to version differences. Tap below to choose which version to keep.')}
+              </Text>
+            </View>
+          )}
+
+          {lastSyncError ? (
+            <View style={{ backgroundColor: '#EF444412', padding: 10, borderRadius: 10, marginBottom: 12, borderWidth: 1, borderColor: '#EF444430' }}>
+              <Text style={{ color: isDark ? '#FCA5A5' : '#DC2626', fontSize: 12, lineHeight: 17, fontWeight: '600' }}>
+                {translateCopy("Sinkronisasi terakhir gagal:")} {lastSyncError}
+              </Text>
+            </View>
+          ) : null}
+
+          {syncState === 'success' && !lastSyncError && (
+            <Text style={{ color: c.textMuted, fontSize: 11, marginBottom: 12 }}>
+              {copy('Sinkronisasi cloud terakhir berhasil. Data lokal dan server telah cocok.', 'Last synchronization succeeded. Local and server data are matched.')}
+            </Text>
+          )}
+
+          <TouchableOpacity
+            disabled={syncing}
+            onPress={() => handleSync()}
+            accessibilityRole="button"
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              paddingVertical: 13,
+              backgroundColor: syncing ? c.border : c.purple,
+              borderRadius: 14,
+            }}
+          >
+            <MaterialIcons name={syncing ? 'sync' : 'cloud-sync'} size={18} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+              {syncing ? translateCopy("Sedang Menyinkronkan…") : translateCopy("Sinkronkan Akun Cloud")}
+            </Text>
+          </TouchableOpacity>
+
+          {hasBackup && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={exportConflictBackup}
+              style={{ marginTop: 10, paddingVertical: 10, alignItems: 'center' }}
+            >
+              <Text style={{ color: c.purple, fontSize: 12, fontWeight: '700' }}>
+                {copy('Bagikan cadangan konflik (JSON)', 'Share conflict backups (JSON)')}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Statistics & Progress Section */}
         <View style={[styles.card, { backgroundColor: c.bgCard, borderColor: c.border, elevation: 4 }]}>
@@ -274,28 +448,41 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* Edit Name Modal */}
-      <Modal visible={isEditing} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgCard }]}>
-            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('profile.edit_name_title')}</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-              value={newName}
-              onChangeText={setNewName}
-              placeholder={t('profile.edit_name_placeholder')}
-              placeholderTextColor={c.textMuted}
-              autoFocus
+      <Modal visible={isEditing} animationType="fade" transparent onRequestClose={() => setIsEditing(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setIsEditing(false);
+              }}
             />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => setIsEditing(false)}>
-                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{t('tasks.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: c.purple }]} onPress={handleUpdateName}>
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{t('tasks.save')}</Text>
-              </TouchableOpacity>
+            <View style={[styles.modalContent, { backgroundColor: c.bgCard }]}>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('profile.edit_name_title')}</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
+                value={newName}
+                onChangeText={setNewName}
+                placeholder={t('profile.edit_name_placeholder')}
+                placeholderTextColor={c.textMuted}
+                autoFocus
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => setIsEditing(false)}>
+                  <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{t('tasks.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalBtn, { backgroundColor: c.purple }]} onPress={handleUpdateName}>
+                  <Text style={{ color: '#fff', fontWeight: '800' }}>{t('tasks.save')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

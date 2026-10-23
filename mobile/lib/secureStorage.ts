@@ -48,24 +48,25 @@ async function getMasterKey(): Promise<string> {
  * Encrypted wrapper for AsyncStorage.
  * Suitable for larger data that needs security (e.g. Finance, Journal).
  */
-async function scopedKey(key: string): Promise<string> {
+async function scopedKey(key: string, expectedOwner?: string): Promise<string> {
   const stored = await AsyncStorage.getItem('superapp_current_user');
   let owner = stored;
   try { owner = JSON.parse(stored || 'null'); } catch { /* legacy plain ID */ }
   if (!owner || typeof owner !== 'string') throw new Error('Profil aktif tidak ditemukan.');
+  if (expectedOwner && owner !== expectedOwner) throw new Error('Akun berubah saat sinkronisasi. Coba kembali.');
   return `${owner}_${key}`;
 }
 
 export const EncryptedStorage = {
-  async setItem(key: string, value: any): Promise<void> {
-    const fullKey = await scopedKey(key);
+  async setItem(key: string, value: any, options: { skipSync?: boolean; owner?: string } = {}): Promise<void> {
+    const fullKey = await scopedKey(key, options.owner);
     const masterKey = await getMasterKey();
     await AsyncStorage.setItem(fullKey, CryptoJS.AES.encrypt(JSON.stringify(value), masterKey).toString());
-    import('./databaseSync').then(module => module.scheduleDatabaseSync());
+    if (!options.skipSync) import('./databaseSync').then(module => module.scheduleDatabaseSync());
   },
 
-  async getItem(key: string): Promise<any> {
-    const fullKey = await scopedKey(key);
+  async getItem(key: string, options: { owner?: string } = {}): Promise<any> {
+    const fullKey = await scopedKey(key, options.owner);
     let raw = await AsyncStorage.getItem(fullKey);
     if (raw === null) {
       const legacyOwner = await AsyncStorage.getItem('superapp_legacy_data_owner');

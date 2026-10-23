@@ -1,7 +1,7 @@
+import { getData, STORAGE_KEYS } from '../lib/storage';
+import { readJournalEntries, updateJournalEntries } from '../lib/journalRepository';
 import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
-import { STORAGE_KEYS } from '../lib/storage';
-import { EncryptedStorage } from '../lib/secureStorage';
 import { generateId, getToday } from '../lib/helpers';
 import { addXP } from '../lib/gamification';
 import * as Haptics from 'expo-haptics';
@@ -20,14 +20,16 @@ export interface JournalEntry {
 export function useJournal() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [rewardError, setRewardError] = useState<string | null>(null);
   const [xpToast, setXpToast] = useState<string | null>(null);
 
   const loadJournal = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError(false);
     try {
-      const saved = await EncryptedStorage.getItem(STORAGE_KEYS.JOURNAL);
-      setEntries(Array.isArray(saved) ? saved : []);
+      setEntries(await readJournalEntries());
     } catch (e) {
+      setError(true);
       console.error('Failed to load journal entries:', e);
     } finally {
       setLoading(false);
@@ -40,12 +42,20 @@ export function useJournal() {
     return () => subscription.remove();
   }, [loadJournal]);
 
-  const saveEntries = async (newEntries: JournalEntry[]) => {
-    setEntries(newEntries);
-    await EncryptedStorage.setItem(STORAGE_KEYS.JOURNAL, newEntries);
+  const saveEntries = async (change: (entries: JournalEntry[]) => JournalEntry[]) => {
+    const next = await updateJournalEntries(change);
+    setEntries(next); DeviceEventEmitter.emit('whenya:journal-updated');
+  };
+  const rewardEntry = async (id: string, owner?: string) => {
+    try {
+      const result = await addXP('JOURNAL_ENTRY', 1, `journal:${id}`, owner);
+      setRewardError(null);
+      if (result.xpGained) { setXpToast(`+${result.xpGained} XP`); setTimeout(() => setXpToast(null), 2500); }
+    } catch { setRewardError(id); }
   };
 
   const addEntry = async (form: Omit<JournalEntry, 'id' | 'date' | 'createdAt'>) => {
+    const owner = await getData(STORAGE_KEYS.CURRENT_USER, true);
     const today = getToday();
     const newEntry: JournalEntry = {
       ...form,
@@ -53,29 +63,24 @@ export function useJournal() {
       date: today,
       createdAt: new Date().toISOString(),
     };
-    const updated = [newEntry, ...entries];
-    await saveEntries(updated);
+    await saveEntries(items => [newEntry, ...items]);
     
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const result = await addXP('JOURNAL_ENTRY');
-    setXpToast(`+${result.xpGained} XP ✍️`);
-    setTimeout(() => setXpToast(null), 2500);
+    await rewardEntry(newEntry.id, owner);
     return newEntry;
   };
 
   const updateEntry = async (id: string, updates: Partial<JournalEntry>) => {
-    const updated = entries.map(e => e.id === id ? { ...e, ...updates } : e);
-    await saveEntries(updated);
+    await saveEntries(items => items.map(e => e.id === id ? { ...e, ...updates } : e));
   };
 
   const deleteEntry = async (id: string) => {
-    const updated = entries.filter(e => e.id !== id);
-    await saveEntries(updated);
+    await saveEntries(items => items.filter(e => e.id !== id));
   };
 
   return {
     entries,
-    loading,
+    loading, error, rewardError, retryJournalReward: rewardEntry,
     xpToast,
     addEntry,
     updateEntry,

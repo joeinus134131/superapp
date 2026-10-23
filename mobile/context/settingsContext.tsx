@@ -1,11 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { getData, setData, STORAGE_KEYS } from '../lib/storage';
+import { scheduleDailyHabitReminder, cancelDailyHabitReminder } from '../lib/notifications';
+
+export const DEFAULT_DASHBOARD_SHORTCUTS = ['habits', 'journal', 'goals', 'calendar', 'pomodoro'];
 
 interface Settings {
   hideFinanceBalance: boolean;
   autoStartPomodoro: boolean;
   dailyNotification: boolean;
   hapticEnabled: boolean;
+  dashboardShortcuts: string[];
 }
 
 interface SettingsContextType {
@@ -19,6 +24,7 @@ const defaultSettings: Settings = {
   autoStartPomodoro: false,
   dailyNotification: true,
   hapticEnabled: true,
+  dashboardShortcuts: DEFAULT_DASHBOARD_SHORTCUTS,
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -29,20 +35,31 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     loadSettings();
+    const sub = DeviceEventEmitter.addListener('whenya:data-synced', loadSettings);
+    return () => sub.remove();
   }, []);
 
   const loadSettings = async () => {
     try {
       const saved = await getData(STORAGE_KEYS.SETTINGS);
       if (saved) {
+        const loadedDailyNotif = Boolean(saved.dailyNotification ?? defaultSettings.dailyNotification);
         setSettings({ 
           ...defaultSettings, 
           ...saved,
           hideFinanceBalance: Boolean(saved.hideFinanceBalance ?? defaultSettings.hideFinanceBalance),
           autoStartPomodoro: Boolean(saved.autoStartPomodoro ?? defaultSettings.autoStartPomodoro),
-          dailyNotification: Boolean(saved.dailyNotification ?? defaultSettings.dailyNotification),
+          dailyNotification: loadedDailyNotif,
           hapticEnabled: Boolean(saved.hapticEnabled ?? defaultSettings.hapticEnabled),
+          dashboardShortcuts: Array.isArray(saved.dashboardShortcuts) && saved.dashboardShortcuts.length > 0
+            ? saved.dashboardShortcuts
+            : defaultSettings.dashboardShortcuts,
         });
+        if (loadedDailyNotif) {
+          scheduleDailyHabitReminder().catch(() => {});
+        }
+      } else if (defaultSettings.dailyNotification) {
+        scheduleDailyHabitReminder().catch(() => {});
       }
     } catch (e) {
       console.warn('Failed to load settings', e);
@@ -52,11 +69,22 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateSetting = async (key: keyof Settings, value: any) => {
-    // Force boolean value for settings that are supposed to be boolean
-    const castedValue = typeof value === 'boolean' ? value : (value === 'true' || value === true);
+    const castedValue = Array.isArray(value)
+      ? value
+      : typeof value === 'boolean'
+        ? value
+        : (value === 'true' || value === true);
     const newSettings = { ...settings, [key]: castedValue };
     setSettings(newSettings);
     await setData(STORAGE_KEYS.SETTINGS, newSettings);
+
+    if (key === 'dailyNotification') {
+      if (castedValue) {
+        scheduleDailyHabitReminder().catch(() => {});
+      } else {
+        cancelDailyHabitReminder().catch(() => {});
+      }
+    }
   };
 
   return (

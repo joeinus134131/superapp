@@ -202,7 +202,7 @@ export default function HealthPage() {
           {/* Water Journey History */}
           <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
             <div className="card-title mb-2" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-              <History size={16} /> Water Journey
+              <History size={16} /> {translateCopy("Water Journey")}
             </div>
             <div style={{
               overflowX: 'auto',
@@ -233,7 +233,7 @@ export default function HealthPage() {
                       minWidth: '48px',
                     }}>
                       <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 500 }}>
-                        {d.toLocaleDateString('id-ID', { weekday: 'short' })}
+                        {d.toLocaleDateString(uiLanguage === 'id' ? 'id-ID' : 'en-US', { weekday: 'short' })}
                       </span>
                       <div style={{
                         width: '38px',
@@ -260,7 +260,7 @@ export default function HealthPage() {
                         fontWeight: isToday ? 700 : 400,
                         color: isToday ? 'var(--accent-cyan)' : 'var(--text-muted)',
                       }}>
-                        {isToday ? 'Hari ini' : d.getDate()}
+                        {isToday ? translateCopy('Hari ini') : d.getDate()}
                       </span>
                     </div>
                   );

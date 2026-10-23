@@ -1,12 +1,15 @@
 'use client';
 
 import { useTheme } from '@/lib/themeContext';
+import { useLanguage } from '@superapp/shared/language';
 import { Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import '@/app/theme-toggle.css';
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const { language } = useLanguage();
+  const copy = (id, en) => (language === 'id' ? id : en);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const handleToggle = () => {
@@ -28,22 +31,22 @@ export default function ThemeToggle() {
         <button
           className="theme-toggle-option light"
           onClick={handleToggle}
-          title="Switch to Light Mode"
+          title={copy('Mode Terang', 'Switch to Light Mode')}
         >
           <span className="theme-toggle-icon">
             <Sun size={16} />
           </span>
-          <span>Light</span>
+          <span>{copy('Terang', 'Light')}</span>
         </button>
         <button
           className="theme-toggle-option dark"
           onClick={handleToggle}
-          title="Switch to Dark Mode"
+          title={copy('Mode Gelap', 'Switch to Dark Mode')}
         >
           <span className="theme-toggle-icon">
             <Moon size={16} />
           </span>
-          <span>Dark</span>
+          <span>{copy('Gelap', 'Dark')}</span>
         </button>
       </div>
     </div>

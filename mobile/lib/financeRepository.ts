@@ -1,4 +1,4 @@
-import { supabase } from '@superapp/shared';
+import { mobileAuthClient as supabase } from './mobileAuthClient';
 import { createFinanceClient } from '../../shared/finance/client';
 import { CONFIG } from './config';
 // Only the current user access token goes to Go. Delegation remains backend-only.

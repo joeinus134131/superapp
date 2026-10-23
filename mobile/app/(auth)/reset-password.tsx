@@ -4,7 +4,8 @@ import {
   ScrollView, KeyboardAvoidingView, StyleSheet, Alert
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { supabase } from '@superapp/shared'
+import { mobileAuthClient as supabase } from '../../lib/mobileAuthClient'
+import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../context/themeContext'
 import { useColors } from '../../lib/theme'
 import { BrandLogo } from '../../components/BrandLogo'
@@ -20,11 +21,13 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const { finishPasswordReset, needsPasswordReset } = useAuth()
   const { isDark } = useTheme()
   const c = useColors(isDark)
   const { t } = useLanguage()
 
   const handleUpdate = async () => {
+    if (!needsPasswordReset) { setError('Buka tautan reset password dari email terlebih dahulu.'); return }
     if (!password || password.length < 6) {
       setError(translateCopy("Password minimal 6 karakter"))
       return
@@ -40,6 +43,7 @@ export default function ResetPasswordScreen() {
     try {
       const { error } = await authClient.auth.updateUser({ password })
       if (error) throw error
+      await finishPasswordReset()
 
       Alert.alert(t('profile.update_success_title'), t('profile.update_success_desc'), [
         { text: 'Login', onPress: () => router.replace('/(auth)/login') }

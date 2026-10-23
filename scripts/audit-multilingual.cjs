@@ -43,7 +43,8 @@ function walk(directory, platform) {
     }
     if (!/\.(js|tsx?|mts)$/.test(entry.name) || entry.name.endsWith('.d.ts')) continue;
     const file = path.join(directory, entry.name), source = fs.readFileSync(file, 'utf8');
-    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.JSX);
+    const scriptKind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : file.endsWith('.ts') || file.endsWith('.mts') ? ts.ScriptKind.TS : ts.ScriptKind.JSX;
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKind);
     files++;
     const fail = (node, message) => errors.push(`${path.relative(root, file)}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1}: ${message}`);
     function visit(node) {

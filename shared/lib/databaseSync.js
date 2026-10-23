@@ -4,7 +4,7 @@ export const isSyncModule = key => /^superapp_/.test(key) && !/superapp_(current
 const canonical = value => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 
-export function createDatabaseSync({ read, write, list, request, digest, uuid, identity }) {
+export function createDatabaseSync({ read, write, list, request, digest, uuid, identity, beforeResolve = undefined }) {
   let running;
   const sync = async ({ resolutions = {} } = {}) => {
     const owner = await identity();
@@ -20,7 +20,7 @@ export function createDatabaseSync({ read, write, list, request, digest, uuid, i
     const prefix = `${owner}_`;
     const localKeys = (await list()).filter(key => key.startsWith(prefix) && isSyncModule(key.slice(prefix.length))).map(key => key.slice(prefix.length));
     const keys = new Set([...localKeys, ...cloud.keys(), ...Object.keys(baseline)]);
-    const outgoing = [], incoming = [], next = {}, conflicts = [], observed = new Map();
+    const outgoing = [], incoming = [], next = {}, conflicts = [], observed = new Map(), resolved = [];
     for (const key of keys) {
       const value = await read(prefix + key);
       const hash = await digest(canonical(value));
@@ -33,6 +33,7 @@ export function createDatabaseSync({ read, write, list, request, digest, uuid, i
       if (localChanged && remoteChanged && hash !== remoteHash) {
         const resolution = resolutions[key];
         const reviewed = resolution?.localHash === hash && resolution?.revision === stored.revision && resolution?.checksum === stored.checksum;
+        if (reviewed && ['local', 'cloud'].includes(resolution.choice)) resolved.push({ key, local: value, cloud: stored.payload, choice: resolution.choice });
         if (reviewed && resolution.choice === 'cloud') {
           incoming.push([prefix + key, stored.payload]);
           next[key] = { hash: remoteHash };
@@ -53,6 +54,8 @@ export function createDatabaseSync({ read, write, list, request, digest, uuid, i
       next[key] = { hash: stored && !localChanged ? remoteHash : hash };
     }
     if (conflicts.length) throw Object.assign(new Error(`Konflik data: ${conflicts.map(item => item.key).join(', ')}. Data lokal dipertahankan; pilih versi yang benar sebelum mencoba lagi.`), { code: 'SYNC_CONFLICT', conflicts });
+    await assertOwner();
+    if (resolved.length && beforeResolve) await beforeResolve({ owner, conflicts: resolved });
     await assertOwner();
     if (outgoing.length) {
       await request('/storage/migrations', { idempotency_key: uuid(), items: outgoing });

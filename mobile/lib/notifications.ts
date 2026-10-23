@@ -1,3 +1,5 @@
+import { getData, STORAGE_KEYS } from './storage';
+import { recordNotification, notificationRoute } from './notificationHistory';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -111,35 +113,215 @@ export async function setupNotifications() {
 }
 
 /**
+ * Request notification permissions from user
+ */
+export async function requestNotificationPermissions(): Promise<boolean> {
+  if (!Notifications) return false;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    return finalStatus === 'granted';
+  } catch (e) {
+    console.warn('[Notifications] Error requesting permission:', e);
+    return false;
+  }
+}
+
+/**
  * Schedule a local notification (e.g. for Habit Reminders)
  */
 export async function scheduleNotification(title: string, body: string, seconds: number = 1) {
   if (!Notifications) return;
+  const owner = await getData(STORAGE_KEYS.CURRENT_USER, true);
   await Notifications.scheduleNotificationAsync({
     content: {
       title,
       body,
       sound: true,
-      data: { url: '/(app)/' },
+      channelId: 'default',
+      data: { url: '/(app)/', historyOwner: owner },
     },
     trigger: seconds > 0 ? { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds } : null,
   });
 }
 
 /**
+ * Schedules a reminder for a task deadline.
+ */
+export async function scheduleTaskReminder(task: { id: string; title: string; deadline?: string; category?: string }): Promise<string | null> {
+  if (!Notifications || !task.deadline) return null;
+  try {
+    const dueTime = new Date(task.deadline).getTime();
+    if (isNaN(dueTime)) return null;
+
+    const now = Date.now();
+    const diffSec = Math.floor((dueTime - now) / 1000);
+    // Only schedule if in future (at least 5 seconds from now)
+    if (diffSec < 5) return null;
+
+    const owner = await getData(STORAGE_KEYS.CURRENT_USER, true);
+    await cancelTaskReminder(task.id);
+
+    const identifier = `task-${task.id}`;
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: `Pengingat Tugas: ${task.title}`,
+        body: task.category ? `Kategori: ${task.category}. Waktunya menyelesaikan tugas ini!` : `Waktunya menyelesaikan tugas ini!`,
+        sound: true,
+        channelId: 'default',
+        data: {
+          url: '/(app)/tasks',
+          taskId: task.id,
+          historyId: `task-hist-${task.id}-${Date.now()}`,
+          historyOwner: owner,
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: diffSec,
+      },
+    });
+
+    return identifier;
+  } catch (error) {
+    console.warn('[Notifications] Failed to schedule task reminder:', error);
+    return null;
+  }
+}
+
+/**
+ * Cancel a scheduled task reminder
+ */
+export async function cancelTaskReminder(taskId: string): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(`task-${taskId}`);
+  } catch (e) {
+    // Silent fail if not found
+  }
+}
+
+/**
+ * Schedule daily habit check-in reminder
+ */
+export async function scheduleDailyHabitReminder(hour = 20, minute = 0): Promise<string | null> {
+  if (!Notifications) return null;
+  try {
+    const owner = await getData(STORAGE_KEYS.CURRENT_USER, true);
+    const identifier = 'daily-habit-reminder';
+    await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => {});
+
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: 'Evaluasi Kebiasaan Hari Ini',
+        body: 'Luangkan 1 menit untuk menandai kebiasaan positif yang sudah kamu selesaikan hari ini.',
+        sound: true,
+        channelId: 'default',
+        data: {
+          url: '/(app)/habits',
+          historyId: `daily-habit-${Date.now()}`,
+          historyOwner: owner,
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    });
+    return identifier;
+  } catch (e) {
+    console.warn('[Notifications] Failed to schedule daily habit reminder:', e);
+    return null;
+  }
+}
+
+/**
+ * Cancel daily habit reminder
+ */
+export async function cancelDailyHabitReminder(): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync('daily-habit-reminder');
+  } catch (e) {}
+}
+
+/**
+ * Send a quick test notification to demonstrate local notifications on device
+ */
+export async function sendTestNotification(delaySeconds = 3): Promise<boolean> {
+  const owner = await getData(STORAGE_KEYS.CURRENT_USER, true);
+  const title = 'Uji Coba Notifikasi Whenya';
+  const body = 'Sistem notifikasi lokal Anda berhasil aktif dan berjalan normal!';
+  const id = `test-notification-${Date.now()}`;
+
+  // Record to in-app notification center history immediately
+  await recordNotification({
+    id,
+    title,
+    body,
+    receivedAt: new Date(Date.now() + delaySeconds * 1000).toISOString(),
+    route: '/(app)/',
+  }, owner);
+
+  if (!Notifications) return true;
+
+  try {
+    await requestNotificationPermissions();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: true,
+        channelId: 'default',
+        data: {
+          historyId: id,
+          historyOwner: owner,
+          url: '/(app)/',
+        },
+      },
+      trigger: delaySeconds > 0 ? {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: delaySeconds,
+      } : null,
+    });
+    return true;
+  } catch (e) {
+    console.warn('[Notifications] Test notification error:', e);
+    return false;
+  }
+}
+
+/**
  * Send an immediate notification (useful for AI alerts)
  */
-export async function sendImmediateNotification(title: string, body: string) {
-  if (!Notifications) {
-    console.log('[Notifications] Immediate notification skipped (No library):', title);
-    return;
-  }
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title,
-      body,
-      sound: true,
-    },
-    trigger: null, // Immediate
-  });
+export async function sendImmediateNotification(title: string, body: string, options: { id?: string; route?: string; owner?: string } = {}) {
+  const id = options.id || `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const owner = options.owner || await getData(STORAGE_KEYS.CURRENT_USER, true);
+  const inserted = await recordNotification({ id, title, body, receivedAt: new Date().toISOString(), route: notificationRoute(options.route) }, owner);
+  if (!inserted || !Notifications) return;
+  await Notifications.scheduleNotificationAsync({ content: { title, body, sound: true, channelId: 'default', data: { historyId: id, historyOwner: owner, url: options.route } }, trigger: null });
+}
+
+export function subscribeNotificationHistory() {
+  if (!Notifications) return () => {};
+  const receive = (notification: any) => {
+    const content = notification?.request?.content;
+    if (!content || (!content.title && !content.body)) return;
+    // Ignore account-less OS payloads; they cannot be safely attributed after sign-in changes.
+    if (typeof content.data?.historyOwner !== 'string') return;
+    recordNotification({ id: String(content.data?.historyId || notification.request.identifier), title: content.title || '', body: content.body || '',
+      receivedAt: new Date(notification.date || Date.now()).toISOString(), route: notificationRoute(content.data?.url),
+    }, content.data.historyOwner).catch(error => console.warn('[Notification history]', error instanceof Error ? error.message : 'Could not save'));
+  };
+  const received = Notifications.addNotificationReceivedListener(receive);
+  const response = Notifications.addNotificationResponseReceivedListener((event: any) => receive(event.notification));
+  Notifications.getLastNotificationResponseAsync().then((event: any) => { if (event) receive(event.notification); }).catch(() => {});
+  return () => { received.remove(); response.remove(); };
 }

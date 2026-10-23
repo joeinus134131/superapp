@@ -7,7 +7,7 @@ import { Link, useRouter } from 'expo-router'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../context/themeContext'
 import { useColors } from '../../lib/theme'
-import { MaterialIcons, Ionicons } from '@expo/vector-icons'
+import { MaterialIcons } from '@expo/vector-icons'
 import { BrandLogo } from '../../components/BrandLogo'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { authStyles as styles } from '../../components/authStyles'
@@ -21,11 +21,11 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null)
+  const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
-  const { register, loginWithOAuth, connection, refreshConnection } = useAuth()
+  const { register, loginWithOAuth, connection, refreshConnection, isOnboarded } = useAuth()
   const { isDark } = useTheme()
   const c = useColors(isDark)
   const { t, language, setLanguage } = useLanguage()
@@ -36,7 +36,7 @@ export default function RegisterScreen() {
   const muted = isDark ? '#A8B8AA' : '#7C847B'
   const border = isDark ? '#34493A' : '#E1E5DA'
 
-  const handleOAuth = async (provider: 'google' | 'apple') => {
+  const handleOAuth = async (provider: 'google') => {
     setOauthLoading(provider)
     setError('')
     try {
@@ -62,8 +62,9 @@ export default function RegisterScreen() {
     try {
       const result = await register(email, password, name)
       if (result?.success) {
-        setSuccessMessage(translateCopy("Akun berhasil dibuat. Silakan cek email Anda."))
-        setTimeout(() => router.replace('/(auth)/login'), 2000)
+        if (result.requiresEmailConfirmation) {
+          setSuccessMessage(translateCopy("Akun berhasil dibuat. Silakan cek email Anda."))
+        } else router.replace(isOnboarded ? '/(app)' : '/onboarding')
       } else {
         setError(result?.error || translateCopy("Registration failed"))
       }
@@ -123,10 +124,10 @@ export default function RegisterScreen() {
           <View style={styles.dividerRow}><View style={[styles.dividerLine, { backgroundColor: border }]} /><Text style={[styles.dividerText, { color: muted }]}>{translateCopy("atau daftar dengan")}</Text><View style={[styles.dividerLine, { backgroundColor: border }]} /></View>
 
           <View style={styles.oauthStack}>
-            {(['google', 'apple'] as const).map(provider => <TouchableOpacity key={provider} onPress={() => handleOAuth(provider)} disabled={busy} accessibilityRole="button" accessibilityState={{ disabled: busy, busy: oauthLoading === provider }} style={[styles.oauthBtn, { borderColor: border, opacity: busy ? 0.6 : 1 }]}>
+            {(['google'] as const).map(provider => <TouchableOpacity key={provider} onPress={() => handleOAuth(provider)} disabled={busy} accessibilityRole="button" accessibilityState={{ disabled: busy, busy: oauthLoading === provider }} style={[styles.oauthBtn, { borderColor: border, opacity: busy ? 0.6 : 1 }]}>
               {oauthLoading === provider ? <ActivityIndicator size="small" color={ink} /> : <>
-                <View style={styles.oauthIcon}>{provider === 'google' ? <GoogleMark /> : <Ionicons name="logo-apple" size={21} color={ink} />}</View>
-                <Text style={[styles.oauthBtnText, { color: ink }]}>{provider === 'google' ? translateCopy("Daftar dengan Google") : translateCopy("Daftar dengan Apple")}</Text>
+                <View style={styles.oauthIcon}>{<GoogleMark />}</View>
+                <Text style={[styles.oauthBtnText, { color: ink }]}>{translateCopy("Daftar dengan Google")}</Text>
               </>}
             </TouchableOpacity>)}
           </View>

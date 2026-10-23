@@ -24,7 +24,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 200 }) => {
 
   const points = data.map((d, i) => {
     const angle = i * angleStep - Math.PI / 2;
-    const val = Math.max(d.value, 15);
+    const val = Number.isFinite(d.value) ? Math.max(0, Math.min(100, d.value)) : 0;
     const x = center + (radius * (val / 100)) * Math.cos(angle);
     const y = center + (radius * (val / 100)) * Math.sin(angle);
     return `${x},${y}`;

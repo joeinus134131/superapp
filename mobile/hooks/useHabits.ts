@@ -1,11 +1,8 @@
 import { DeviceEventEmitter } from 'react-native';
-import { habitStreak } from '@superapp/shared/insights';
-import { useState, useCallback, useEffect } from 'react';
-import { getData, setData, STORAGE_KEYS } from '../lib/storage';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { getData, STORAGE_KEYS } from '../lib/storage';
 import { generateId, getToday } from '../lib/helpers';
-import { addXP } from '../lib/gamification';
-import * as Haptics from 'expo-haptics';
-import { SyncService } from '../lib/syncService';
+import { updateHabits, toggleHabitPersisted, retryHabitReward as retryReward } from '../lib/habitRepository';
 
 export interface Habit {
   id: string;
@@ -15,26 +12,36 @@ export interface Habit {
   streak: number;
   bestStreak: number;
   createdAt: string;
+  rewardedDates?: string[];
+  pendingRewardDates?: string[];
 }
 
 export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [rewardError, setRewardError] = useState<string | null>(null);
+  const pending = useRef(false);
   const [xpToast, setXpToast] = useState<string | null>(null);
   const [levelUpData, setLevelUpData] = useState<{level: number, title: string} | null>(null);
 
   const loadHabits = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
-      const saved = await getData(STORAGE_KEYS.HABITS);
+      const saved = await getData(STORAGE_KEYS.HABITS, true);
       if (saved && Array.isArray(saved)) {
         const migrated = saved.map((h: any) => ({
           ...h,
           icon: h.icon || 'star'
         }));
         setHabits(migrated);
-      } else { setHabits([]); }
+        const today = getToday();
+        setRewardError(migrated.find((habit: Habit) => habit.completedDates?.includes(today) && habit.pendingRewardDates?.includes(today))?.id || null);
+      } else { setHabits([]); setRewardError(null); }
     } catch (e) {
+      setError(true);
       console.error('Failed to load habits:', e);
     } finally {
       setLoading(false);
@@ -44,14 +51,9 @@ export function useHabits() {
   useEffect(() => {
     loadHabits();
     const subscription = DeviceEventEmitter.addListener('whenya:data-synced', loadHabits);
-    return () => subscription.remove();
+    const habitSubscription = DeviceEventEmitter.addListener('whenya:habits-updated', loadHabits);
+    return () => { subscription.remove(); habitSubscription.remove(); };
   }, [loadHabits]);
-
-  const saveHabits = async (newHabits: Habit[]) => {
-    setHabits(newHabits);
-    await setData(STORAGE_KEYS.HABITS, newHabits);
-    SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
-  };
 
   const addHabit = async (name: string, icon: string) => {
     if (!name.trim()) return;
@@ -64,47 +66,36 @@ export function useHabits() {
       bestStreak: 0,
       createdAt: new Date().toISOString(),
     };
-    const updated = [...habits, newHabit];
-    await saveHabits(updated);
+    const updated = await updateHabits(items => [...items, newHabit]);
+    setHabits(updated);
+    DeviceEventEmitter.emit('whenya:habits-updated');
     return newHabit;
   };
 
-  const toggleHabit = async (id: string) => {
-    const today = getToday();
-    const updated = habits.map(h => {
-      if (h.id !== id) return h;
-      const dates = h.completedDates || [];
-      const isCompleted = dates.includes(today);
-      const newDates = isCompleted
-        ? dates.filter(d => d !== today)
-        : [...dates, today];
-
-      const streak = habitStreak(newDates);
-
-      const bestStreak = Math.max(h.bestStreak || 0, streak);
-
-      if (!isCompleted) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        addXP('HABIT_DONE').then(result => {
-          if (result.levelUp) setLevelUpData(result.newLevel);
-          setXpToast(`+${result.xpGained} XP`);
-          setTimeout(() => setXpToast(null), 2000);
-        });
+  const applyToggle = async (id: string, retry = false) => {
+    if (pending.current) return;
+    pending.current = true; setPendingId(id);
+    try {
+      const result = await (retry ? retryReward(id) : toggleHabitPersisted(id));
+      setHabits(result.habits); setRewardError(result.rewardPending ? id : null);
+      if (result.reward?.levelUp) setLevelUpData(result.reward.newLevel);
+      if (result.reward?.xpGained) {
+        setXpToast(`+${result.reward.xpGained} XP`); setTimeout(() => setXpToast(null), 2500);
       }
-
-      return { ...h, completedDates: newDates, streak, bestStreak };
-    });
-    await saveHabits(updated);
+      DeviceEventEmitter.emit('whenya:habits-updated');
+      return result;
+    } finally { pending.current = false; setPendingId(null); }
   };
-
+  const toggleHabit = (id: string) => applyToggle(id);
+  const retryHabitReward = (id: string) => applyToggle(id, true);
   const deleteHabit = async (id: string) => {
-    const updated = habits.filter(h => h.id !== id);
-    await saveHabits(updated);
+    setHabits(await updateHabits(items => items.filter(item => item.id !== id)));
+    DeviceEventEmitter.emit('whenya:habits-updated');
   };
 
   return {
     habits,
-    loading,
+    loading, error, pendingId, rewardError, retryHabitReward,
     xpToast,
     levelUpData,
     setLevelUpData,

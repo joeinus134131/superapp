@@ -1,9 +1,13 @@
+import { useOpenItem } from '../../hooks/useOpenItem';
+import { useCreateAction } from '../../hooks/useCreateAction';
 import { HeaderText } from '../../components/HeaderText';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Modal, StyleSheet, RefreshControl, Alert,
+  Modal, StyleSheet, RefreshControl, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
@@ -17,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { useJournal, JournalEntry } from '../../hooks/useJournal';
 import { analyzeJournalEntry, processJournalAI } from '../../lib/ai';
 import { Card } from '../../components/ui/Card';
+import { statusAlert } from '../../lib/statusAlert';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
@@ -50,7 +55,7 @@ export default function JournalScreen() {
   const router = useRouter();
 
   const {
-    entries, loading, xpToast,
+    entries, loading, error, rewardError, retryJournalReward, xpToast,
     addEntry, updateEntry, deleteEntry, refreshJournal
   } = useJournal();
 
@@ -62,12 +67,15 @@ export default function JournalScreen() {
   const [aiReflection, setAiReflection] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const saveLock = useRef(false);
 
   const openAdd = () => {
     setEditEntry(null);
     setForm({ title: '', content: '', mood: 'good', tags: [] });
     setShowModal(true);
   };
+
+  useCreateAction(() => openAdd());
 
   const openEdit = (entry: JournalEntry) => {
     setViewEntry(null);
@@ -76,31 +84,65 @@ export default function JournalScreen() {
     setShowModal(true);
   };
 
-  const handleSubmit = async () => {
-    if (!form.content.trim()) return;
-    setIsSaving(true);
+  useOpenItem(entries, entry => {
+    setAiReflection(null);
+    setViewEntry(entry);
+  });
 
-    let finalMood = form.mood;
-    let reflection = '';
-
+  const handleGenerateAiReflection = async () => {
+    if (!viewEntry) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setAiLoading(true);
     try {
-      const aiResult = await processJournalAI(form.content, language);
-      finalMood = aiResult.mood;
-      reflection = aiResult.reflection;
-    } catch (e) {
-      console.warn('AI processing failed during save');
+      const res = await analyzeJournalEntry(viewEntry.content, language);
+      if (res) {
+        setAiReflection(res);
+        await updateEntry(viewEntry.id, { aiReflection: res });
+        setViewEntry(prev => prev ? { ...prev, aiReflection: res } : null);
+        statusAlert.success(
+          language === 'id' ? 'Refleksi AI Siap' : 'AI Reflection Ready',
+          language === 'id' ? 'AI Coach telah menganalisis catatan jurnal Anda.' : 'AI Coach analyzed your journal entry.'
+        );
+      }
+    } catch {
+      statusAlert.error(
+        language === 'id' ? 'Gagal Memuat Refleksi' : 'Failed to Generate Reflection',
+        language === 'id' ? 'Koneksi ke AI Coach sedang sibuk. Silakan coba lagi.' : 'AI Coach is busy. Please try again.'
+      );
+    } finally {
+      setAiLoading(false);
     }
+  };
 
-    const payload = { ...form, mood: finalMood, aiReflection: reflection };
-
-    if (editEntry) {
-      await updateEntry(editEntry.id, payload);
-    } else {
-      await addEntry(payload);
-    }
-
-    setIsSaving(false);
-    setShowModal(false);
+  const handleSubmit = async () => {
+    if (!form.content.trim() || saveLock.current) return;
+    saveLock.current = true; setIsSaving(true);
+    try {
+      let mood = form.mood, reflection = '';
+      let timer: ReturnType<typeof setTimeout>;
+      try {
+        const ai = await Promise.race([processJournalAI(form.content, language), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('AI timeout')), 10000); })]);
+        if (ai.available !== false) mood = ai.mood; reflection = ai.reflection;
+      } catch { /* Journal can be saved even when optional AI is unavailable. */ }
+      finally { clearTimeout(timer); }
+      const payload = { ...form, mood, aiReflection: reflection };
+      if (editEntry) await updateEntry(editEntry.id, payload);
+      else await addEntry(payload);
+      setShowModal(false);
+      statusAlert.success(
+        language === 'id' ? 'Jurnal Tersimpan' : 'Journal Saved',
+        language === 'id' ? 'Refleksi harian Anda berhasil disimpan.' : 'Your daily reflection was safely saved.'
+      );
+    } catch {
+      statusAlert.error(
+        language === 'id' ? 'Jurnal Belum Tersimpan' : 'Journal was not saved',
+        language === 'id' ? 'Input tetap ada. Silakan coba simpan lagi.' : 'Your input is preserved. Please retry saving.'
+      );
+      Alert.alert(
+        language === 'id' ? 'Jurnal belum tersimpan' : 'Journal was not saved',
+        language === 'id' ? 'Input tetap ada. Silakan coba simpan lagi.' : 'Your input is preserved. Please retry saving.'
+      );
+    } finally { saveLock.current = false; setIsSaving(false); }
   };
 
   const toggleTag = (tagKey: string) => {
@@ -140,6 +182,8 @@ export default function JournalScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: layout.bottomPadding + 100 }}
       >
+        {error && <TouchableOpacity accessibilityRole="button" onPress={refreshJournal} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: c.textPrimary }}>{language === 'id' ? 'Jurnal gagal dimuat. Ketuk untuk coba lagi.' : 'Journal could not load. Tap to retry.'}</Text></TouchableOpacity>}
+        {rewardError && <TouchableOpacity accessibilityRole="button" onPress={() => retryJournalReward(rewardError)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: c.textPrimary }}>{language === 'id' ? 'Jurnal tersimpan. XP belum tersimpan; ketuk untuk coba lagi.' : 'Journal saved. XP could not save; tap to retry.'}</Text></TouchableOpacity>}
         {/* Mood Trend Analysis */}
         <Card style={{ padding: 18, marginBottom: 20 }}>
           <View style={styles.cardHeader}>
@@ -154,7 +198,7 @@ export default function JournalScreen() {
                 <View key={m.value} style={{ alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 24 }}>{m.emoji}</Text>
                   <View style={{ height: 40, width: 6, backgroundColor: moodColor(m.value) + '22', borderRadius: 3, justifyContent: 'flex-end' }}>
-                    <View style={{ height: `${Math.max(pct, 5)}%`, width: '100%', backgroundColor: moodColor(m.value), borderRadius: 3 }} />
+                    <View style={{ height: `${Math.max(pct, 0)}%`, width: '100%', backgroundColor: moodColor(m.value), borderRadius: 3 }} />
                   </View>
                   <Text style={{ fontSize: 10, fontWeight: '800', color: c.textSecondary }}>{count}</Text>
                 </View>
@@ -164,10 +208,16 @@ export default function JournalScreen() {
         </Card>
 
         {/* Today prompt */}
-        {!todayEntry && (
+        {!todayEntry ? (
           <TouchableOpacity
             style={[styles.todayPrompt, { backgroundColor: c.purple + '15', borderColor: c.purple + '44' }]}
-            onPress={openAdd}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              openAdd();
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('journal.today_prompt')}
           >
             <View style={[styles.promptIconBox, { backgroundColor: c.purple }]}>
               <MaterialIcons name="edit" size={24} color="#fff" />
@@ -177,6 +227,26 @@ export default function JournalScreen() {
               <Text style={[styles.promptSub, { color: c.textSecondary }]}>{t('journal.today_prompt_sub')}</Text>
             </View>
             <MaterialIcons name="chevron-right" size={22} color={c.purple} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.todayPrompt, { backgroundColor: '#10B98115', borderColor: '#10B98144' }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setViewEntry(todayEntry);
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={translateCopy("Lihat refleksi hari ini")}
+          >
+            <View style={[styles.promptIconBox, { backgroundColor: '#10B981' }]}>
+              <MaterialIcons name="check" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.promptTitle, { color: '#10B981' }]}>{translateCopy("Refleksi Hari Ini Selesai")}</Text>
+              <Text style={[styles.promptSub, { color: c.textSecondary }]}>{translateCopy("Ketuk untuk membaca atau tekan (+) untuk catatan baru.")}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color="#10B981" />
           </TouchableOpacity>
         )}
 
@@ -226,16 +296,28 @@ export default function JournalScreen() {
       <FloatingActionButton onPress={openAdd} />
 
       {/* Write/Edit Modal */}
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editEntry ? t('journal.edit_journal') : t('journal.new_journal')}</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
-                <MaterialIcons name="close" size={24} color={c.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <Modal visible={showModal} animationType="slide" transparent onRequestClose={() => setShowModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowModal(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 16 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editEntry ? t('journal.edit_journal') : t('journal.new_journal')}</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}>
+                  <MaterialIcons name="close" size={24} color={c.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
               {/* Mood */}
               <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('journal.mood_label')}</Text>
               <View style={styles.moodRow}>
@@ -283,7 +365,7 @@ export default function JournalScreen() {
               <View style={styles.modalActions}>
                 <Button label={t('tasks.cancel')} onPress={() => setShowModal(false)} variant="secondary" style={{ flex: 1, height: 60 }} />
                 <Button
-                  label={isSaving ? translateCopy("AI Sedang Menganalisa...") : (editEntry ? t('tasks.save') : t('journal.write_btn'))}
+                  label={isSaving ? (language === 'id' ? 'Menyimpan…' : 'Saving…') : (editEntry ? t('tasks.save') : t('journal.write_btn'))}
                   onPress={handleSubmit}
                   variant="primary"
                   disabled={isSaving}
@@ -293,11 +375,12 @@ export default function JournalScreen() {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* View Entry Modal */}
       {viewEntry && (
-        <Modal visible={!!viewEntry} animationType="slide" transparent>
+        <Modal visible={!!viewEntry} animationType="slide" transparent onRequestClose={() => setViewEntry(null)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, maxHeight: '90%', paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
               <View style={styles.modalHeader}>
@@ -312,7 +395,25 @@ export default function JournalScreen() {
                   <TouchableOpacity onPress={() => {
                     Alert.alert(t('journal.delete_title') || translateCopy("Delete Entry"), t('journal.delete_confirm') || translateCopy("Are you sure?"), [
                       { text: t('tasks.cancel'), style: 'cancel' },
-                      { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => { deleteEntry(viewEntry.id); setViewEntry(null); } },
+                      {
+                        text: t('tasks.delete_btn'),
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await deleteEntry(viewEntry.id);
+                            setViewEntry(null);
+                            statusAlert.info(
+                              language === 'id' ? 'Jurnal Dihapus' : 'Journal Deleted',
+                              language === 'id' ? 'Entri jurnal telah dihapus.' : 'Journal entry removed.'
+                            );
+                          } catch {
+                            statusAlert.error(
+                              language === 'id' ? 'Jurnal Belum Terhapus' : 'Failed to Delete',
+                              language === 'id' ? 'Silakan coba lagi.' : 'Please retry.'
+                            );
+                          }
+                        }
+                      },
                     ]);
                   }}>
                     <MaterialIcons name="delete-outline" size={22} color={c.red} />
@@ -327,37 +428,97 @@ export default function JournalScreen() {
                 <Text style={[styles.viewEntryContent, { color: c.textPrimary }]}>{viewEntry.content}</Text>
 
                 {/* AI Reflection Card */}
-                {(viewEntry.aiReflection || aiReflection) && (
-                  <Card style={{ marginTop: 20, backgroundColor: c.purple + '08', borderColor: c.purple + '22', borderStyle: 'dashed' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <MaterialIcons name="auto-awesome" size={16} color={c.purple} />
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>{translateCopy("AI COACH REFLECTION")}</Text>
-                    </View>
-                    <Text style={{ fontSize: 14, color: c.textPrimary, lineHeight: 20 }}>
-                      "{viewEntry.aiReflection || aiReflection}"
-                    </Text>
-                  </Card>
-                )}
-
-                {!viewEntry.aiReflection && !aiReflection && (
-                  <Card style={{ marginTop: 20, backgroundColor: c.purple + '08', borderColor: c.purple + '22', borderStyle: 'dashed' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <MaterialIcons name="auto-awesome" size={16} color={c.purple} />
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: c.purple }}>{translateCopy("AI COACH REFLECTION")}</Text>
-                    </View>
-                    {aiLoading ? (
-                      <Text style={{ fontSize: 13, color: c.textSecondary, fontStyle: 'italic' }}>{translateCopy("Thinking...")}</Text>
-                    ) : (
-                      <TouchableOpacity onPress={async () => {
-                        setAiLoading(true);
-                        const res = await analyzeJournalEntry(viewEntry.content, language);
-                        setAiReflection(res);
-                        setAiLoading(false);
-                      }}>
-                        <Text style={{ fontSize: 13, color: c.purple, fontWeight: '700' }}>{translateCopy("Get AI Insight ✨")}</Text>
+                {(viewEntry.aiReflection || aiReflection) ? (
+                  <View
+                    style={[
+                      styles.aiCard,
+                      {
+                        backgroundColor: isDark ? 'rgba(139, 92, 246, 0.12)' : '#F6F3FF',
+                        borderColor: isDark ? 'rgba(139, 92, 246, 0.32)' : '#E4D9FC',
+                      },
+                    ]}
+                  >
+                    <View style={styles.aiCardHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={[styles.aiIconBadge, { backgroundColor: isDark ? '#6D28D9' : '#8B5CF6' }]}>
+                          <MaterialIcons name="auto-awesome" size={14} color="#FFFFFF" />
+                        </View>
+                        <Text style={[styles.aiCardTitle, { color: isDark ? '#DDD6FE' : '#6D28D9' }]}>
+                          {translateCopy("REFLEKSI AI COACH")}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={translateCopy("Perbarui refleksi")}
+                        onPress={handleGenerateAiReflection}
+                        disabled={aiLoading}
+                        style={[
+                          styles.aiRefreshBtn,
+                          { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(109, 40, 217, 0.08)' },
+                        ]}
+                      >
+                        {aiLoading ? (
+                          <ActivityIndicator size="small" color={isDark ? '#DDD6FE' : '#6D28D9'} />
+                        ) : (
+                          <MaterialIcons name="refresh" size={17} color={isDark ? '#DDD6FE' : '#6D28D9'} />
+                        )}
                       </TouchableOpacity>
-                    )}
-                  </Card>
+                    </View>
+                    <View style={[styles.aiQuoteContainer, { borderLeftColor: isDark ? '#8B5CF6' : '#7C3AED' }]}>
+                      <Text style={[styles.aiQuoteText, { color: c.textPrimary }]}>
+                        "{viewEntry.aiReflection || aiReflection}"
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.aiCard,
+                      {
+                        backgroundColor: isDark ? 'rgba(139, 92, 246, 0.07)' : '#F9F7FD',
+                        borderColor: isDark ? 'rgba(139, 92, 246, 0.22)' : '#EAE3FA',
+                      },
+                    ]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <View style={[styles.aiIconBadge, { backgroundColor: isDark ? '#6D28D9' : '#8B5CF6' }]}>
+                        <MaterialIcons name="auto-awesome" size={14} color="#FFFFFF" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.aiCardTitle, { color: isDark ? '#DDD6FE' : '#6D28D9' }]}>
+                          {translateCopy("REFLEKSI AI COACH")}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 2 }}>
+                          {translateCopy("Dapatkan sudut pandang bijak dari tulisan jurnal ini")}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.aiBtn,
+                        {
+                          backgroundColor: isDark ? '#6D28D9' : '#7C3AED',
+                          opacity: aiLoading ? 0.7 : 1,
+                        },
+                      ]}
+                      onPress={handleGenerateAiReflection}
+                      disabled={aiLoading}
+                      accessibilityRole="button"
+                      accessibilityLabel={translateCopy("Minta Refleksi AI Coach")}
+                    >
+                      {aiLoading ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <Text style={styles.aiBtnText}>{translateCopy("Sedang berpikir...")}</Text>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <MaterialIcons name="auto-awesome" size={16} color="#FFFFFF" />
+                          <Text style={styles.aiBtnText}>{translateCopy("Dapatkan Insight AI")}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 )}
 
                 {viewEntry.tags?.length > 0 && (
@@ -425,4 +586,62 @@ const styles = StyleSheet.create({
   viewEntryDate: { fontSize: 13 },
   viewEntryTitle: { fontSize: 22, fontWeight: '800', marginBottom: 12 },
   viewEntryContent: { fontSize: 15, lineHeight: 24, marginBottom: 16 },
+
+  aiCard: {
+    marginTop: 20,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  aiCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  aiIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiCardTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  aiRefreshBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiQuoteContainer: {
+    borderLeftWidth: 3,
+    paddingLeft: 12,
+    paddingVertical: 4,
+  },
+  aiQuoteText: {
+    fontSize: 14.5,
+    lineHeight: 22,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  aiBtn: {
+    minHeight: 46,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  aiBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
 });

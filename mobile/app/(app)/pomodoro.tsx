@@ -1,3 +1,4 @@
+import { useTasks } from '../../hooks/useTasks';
 import { HeaderText } from '../../components/HeaderText';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -19,7 +20,7 @@ import { addXP } from '../../lib/gamification';
 import { useKeepAwake } from 'expo-keep-awake';
 import { initAudioMode, playAmbientSound, stopAmbientSound } from '../../lib/soundPlayer';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '../../context/languageContext';
 import { LevelUpModal } from '../../components/LevelUpModal';
 
@@ -27,6 +28,10 @@ interface PomodoroSession {
   date: string;
   timestamp: string;
   mode: string;
+  taskId?: string;
+  taskTitle?: string;
+  goalId?: string;
+  goalTitle?: string;
 }
 
 interface Soundscape {
@@ -63,6 +68,14 @@ export default function PomodoroScreen() {
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
   const router = useRouter();
+  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
+  const { tasks: focusTasks } = useTasks();
+  const focusTask = focusTasks.find(task => task.id === taskId);
+  useEffect(() => {
+    setIsRunning(false);
+    setMode('focus');
+    setTimeLeft(MODES.focus.duration);
+  }, [taskId]);
 
   const [mode, setMode] = useState<ModeKey>('focus');
   const [timeLeft, setTimeLeft] = useState(MODES.focus.duration);
@@ -125,6 +138,7 @@ export default function PomodoroScreen() {
         date: today,
         timestamp: new Date().toISOString(),
         mode: 'focus',
+        ...(focusTask ? { taskId: focusTask.id, taskTitle: focusTask.title, goalId: focusTask.goalId, goalTitle: focusTask.goalTitle } : {}),
       };
       const newSessions = [...sessions, newSession];
       setSessions(newSessions);
@@ -301,6 +315,12 @@ export default function PomodoroScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 40 }}
       >
+        <View style={{ padding: 16, marginBottom: 16, borderRadius: 16, backgroundColor: c.bgCard }}>
+          {focusTask?.goalTitle && <Text style={{ color: c.textSecondary }}>{uiLanguage === 'id' ? 'Tujuan' : 'Goal'}: {focusTask.goalTitle}</Text>}
+          <Text style={{ color: c.textSecondary }}>{uiLanguage === 'id' ? 'Tugas untuk sesi ini' : 'Task for this session'}</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 8 }}>{focusTask?.title || (uiLanguage === 'id' ? 'Fokus bebas' : 'Free focus')}</Text>
+          <TouchableOpacity onPress={() => router.push('/(app)/tasks' as any)} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: c.textPrimary }}>{uiLanguage === 'id' ? 'Pilih tugas lain' : 'Choose another task'}</Text></TouchableOpacity>
+        </View>
         {/* Mode Selector */}
         <View style={styles.modeContainer}>
           {(Object.keys(MODES) as ModeKey[]).map(m => (

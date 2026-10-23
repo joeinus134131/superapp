@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import React, { ReactNode, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Alert, ScrollView } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -55,7 +55,7 @@ export function WhenyaHeader({
   borderBottom = true,
   backgroundColor,
 }: WhenyaHeaderProps) {
-  const { tx: translateCopy } = useLanguage();
+  const { tx: translateCopy, language } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
@@ -95,7 +95,6 @@ export function WhenyaHeader({
                 styles.backButton,
                 { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#ECEFE6' },
               ]}
-              hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={translateCopy("Kembali")}
             >
@@ -110,13 +109,13 @@ export function WhenyaHeader({
           )}
 
           {title ? (
-            <View style={styles.titleWrapper}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={title} accessibilityHint={language === 'id' ? 'Ketuk untuk membaca judul dan keterangan lengkap' : 'Tap to read the full title and description'} onPress={() => Alert.alert(title, subtitle)} style={styles.titleWrapper}>
               <Text
                 style={[
                   styles.titleText,
                   { color: c.textPrimary },
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
                 ellipsizeMode="tail"
               >
                 {title}
@@ -124,12 +123,12 @@ export function WhenyaHeader({
               {subtitle ? (
                 <Text
                   style={[styles.subtitleText, { color: c.textSecondary }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {subtitle}
                 </Text>
               ) : null}
-            </View>
+            </TouchableOpacity>
           ) : null}
         </View>
 
@@ -149,7 +148,6 @@ export function WhenyaHeader({
                     : { backgroundColor: isDark ? '#3D6850' : '#193F30' },
               ]}
               activeOpacity={0.8}
-              hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={rightAction.accessibilityLabel || rightAction.label || 'Aksi'}
             >
@@ -179,9 +177,13 @@ export function WhenyaHeader({
         </View>
       </View>
 
-      {/* Tabs Row (Segmented Filter Pills) */}
+      {/* Tabs Row (Segmented Filter Pills - Horizontal Scrollable) */}
       {tabs && tabs.length > 0 && (
-        <View style={styles.tabsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+        >
           {tabs.map((tabItem) => {
             const key = typeof tabItem === 'string' ? tabItem : tabItem.key;
             const label = typeof tabItem === 'string' ? tabItem : tabItem.label;
@@ -190,6 +192,8 @@ export function WhenyaHeader({
 
             return (
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
                 key={key}
                 onPress={() => onTabChange?.(key)}
                 style={[
@@ -241,7 +245,7 @@ export function WhenyaHeader({
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -253,7 +257,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   navRow: {
-    height: 52,
+    minHeight: 64,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -267,9 +272,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -279,6 +284,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   titleWrapper: {
+    minHeight: 48,
     flex: 1,
     minWidth: 0,
     justifyContent: 'center',
@@ -289,8 +295,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   subtitleText: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 13,
+    marginTop: 4,
     fontWeight: '500',
   },
   rightGroup: {
@@ -300,9 +306,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#193F30',
@@ -318,10 +324,12 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     paddingTop: 2,
     gap: 8,
-    flexWrap: 'wrap',
   },
   tabPill: {
-    paddingVertical: 6,
+    minHeight: 48,
+    minWidth: 48,
+    justifyContent: 'center',
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
     flexDirection: 'row',
@@ -329,7 +337,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 14,
+    flexShrink: 1,
   },
   tabCount: {
     paddingHorizontal: 6,

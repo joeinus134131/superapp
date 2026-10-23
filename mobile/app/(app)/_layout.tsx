@@ -1,13 +1,19 @@
+import { subscribeNotificationHistory } from '../../lib/notifications';
+import { useState, useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { CreateActionSheet } from '../../components/CreateActionSheet';
+import { StatusAlertModal } from '../../components/StatusAlertModal';
 import { Tabs } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
 import { useLanguage } from '../../context/languageContext';
-import { useWindowDimensions, View, StyleSheet, Platform } from 'react-native';
+import { useWindowDimensions, TouchableOpacity, View, StyleSheet, Platform } from 'react-native';
 import { useAICoach } from '../../hooks/useAICoach';
 
 export default function AppLayout() {
+  const [showCreate, setShowCreate] = useState(false);
   const { tx: translateCopy } = useLanguage();
   const { isDark } = useTheme();
   const c = useColors(isDark);
@@ -17,12 +23,17 @@ export default function AppLayout() {
   const isSmallDevice = width < 380;
 
   useAICoach();
+  useEffect(() => subscribeNotificationHistory(), []);
 
   const activeColor = isDark ? '#6BB289' : '#193F30';
   const inactiveColor = isDark ? '#7E9185' : '#8A9784';
-  const bottomInset = Math.max(layout.insets.bottom, Platform.OS === 'android' ? 8 : 12);
+  const bottomInset = layout.tabBarPaddingBottom;
 
   return (
+    <>
+    <StatusBar style={isDark ? "light" : "dark"} />
+    <CreateActionSheet visible={showCreate} onClose={() => setShowCreate(false)} />
+    <StatusAlertModal />
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: activeColor,
@@ -31,7 +42,7 @@ export default function AppLayout() {
           backgroundColor: isDark ? '#14241C' : '#FFFFFF',
           borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ECEFE6',
           borderTopWidth: 1,
-          height: 60 + bottomInset,
+          height: layout.tabBarHeight,
           paddingBottom: bottomInset,
           paddingTop: 6,
           paddingHorizontal: isSmallDevice ? 4 : 10,
@@ -92,6 +103,7 @@ export default function AppLayout() {
         options={{
           title: translateCopy("Tambah"),
           tabBarLabel: () => null,
+          tabBarButton: (props) => <TouchableOpacity style={props.style} accessibilityRole="button" accessibilityLabel={translateCopy("Tambah")} onPress={() => setShowCreate(true)}>{props.children}</TouchableOpacity>,
           tabBarIcon: () => (
             <View
               style={[
@@ -157,6 +169,7 @@ export default function AppLayout() {
       <Tabs.Screen name="plan" options={{ href: null, title: translateCopy("Rencana"), headerShown: false }} />
       <Tabs.Screen name="notes" options={{ href: null, title: translateCopy("Catatan"), headerShown: false }} />
     </Tabs>
+    </>
   );
 }
 

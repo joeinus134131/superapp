@@ -1,25 +1,29 @@
+import { useOpenItem } from '../../hooks/useOpenItem';
+import { useCreateAction } from '../../hooks/useCreateAction';
 import { HeaderText } from '../../components/HeaderText';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Modal, StyleSheet, RefreshControl, Alert, SectionList, FlatList
+  Modal, StyleSheet, RefreshControl, Alert, SectionList, FlatList,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
 import { useMobileLayout } from '../../lib/layout';
-import { formatDate, PRIORITY_COLORS, CATEGORIES } from '../../lib/helpers';
+import { getToday, formatDate, PRIORITY_COLORS, CATEGORIES } from '../../lib/helpers';
 import { useLanguage } from '../../context/languageContext';
 import * as Haptics from 'expo-haptics';
 import { useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { getData, setData } from '../../lib/storage';
 import { useTasks, Task } from '../../hooks/useTasks';
 import { LevelUpModal } from '../../components/LevelUpModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { Card } from '../../components/ui/Card';
+import { statusAlert } from '../../lib/statusAlert';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
@@ -35,7 +39,7 @@ const getCategoryLabel = (category: string | undefined, t: any) => {
   return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : (t('tasks.cat_other') || 'Lainnya');
 };
 
-const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }: { task: Task, onEdit: (t: Task) => void, onToggle: (id: string, s: string) => void, c: any, t: any, language: string, isSmall?: boolean }) => {
+const TaskCard = React.memo(({ task, onEdit, onToggle, onFocus, c, t, language, isSmall }: { task: Task, onFocus: (task: Task) => void, onEdit: (t: Task) => void, onToggle: (id: string, s: string) => void, c: any, t: any, language: string, isSmall?: boolean }) => {
   return (
     <Card
       style={styles.taskCard}
@@ -58,6 +62,7 @@ const TaskCard = React.memo(({ task, onEdit, onToggle, c, t, language, isSmall }
         {task.description ? (
           <Text style={[isSmall ? styles.taskDescSmall : styles.taskDesc, { color: c.textSecondary }]} numberOfLines={1}>{task.description}</Text>
         ) : null}
+        {task.status !== 'done' && <TouchableOpacity accessibilityRole="button" onPress={() => onFocus(task)} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: c.textPrimary, fontWeight: '700' }}>{language === 'id' ? 'Fokus pada tugas ini' : 'Focus on this task'}</Text></TouchableOpacity>}
         <View style={styles.taskFooter}>
           <Badge label={getCategoryLabel(task.category, t)} />
           {task.deadline ? (
@@ -81,6 +86,7 @@ export default function TasksScreen() {
   const layout = useMobileLayout();
   const { t, language } = useLanguage();
   const router = useRouter();
+  const { goalId, goalTitle, nextStep } = useLocalSearchParams<{ goalId?: string; goalTitle?: string; nextStep?: string }>();
 
   const {
     tasks, loading, xpToast, setXpToast, levelUpData, setLevelUpData,
@@ -89,6 +95,7 @@ export default function TasksScreen() {
 
   const [filter, setFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showPriorityLegend, setShowPriorityLegend] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
@@ -107,15 +114,17 @@ export default function TasksScreen() {
     void setData('superapp_task_view_mode', mode);
   };
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Omit<Task, 'id' | 'createdAt'>>({
     title: '', description: '', priority: 'P3', category: 'personal', deadline: '', status: 'todo'
   });
 
   const openAdd = useCallback(() => {
     setEditTask(null);
-    setForm({ title: '', description: '', priority: 'P3', category: 'personal', deadline: '', status: 'todo' });
+    setForm({ title: nextStep || '', description: '', priority: 'P3', category: 'personal', deadline: getToday(), status: 'todo', ...(goalId ? { goalId, goalTitle } : {}) });
     setShowModal(true);
-  }, []);
+  }, [goalId, goalTitle, nextStep]);
+
+  useCreateAction(() => openAdd());
 
   const openEdit = useCallback((task: Task) => {
     setEditTask(task);
@@ -123,49 +132,159 @@ export default function TasksScreen() {
     setShowModal(true);
   }, []);
 
+  useOpenItem(tasks, entry => openEdit(entry));
+
   const handleSubmit = async () => {
-    if (!form.title.trim()) return;
-    if (editTask) {
-      await updateTask(editTask.id, form);
-    } else {
-      await addTask(form);
-    }
-    setShowModal(false);
+    if (!form.title.trim() || saving) return;
+    setSaving(true);
+    try {
+      if (editTask) {
+        await updateTask(editTask.id, form);
+        statusAlert.success(
+          language === 'id' ? 'Tugas Diperbarui' : 'Task Updated',
+          form.title
+        );
+      } else {
+        await addTask(form);
+        statusAlert.success(
+          language === 'id' ? 'Tugas Berhasil Disimpan' : 'Task Created Successfully',
+          form.title
+        );
+      }
+      setShowModal(false);
+    } catch {
+      statusAlert.error(
+        language === 'id' ? 'Gagal menyimpan tugas' : 'Could not save task',
+        language === 'id' ? 'Input tetap tersimpan di form. Silakan coba lagi.' : 'Your input is still in the form. Please retry.'
+      );
+      Alert.alert(
+        language === 'id' ? 'Gagal menyimpan tugas' : 'Could not save task',
+        language === 'id' ? 'Input tetap tersimpan di form. Silakan coba lagi.' : 'Your input is still in the form. Please retry.'
+      );
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     Alert.alert(t('tasks.delete_title'), t('tasks.delete_confirm'), [
       { text: t('tasks.cancel'), style: 'cancel' },
-      { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteTask(id) },
+      {
+        text: t('tasks.delete_btn'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteTask(id);
+            statusAlert.info(
+              language === 'id' ? 'Tugas Dihapus' : 'Task Deleted',
+              language === 'id' ? 'Tugas telah dihapus dari daftar.' : 'Task removed from list.'
+            );
+          } catch {
+            statusAlert.error(
+              language === 'id' ? 'Gagal Menghapus' : 'Failed to delete'
+            );
+          }
+        }
+      },
     ]);
   };
 
   const statuses = ['todo', 'in_progress', 'done'];
   const priorities = ['P1', 'P2', 'P3', 'P4'];
 
+  const sectionListRef = useRef<SectionList<any>>(null);
+  const kanbanScrollRef = useRef<ScrollView>(null);
+  const isProgrammaticScroll = useRef(false);
+
+  const scopedTasks = useMemo(() => goalId ? tasks.filter(task => task.goalId === goalId) : tasks, [tasks, goalId]);
   const sections = useMemo(() => {
-    if (filter !== 'all') return [];
     return statuses.map(s => ({
       title: s,
-      data: tasks.filter(t => t.status === s)
+      data: scopedTasks.filter(t => t.status === s)
     }));
-  }, [tasks, filter]);
+  }, [scopedTasks]);
 
-  const filteredTasks = useMemo(() =>
-    filter === 'all' ? tasks : tasks.filter(t => t.status === filter),
-  [tasks, filter]);
+  const toggleWithFeedback = useCallback(async (id: string, status: string) => {
+    try {
+      await moveTask(id, status);
+      if (status === 'done') {
+        statusAlert.success(
+          language === 'id' ? 'Tugas Selesai' : 'Task Completed',
+          language === 'id' ? 'Kerja bagus, satu langkah maju hari ini!' : 'Great job, progress achieved!'
+        );
+      }
+    } catch {
+      statusAlert.error(
+        language === 'id' ? 'Gagal menyimpan. Coba lagi.' : 'Could not save. Please retry.'
+      );
+    }
+  }, [moveTask, language]);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (isProgrammaticScroll.current) return;
+    if (viewableItems && viewableItems.length > 0) {
+      const first = viewableItems[0];
+      const itemStatus = first.section?.title || first.item?.status;
+      if (itemStatus && statuses.includes(itemStatus) && itemStatus !== filter) {
+        setFilter(itemStatus);
+      }
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 30,
+  }).current;
+
+  const handleTabChange = (tabKey: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFilter(tabKey);
+    isProgrammaticScroll.current = true;
+    setTimeout(() => { isProgrammaticScroll.current = false; }, 600);
+
+    if (viewMode === 'list') {
+      if (tabKey === 'all') {
+        try {
+          sectionListRef.current?.scrollToLocation({
+            sectionIndex: 0,
+            itemIndex: 0,
+            viewOffset: 0,
+            animated: true,
+          });
+        } catch (e) {}
+      } else {
+        const targetIndex = statuses.indexOf(tabKey);
+        if (targetIndex >= 0) {
+          try {
+            sectionListRef.current?.scrollToLocation({
+              sectionIndex: targetIndex,
+              itemIndex: 0,
+              viewOffset: 12,
+              animated: true,
+            });
+          } catch (e) {}
+        }
+      }
+    } else {
+      const colWidth = width - 44;
+      const targetIndex = statuses.indexOf(tabKey);
+      if (targetIndex >= 0) {
+        kanbanScrollRef.current?.scrollTo({ x: targetIndex * colWidth, animated: true });
+      } else if (tabKey === 'all') {
+        kanbanScrollRef.current?.scrollTo({ x: 0, animated: true });
+      }
+    }
+  };
 
   const renderTask = useCallback(({ item }: { item: Task }) => (
     <TaskCard
       task={item}
       onEdit={openEdit}
-      onToggle={moveTask}
+      onFocus={task => router.push({ pathname: "/(app)/pomodoro", params: { taskId: task.id } } as any)}
+      onToggle={toggleWithFeedback}
       c={c}
       t={t}
       language={language}
       isSmall={isSmall}
     />
-  ), [openEdit, moveTask, c, t, language, isSmall]);
+  ), [openEdit, toggleWithFeedback, c, t, language, isSmall, router]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bgPrimary }]}>
@@ -208,35 +327,53 @@ export default function TasksScreen() {
           count: s === 'all' ? tasks.length : tasks.filter(t => t.status === s).length,
         }))}
         activeTab={filter}
-        onTabChange={(tabKey) => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setFilter(tabKey);
-        }}
+        onTabChange={handleTabChange}
       />
 
+      {goalId && <View style={{ paddingHorizontal: layout.screenPadding, paddingVertical: 12, backgroundColor: c.bgCard }}><Text style={{ color: c.textPrimary, fontWeight: '700', fontSize: 16 }}>{language === 'id' ? 'Tugas untuk tujuan' : 'Tasks for goal'}: {goalTitle}</Text><TouchableOpacity accessibilityRole="button" onPress={() => router.setParams({ goalId: undefined, goalTitle: undefined, nextStep: undefined })} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: c.textPrimary }}>{language === 'id' ? 'Tampilkan semua tugas' : 'Show all tasks'}</Text></TouchableOpacity></View>}
       {viewMode === 'list' ? (
-        filter === 'all' ? (
-          <SectionList
-            sections={sections}
-            keyExtractor={item => item.id}
-            renderItem={renderTask}
-            renderSectionHeader={({ section: { title, data } }) => (
-              <View style={styles.sectionHeader}>
-                <View style={[styles.statusIndicator, { backgroundColor: title === 'done' ? c.green : (title === 'in_progress' ? c.blue : c.purple) }]} />
-                <Text style={[styles.sectionTitle, { color: c.textSecondary }]}>
-                  {(t(`tasks.status_${title}`) || title).toUpperCase()} ({data.length})
+        <SectionList
+          ref={sectionListRef}
+          sections={sections}
+          keyExtractor={item => item.id}
+          renderItem={renderTask}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          onScrollToIndexFailed={() => {}}
+          onScroll={(e) => {
+            if (isProgrammaticScroll.current) return;
+            if (e.nativeEvent.contentOffset.y <= 10 && filter !== 'all') {
+              setFilter('all');
+            }
+          }}
+          scrollEventThrottle={16}
+          renderSectionHeader={({ section: { title, data } }) => (
+            <View style={styles.sectionHeader}>
+              <View style={[styles.statusIndicator, { backgroundColor: title === 'done' ? c.green : (title === 'in_progress' ? c.blue : c.purple) }]} />
+              <Text style={[styles.sectionTitle, { color: c.textSecondary }]}>
+                {(t(`tasks.status_${title}`) || title).toUpperCase()} ({data.length})
+              </Text>
+              <View style={[styles.sectionDivider, { backgroundColor: c.border }]} />
+            </View>
+          )}
+          renderSectionFooter={({ section }) => (
+            section.data.length === 0 ? (
+              <View style={{ paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center' }}>
+                <Text style={{ color: c.textMuted, fontSize: 13, fontStyle: 'italic' }}>
+                  {t(`tasks.empty_${section.title}`) || (language === 'id' ? 'Belum ada tugas di status ini' : 'No tasks in this status')}
                 </Text>
-                <View style={[styles.sectionDivider, { backgroundColor: c.border }]} />
               </View>
-            )}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 100 }}
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshTasks} tintColor={c.purple} />}
-            ListEmptyComponent={
+            ) : null
+          )}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 100 }}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshTasks} tintColor={c.purple} />}
+          ListEmptyComponent={
+            scopedTasks.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <View style={styles.emptyIconCircle}>
                   <MaterialIcons name="assignment-late" size={48} color={c.textMuted} />
                 </View>
-                <Text style={[styles.emptyText, { color: c.textMuted }]}>{t(`tasks.empty_${filter}`)}</Text>
+                <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('tasks.empty_all')}</Text>
                 <TouchableOpacity
                   style={[styles.emptyBtn, { backgroundColor: c.purple + '15' }]}
                   onPress={openAdd}
@@ -244,33 +381,30 @@ export default function TasksScreen() {
                   <Text style={{ color: c.purple, fontWeight: '800' }}>{translateCopy("Buat Tugas Baru")}</Text>
                 </TouchableOpacity>
               </View>
-            }
-          />
-        ) : (
-          <FlatList
-            data={filteredTasks}
-            keyExtractor={item => item.id}
-            renderItem={renderTask}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 100 }}
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshTasks} tintColor={c.purple} />}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <MaterialIcons name="assignment-late" size={64} color={c.textMuted} />
-                <Text style={[styles.emptyText, { color: c.textMuted }]}>{t(`tasks.empty_${filter}`)}</Text>
-              </View>
-            }
-          />
-        )
+            ) : null
+          }
+        />
       ) : (
         <ScrollView
+          ref={kanbanScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: layout.bottomPadding + 100 }}
           snapToInterval={width - 44}
           decelerationRate="fast"
+          onMomentumScrollEnd={(e) => {
+            if (isProgrammaticScroll.current) return;
+            const offsetX = e.nativeEvent.contentOffset.x;
+            const colWidth = width - 44;
+            const index = Math.max(0, Math.min(statuses.length - 1, Math.round(offsetX / colWidth)));
+            const activeStatus = statuses[index];
+            if (activeStatus && activeStatus !== filter) {
+              setFilter(activeStatus);
+            }
+          }}
         >
-          {statuses.filter(s => filter === 'all' || filter === s).map(s => {
-            const columnTasks = tasks.filter(t => t.status === s);
+          {statuses.map(s => {
+            const columnTasks = scopedTasks.filter(t => t.status === s);
             return (
               <View key={s} style={[styles.kanbanColumn, { width: width - 64 }]}>
                 <View style={styles.columnHeader}>
@@ -314,7 +448,7 @@ export default function TasksScreen() {
                   )}
                   ListEmptyComponent={
                     <View style={[styles.kanbanEmpty, { borderColor: c.border }]}>
-                      <Text style={{ color: c.textMuted, fontSize: 12 }}>{t('tasks.empty_all')}</Text>
+                      <Text style={{ color: c.textMuted, fontSize: 12 }}>{t(`tasks.empty_${s}`) || t('tasks.empty_all')}</Text>
                     </View>
                   }
                 />
@@ -333,15 +467,28 @@ export default function TasksScreen() {
       />
 
       {/* Task Modal */}
-      <Modal visible={Boolean(showModal)} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editTask ? t('tasks.edit_task') : t('tasks.new_task')}</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
-            </View>
+      <Modal visible={Boolean(showModal)} animationType="slide" transparent onRequestClose={() => setShowModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowModal(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 16 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editTask ? t('tasks.edit_task') : t('tasks.new_task')}</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
+              </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
+              {form.goalId && <View style={{ paddingVertical: 12 }}><Text style={{ color: c.textSecondary }}>{language === 'id' ? 'Terkait tujuan' : 'Linked goal'}: {form.goalTitle}</Text><TouchableOpacity accessibilityRole="button" onPress={() => setForm(value => ({ ...value, goalId: undefined, goalTitle: undefined }))} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: c.textPrimary }}>{language === 'id' ? 'Lepas kaitan tujuan' : 'Remove goal link'}</Text></TouchableOpacity></View>}
               <Input
                 label={t('tasks.title_label')}
                 value={form.title}
@@ -430,12 +577,14 @@ export default function TasksScreen() {
                 <Button
                   label={t('tasks.save')}
                   onPress={handleSubmit}
+                  loading={saving}
                   style={{ flex: 1, height: 60 }}
                 />
               </View>
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {xpToast && (

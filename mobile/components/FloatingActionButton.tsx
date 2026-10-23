@@ -11,6 +11,7 @@ interface FloatingActionButtonProps {
   icon?: keyof typeof MaterialIcons.glyphMap;
   color?: string;
   style?: ViewStyle;
+  accessibilityLabel?: string;
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
@@ -18,6 +19,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   icon = 'add',
   color,
   style,
+  accessibilityLabel = 'Add',
 }) => {
   const { isDark } = useTheme();
   const c = useColors(isDark);
@@ -27,6 +29,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={[
         styles.fab,
         {

@@ -110,13 +110,14 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
+    minWidth: 48,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  small: { minHeight: 44, paddingVertical: 8, paddingHorizontal: 16 },
+  small: { minHeight: 48, paddingVertical: 8, paddingHorizontal: 16 },
   medium: { minHeight: 48, paddingVertical: 12, paddingHorizontal: 20 },
   large: { minHeight: 52, paddingVertical: 14, paddingHorizontal: 24 },
   text: { fontWeight: '700', textAlign: 'center' },

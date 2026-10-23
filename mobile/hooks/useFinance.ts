@@ -27,9 +27,11 @@ export function useFinance() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<CustomCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const loadFinanceData = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const savedTransactions = await EncryptedStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       setTransactions(Array.isArray(savedTransactions) ? savedTransactions : []);
@@ -37,6 +39,7 @@ export function useFinance() {
       const savedCats = await EncryptedStorage.getItem(STORAGE_KEYS.CUSTOM_CATEGORIES);
       setCustomCategories(Array.isArray(savedCats) ? savedCats : []);
     } catch (e) {
+      setError(true);
       console.error('Failed to load finance data:', e);
     } finally {
       setLoading(false);
@@ -50,8 +53,9 @@ export function useFinance() {
   }, [loadFinanceData]);
 
   const saveTransactions = async (newTransactions: Transaction[]) => {
-    setTransactions(newTransactions);
     await EncryptedStorage.setItem(STORAGE_KEYS.TRANSACTIONS, newTransactions);
+    setTransactions(newTransactions);
+    DeviceEventEmitter.emit('whenya:finance-updated');
     SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
   };
 
@@ -93,6 +97,7 @@ export function useFinance() {
     transactions,
     customCategories,
     loading,
+    error,
     addTransaction,
     deleteTransaction,
     addCustomCategory,

@@ -50,7 +50,7 @@ async function buildKey(key: string): Promise<string> {
   return userId ? `${userId}_${key}` : key;
 }
 
-export async function getData(key: string): Promise<any> {
+export async function getData(key: string, strict = false): Promise<any> {
   if (key === STORAGE_KEYS.SESSION_TOKEN) {
     return await getValidAuthToken();
   }
@@ -82,16 +82,18 @@ export async function getData(key: string): Promise<any> {
     }
   } catch (e) {
     console.error('Storage getData error:', e);
+    if (strict) throw e;
     return null;
   }
 }
 
-export async function setData(key: string, value: any): Promise<void> {
+export async function setData(key: string, value: any, strict = false): Promise<void> {
   try {
     await AsyncStorage.setItem(await buildKey(key), JSON.stringify(value));
     if (!GLOBAL_KEYS.has(key)) scheduleDatabaseSync();
   } catch (e) {
     console.error('Storage setData error:', e);
+    if (strict) throw e;
   }
 }
 

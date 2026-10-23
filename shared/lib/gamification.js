@@ -1,5 +1,6 @@
 import { getData, setData, STORAGE_KEYS } from './storage';
 import { ensureArray } from './helpers';
+import { getGoalSnapshot, migrateGoals } from './goals';
 
 const GAMIFICATION_KEY = 'superapp_gamification';
 
@@ -28,6 +29,9 @@ export const XP_ACTIONS = {
   WORKOUT_LOG: { xp: 15, label: 'Workout logged' },
   BOOK_FINISH: { xp: 30, label: 'Buku selesai' },
   GOAL_COMPLETE: { xp: 100, label: 'Goal tercapai!' },
+  GOAL_LOG: { xp: 10, label: 'Catat progres tujuan' },
+  GOAL_CHECKPOINT: { xp: 35, label: 'Checkpoint tujuan tercapai!' },
+  GOAL_REVIEW: { xp: 20, label: 'Review mingguan tujuan' },
   DAILY_LOGIN: { xp: 5, label: 'Login harian' },
   WATER_FULL: { xp: 10, label: '8 gelas air' },
   TRANSACTION_LOG: { xp: 5, label: 'Catat transaksi' },
@@ -72,6 +76,12 @@ export const ACHIEVEMENTS = [
   // Night Owl / Early Bird
   { id: 'night_owl', title: 'Night Owl 🦉', desc: 'Aktif setelah jam 11 malam', icon: '🦉', condition: (d) => d.lateNightActivity },
   { id: 'early_bird', title: 'Early Bird 🐦', desc: 'Aktif sebelum jam 6 pagi', icon: '🐦', condition: (d) => d.earlyMorningActivity },
+
+  // Goals
+  { id: 'goal_first', title: 'Dream Architect 🎯', desc: 'Buat tujuan pertama', icon: '🎯', condition: (d) => d.totalGoals >= 1 },
+  { id: 'goal_complete_1', title: 'Goal Crusher 🏆', desc: 'Selesaikan 1 tujuan sampai tuntas', icon: '🏆', condition: (d) => d.goalsCompleted >= 1 },
+  { id: 'goal_10m', title: 'First 10 Million 💸', desc: 'Kumpulkan Rp 10 juta di tujuan keuangan', icon: '💸', condition: (d) => d.maxFinanceGoalSaved >= 10000000 },
+  { id: 'goal_ahead', title: 'Ahead of Schedule ⏩', desc: 'Punya tujuan aktif yang lebih cepat dari jadwal', icon: '⏩', condition: (d) => d.goalsAhead >= 1 },
 ];
 
 // ===== CORE FUNCTIONS =====
@@ -203,14 +213,15 @@ export async function checkAchievements() {
 }
 
 async function gatherStats() {
-  const [rawTasks, rawHabits, rawJournal, pomodoro, rawTransactions, rawBooks, health] = await Promise.all([
+  const [rawTasks, rawHabits, rawJournal, pomodoro, rawTransactions, rawBooks, health, rawGoals] = await Promise.all([
     getData(STORAGE_KEYS.TASKS),
     getData(STORAGE_KEYS.HABITS),
     getData(STORAGE_KEYS.JOURNAL),
     getData(STORAGE_KEYS.POMODORO).then(d => d || { sessions: [] }),
     getData(STORAGE_KEYS.TRANSACTIONS),
     getData(STORAGE_KEYS.READING),
-    getData(STORAGE_KEYS.HEALTH).then(d => d || { workouts: [] })
+    getData(STORAGE_KEYS.HEALTH).then(d => d || { workouts: [] }),
+    getData(STORAGE_KEYS.GOALS),
   ]);
 
   const tasks = ensureArray(rawTasks);
@@ -218,6 +229,9 @@ async function gatherStats() {
   const journal = ensureArray(rawJournal);
   const transactions = ensureArray(rawTransactions);
   const books = ensureArray(rawBooks);
+  const goals = migrateGoals(ensureArray(rawGoals));
+  const ctx = { habits, books, pomodoro, health, transactions, goals };
+  const goalSnaps = goals.filter(g => g.status !== 'archived').map(g => ({ goal: g, snap: getGoalSnapshot(g, ctx) }));
 
   const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
   const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
@@ -231,5 +245,11 @@ async function gatherStats() {
     balance: income - expense,
     booksCompleted: books.filter(b => b.status === 'completed').length,
     totalWorkouts: health.workouts ? health.workouts.length : 0,
+    totalGoals: goals.filter(g => g.status !== 'archived').length,
+    goalsCompleted: goalSnaps.filter(x => x.goal.status === 'completed' || x.snap.reached).length,
+    goalsAhead: goalSnaps.filter(x => x.goal.status === 'active' && x.snap.status === 'ahead').length,
+    maxFinanceGoalSaved: goalSnaps
+      .filter(x => x.goal.type === 'accumulate' && x.goal.unit === 'IDR')
+      .reduce((max, x) => Math.max(max, Number(x.snap.current) || 0), 0),
   };
 }

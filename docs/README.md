@@ -10,8 +10,10 @@ Dokumentasi lengkap untuk SuperApp monorepo (Web + Mobile).
 |--------|---------|
 | Evaluasi menyeluruh & rencana perbaikan | [comprehensive_evaluation.md](./comprehensive_evaluation.md) |
 | Analisis strategis produk | [strategic_improvement_analysis.md](./strategic_improvement_analysis.md) |
+| Analisis kompleksitas & penyederhanaan modul | [MODULE_SIMPLIFICATION_ANALYSIS.md](./MODULE_SIMPLIFICATION_ANALYSIS.md) |
 | Pertama kali setup | [guides/GETTING_STARTED.md](./guides/GETTING_STARTED.md) |
 | Quick start mobile | [guides/QUICK_START_MOBILE.md](./guides/QUICK_START_MOBILE.md) |
+| Setup OAuth Google/Apple mobile | [mobile/OAUTH_SETUP.md](./mobile/OAUTH_SETUP.md) |
 | Setup monorepo | [guides/MONOREPO_SETUP.md](./guides/MONOREPO_SETUP.md) |
 | Ada error? | [troubleshooting/COMMON_ERRORS.md](./troubleshooting/COMMON_ERRORS.md) |
 

@@ -1,3 +1,4 @@
+import { useLanguage } from '../context/languageContext';
 import { normalizeTasks } from '@superapp/shared/tasks';
 import { DeviceEventEmitter } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
@@ -6,6 +7,7 @@ import { generateId } from '../lib/helpers';
 import { addXP } from '../lib/gamification';
 import * as Haptics from 'expo-haptics';
 import { SyncService } from '../lib/syncService';
+import { scheduleTaskReminder, cancelTaskReminder } from '../lib/notifications';
 
 export interface Task {
   id: string;
@@ -16,20 +18,26 @@ export interface Task {
   deadline: string;
   status: string;
   createdAt: string;
+  goalId?: string;
+  goalTitle?: string;
 }
 
 export function useTasks() {
+  const { language } = useLanguage();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [xpToast, setXpToast] = useState<string | null>(null);
   const [levelUpData, setLevelUpData] = useState<any>(null);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
-      const saved = await getData(STORAGE_KEYS.TASKS);
+      const saved = await getData(STORAGE_KEYS.TASKS, true);
       setTasks(normalizeTasks(saved));
     } catch (e) {
+      setError(true);
       console.error('Failed to load tasks:', e);
     } finally {
       setLoading(false);
@@ -43,18 +51,20 @@ export function useTasks() {
   }, [loadTasks]);
 
   const saveTasks = async (newTasks: Task[]) => {
+    await setData(STORAGE_KEYS.TASKS, newTasks, true);
     setTasks(newTasks);
-    await setData(STORAGE_KEYS.TASKS, newTasks);
     // Trigger Cloud Sync in background
     SyncService.runSync().catch(e => console.warn('[Sync] Background sync failed:', e));
   };
 
-  const rewardXP = async () => {
+  const rewardXP = async (id: string) => {
+    try {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const result = await addXP('TASK_COMPLETE');
+    const result = await addXP('TASK_COMPLETE', 1, `task:${id}`);
     if (result.levelUp) setLevelUpData(result.newLevel);
     setXpToast(`+${result.xpGained} XP 🎉`);
     setTimeout(() => setXpToast(null), 3000);
+    } catch { setXpToast(language === 'id' ? 'Tugas tersimpan, XP belum tersimpan.' : 'Task saved, XP could not save.'); }
   };
 
   const addTask = async (form: Omit<Task, 'id' | 'createdAt'>) => {
@@ -66,7 +76,11 @@ export function useTasks() {
     };
     const updatedTasks = [newTask, ...tasks];
     await saveTasks(updatedTasks);
-    if (form.status === 'done') await rewardXP();
+    if (form.status === 'done') {
+      await rewardXP(newTask.id);
+    } else if (newTask.deadline) {
+      scheduleTaskReminder(newTask).catch(() => {});
+    }
     return newTask;
   };
 
@@ -83,10 +97,18 @@ export function useTasks() {
     const updatedTasks = tasks.map(t => t.id === id ? newTask : t);
     await saveTasks(updatedTasks);
 
-    if (!wasDone && nowDone) await rewardXP();
+    if (nowDone) {
+      cancelTaskReminder(id).catch(() => {});
+      if (!wasDone) await rewardXP(id);
+    } else if (newTask.deadline) {
+      scheduleTaskReminder(newTask).catch(() => {});
+    } else {
+      cancelTaskReminder(id).catch(() => {});
+    }
   };
 
   const deleteTask = async (id: string) => {
+    cancelTaskReminder(id).catch(() => {});
     const updatedTasks = tasks.filter(t => t.id !== id);
     await saveTasks(updatedTasks);
   };
@@ -99,6 +121,7 @@ export function useTasks() {
   return {
     tasks,
     loading,
+    error,
     xpToast,
     setXpToast,
     levelUpData,

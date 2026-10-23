@@ -64,7 +64,8 @@ export const SyncService = {
         return;
       }
 
-      await syncDatabase();
+      const result = await syncDatabase({ automatic: true });
+      if (result.paused) return;
       console.log(`[Sync] Mengumpulkan snapshot...`);
       const items = await this.collectContextSnapshots();
       console.log(`[Sync] Terkumpul ${items.length} items:`, items.map(i => i.module_type));

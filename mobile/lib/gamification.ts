@@ -33,6 +33,9 @@ const XP_ACTIONS: Record<string, number> = {
   STREAK_7: 50,
   STREAK_30: 200,
   GOAL_COMPLETE: 100,
+  GOAL_LOG: 10,
+  GOAL_CHECKPOINT: 35,
+  GOAL_REVIEW: 20,
   BOOK_COMPLETE: 75,
   WORKOUT: 15,
 };
@@ -71,27 +74,27 @@ export async function getXP(): Promise<{ totalXP: number }> {
   return data || { totalXP: 0 };
 }
 
-export async function addXP(action: string, multiplier: number = 1): Promise<{
-  xpGained: number;
-  totalXP: number;
-  levelUp: boolean;
-  newLevel: Level | null;
+let rewardQueue = Promise.resolve();
+export function addXP(action: string, multiplier: number = 1, rewardId?: string, expectedOwner?: string): Promise<{
+  xpGained: number; totalXP: number; levelUp: boolean; newLevel: Level | null;
 }> {
-  const baseXP = XP_ACTIONS[action] || 0;
-  const xpGained = Math.round(baseXP * multiplier);
-  
-  const data = await getXP();
-  const oldLevel = getCurrentLevel(data.totalXP);
-  data.totalXP += xpGained;
-  const newLevel = getCurrentLevel(data.totalXP);
-  await setData(STORAGE_KEYS.GAMIFICATION, data);
-
-  return {
-    xpGained,
-    totalXP: data.totalXP,
-    levelUp: newLevel.level > oldLevel.level,
-    newLevel: newLevel.level > oldLevel.level ? newLevel : null,
-  };
+  const job = rewardQueue.then(async () => {
+    const owner = await getData(STORAGE_KEYS.CURRENT_USER, true);
+    if (expectedOwner && owner !== expectedOwner) throw new Error('Account changed');
+    const saved = await getData(STORAGE_KEYS.GAMIFICATION, Boolean(rewardId)) || { totalXP: 0 };
+    const rewarded = saved.rewardedActions || {};
+    const xpGained = rewardId && rewarded[rewardId] ? 0 : Math.round((XP_ACTIONS[action] || 0) * multiplier);
+    const oldLevel = getCurrentLevel(saved.totalXP);
+    const totalXP = saved.totalXP + xpGained;
+    if (await getData(STORAGE_KEYS.CURRENT_USER, true) !== owner) throw new Error('Account changed');
+    if (xpGained) await setData(STORAGE_KEYS.GAMIFICATION, { ...saved, totalXP,
+      ...(rewardId ? { rewardedActions: { ...rewarded, [rewardId]: true } } : {}),
+    }, Boolean(rewardId));
+    const next = getCurrentLevel(totalXP);
+    return { xpGained, totalXP, levelUp: next.level > oldLevel.level, newLevel: next.level > oldLevel.level ? next : null };
+  });
+  rewardQueue = job.then(() => {}, () => {});
+  return job;
 }
 
 export async function checkDailyLogin(): Promise<{

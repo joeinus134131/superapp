@@ -7,7 +7,7 @@ COPY shared/package.json ./shared/package.json
 RUN pnpm install --frozen-lockfile --filter @superapp/web...
 COPY web ./web
 COPY shared ./shared
-ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_URL=/api/v1
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_MIDTRANS_CLIENT_KEY

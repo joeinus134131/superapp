@@ -63,7 +63,7 @@ services:
       context: ../..
       dockerfile: web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://${APP_DOMAIN}/api/v1
+        NEXT_PUBLIC_API_URL: /api/v1
         NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Set SUPABASE_ANON_KEY in deploy/vps/.env}
         NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY:-}

@@ -51,7 +51,7 @@ function LoadingScreen() {
 }
 
 function RootNavigator() {
-  const { user, loading, isOnboarded } = useAuth()
+  const { user, loading, isOnboarded, needsPasswordReset } = useAuth()
   const { isLocked } = useSecurity()
   const { isChangingTheme } = useTheme()
 
@@ -74,14 +74,6 @@ function RootNavigator() {
     return <LoadingScreen />
   }
 
-  if (!isOnboarded) {
-    return (
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      </Stack>
-    )
-  }
-
   if (isLocked) {
     return <LockScreen />
   }
@@ -93,11 +85,16 @@ function RootNavigator() {
         gestureEnabled: true,
       }}
     >
-      {user ? (
-        <Stack.Screen name="(app)" options={{ headerShown: false }} />
-      ) : (
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      )}
+      <Stack.Protected guard={!isOnboarded && !needsPasswordReset}>
+        <Stack.Screen name="onboarding" />
+      </Stack.Protected>
+      <Stack.Protected guard={!user || needsPasswordReset}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!user && isOnboarded && !needsPasswordReset}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Screen name="auth/callback" />
     </Stack>
   )
 }

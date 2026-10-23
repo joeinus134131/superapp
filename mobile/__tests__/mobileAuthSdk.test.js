@@ -1,0 +1,28 @@
+jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
+jest.mock('../lib/runtimeConfig', () => ({ getMobileSupabaseConfig: () => ({ url: 'https://oauth-fixture.supabase.co', anonKey: 'fixture-public-key' }) }));
+jest.mock('@react-native-async-storage/async-storage', () => { const values = new Map(); return { __esModule: true, default: { getItem: async key => values.get(key) ?? null, setItem: async (key, value) => { values.set(key, value); }, removeItem: async key => { values.delete(key); }, multiRemove: async keys => { keys.forEach(key => values.delete(key)); } } }; });
+jest.mock('expo-secure-store', () => { const values = new Map(); return { WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1, getItemAsync: async key => values.get(key) ?? null, setItemAsync: async (key, value) => { values.set(key, value); } }; });
+jest.mock('expo-crypto', () => ({ getRandomBytesAsync: async count => new Uint8Array(require('crypto').randomBytes(count)) }));
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getMobileAuthClient, mobileAuthStorageKey } from '../lib/mobileAuthClient';
+import { authSessionStorage } from '../lib/authSessionStorage';
+const originalFetch = global.fetch;
+let client;
+afterAll(async () => { if (client) await client.auth.stopAutoRefresh(); global.fetch = originalFetch; });
+test('real Supabase SDK creates S256 PKCE, stores its verifier encrypted, exchanges it, and persists an encrypted session', async () => {
+  const payload = { sub: 'fixture-user', exp: Math.floor(Date.now() / 1000) + 3600, iat: Math.floor(Date.now() / 1000), role: 'authenticated', iss: 'https://oauth-fixture.supabase.co/auth/v1', aud: 'authenticated' };
+  const jwt = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url') + '.' + Buffer.from(JSON.stringify(payload)).toString('base64url') + '.' + Buffer.from('fixture-signature').toString('base64url');
+  global.fetch = jest.fn(async () => new Response(JSON.stringify({ access_token: jwt, refresh_token: 'fixture-refresh-token', expires_in: 3600, token_type: 'bearer', user: { id: 'fixture-user', aud: 'authenticated', email: 'test@example.test' } }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  client = getMobileAuthClient();
+  const login = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: 'selfone://auth/callback', skipBrowserRedirect: true } });
+  expect(login.error).toBeNull(); const authorization = new URL(login.data.url);
+  expect(authorization.searchParams.get('code_challenge_method')).toBe('s256'); expect(authorization.searchParams.get('code_challenge')).toBeTruthy();
+  const storageKey = mobileAuthStorageKey(); const verifier = JSON.parse(await authSessionStorage.getItem(storageKey + '-code-verifier')); expect(verifier).toBeTruthy();
+  expect(await AsyncStorage.getItem('whenya_auth_v2.' + storageKey + '-code-verifier')).not.toContain(verifier);
+  const exchanged = await client.auth.exchangeCodeForSession('fixture-code'); expect(exchanged.error).toBeNull();
+  const request = global.fetch.mock.calls.find(([url]) => String(url).includes('grant_type=pkce'));
+  expect(JSON.parse(request[1].body)).toEqual(expect.objectContaining({ auth_code: 'fixture-code', code_verifier: verifier }));
+  const raw = await AsyncStorage.getItem('whenya_auth_v2.' + storageKey); expect(raw).not.toContain(jwt); expect(raw).not.toContain('fixture-refresh-token');
+  expect((await client.auth.getSession()).data.session.user.id).toBe('fixture-user');
+  expect(await AsyncStorage.getItem('superapp_session')).toBeNull();
+});

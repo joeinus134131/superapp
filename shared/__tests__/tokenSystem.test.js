@@ -335,9 +335,9 @@ describe('Token System', () => {
       expect(isPremiumUser()).toBe(true);
     });
 
-    test('returns true after daily reward', () => {
+    test('returns false after one daily reward below the premium threshold', () => {
       claimDailyToken();
-      expect(isPremiumUser()).toBe(true);
+      expect(isPremiumUser()).toBe(false);
     });
   });
 });

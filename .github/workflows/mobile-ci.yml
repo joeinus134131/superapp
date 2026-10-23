@@ -40,6 +40,9 @@ jobs:
       - name: Typecheck Mobile
         run: pnpm --filter @superapp/mobile exec tsc --noEmit
 
+      - name: Check Android bundle without Metro cache
+        run: pnpm --filter @superapp/mobile exec expo export --platform android --clear --output-dir /tmp/whenya-mobile-export
+
       - name: Run tests
         run: pnpm --filter @superapp/mobile test --passWithNoTests
 

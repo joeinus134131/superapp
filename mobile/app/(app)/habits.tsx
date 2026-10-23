@@ -1,8 +1,10 @@
+import { useCreateAction } from '../../hooks/useCreateAction';
 import { HeaderText } from '../../components/HeaderText';
 import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Alert, StyleSheet, RefreshControl, Modal, useWindowDimensions
+  Alert, StyleSheet, RefreshControl, Modal, useWindowDimensions,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
@@ -18,6 +20,7 @@ import { useHabits, Habit } from '../../hooks/useHabits';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { LevelUpModal } from '../../components/LevelUpModal';
 import { Card } from '../../components/ui/Card';
+import { statusAlert } from '../../lib/statusAlert';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
@@ -44,27 +47,79 @@ export default function HabitsScreen() {
   const router = useRouter();
 
   const {
-    habits, loading, xpToast, levelUpData, setLevelUpData,
+    habits, loading, error, pendingId, rewardError, retryHabitReward, xpToast, levelUpData, setLevelUpData,
     addHabit, toggleHabit, deleteHabit, refreshHabits
   } = useHabits();
 
   const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useCreateAction(() => setShowModal(true));
   const [newHabitName, setNewHabitName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('star');
   const [historyRange, setHistoryRange] = useState(7);
   const [microModeHabit, setMicroModeHabit] = useState<Habit | null>(null);
 
+  const saveFailed = () => {
+    statusAlert.error(
+      language === 'id' ? 'Perubahan Belum Tersimpan' : 'Changes Not Saved',
+      language === 'id' ? 'Data sebelumnya tetap tersedia. Silakan coba lagi.' : 'Previous data is still available. Please retry.'
+    );
+    Alert.alert(
+      language === 'id' ? 'Perubahan belum tersimpan' : 'Changes were not saved',
+      language === 'id' ? 'Data sebelumnya tetap tersedia. Silakan coba lagi.' : 'Previous data is still available. Please retry.'
+    );
+  };
+
   const handleAddHabit = async () => {
-    if (!newHabitName.trim()) return;
-    await addHabit(newHabitName, selectedIcon);
-    setNewHabitName('');
-    setShowModal(false);
+    if (!newHabitName.trim() || saving) return;
+    setSaving(true);
+    const habitTitle = newHabitName.trim();
+    try {
+      await addHabit(habitTitle, selectedIcon);
+      setNewHabitName('');
+      setShowModal(false);
+      statusAlert.success(
+        language === 'id' ? 'Kebiasaan Baru Dibuat' : 'Habit Created',
+        habitTitle
+      );
+    }
+    catch { saveFailed(); }
+    finally { setSaving(false); }
+  };
+
+  const handleToggle = async (id: string) => {
+    if (pendingId) return;
+    try {
+      const targetHabit = habits.find(h => h.id === id);
+      const isCompleting = !targetHabit?.completedDates?.includes(today);
+      await toggleHabit(id);
+      if (isCompleting) {
+        statusAlert.success(
+          language === 'id' ? 'Kebiasaan Selesai' : 'Habit Completed',
+          targetHabit ? `"${targetHabit.name}" ${language === 'id' ? 'terselesaikan hari ini. Pertahankan streak!' : 'completed today. Keep the streak!'}` : undefined
+        );
+      }
+    } catch { saveFailed(); }
   };
 
   const handleDeleteHabit = (id: string) => {
     Alert.alert(t('habits.delete_title'), t('habits.delete_confirm'), [
       { text: t('tasks.cancel'), style: 'cancel' },
-      { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteHabit(id) },
+      {
+        text: t('tasks.delete_btn'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteHabit(id);
+            statusAlert.info(
+              language === 'id' ? 'Kebiasaan Dihapus' : 'Habit Deleted',
+              language === 'id' ? 'Kebiasaan telah dihapus dari daftar.' : 'Habit removed.'
+            );
+          } catch {
+            saveFailed();
+          }
+        }
+      },
     ]);
   };
 
@@ -118,6 +173,8 @@ export default function HabitsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: layout.bottomPadding + 100 }}
       >
+        {error && <TouchableOpacity accessibilityRole="button" onPress={refreshHabits} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: c.textPrimary }}>{language === 'id' ? 'Kebiasaan gagal dimuat. Ketuk untuk coba lagi.' : 'Habits could not load. Tap to retry.'}</Text></TouchableOpacity>}
+        {rewardError && <TouchableOpacity accessibilityRole="button" onPress={() => retryHabitReward(rewardError).catch(saveFailed)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: c.textPrimary }}>{language === 'id' ? 'Kebiasaan tersimpan. XP belum tersimpan; ketuk untuk coba lagi.' : 'Habit saved. XP could not save; tap to retry.'}</Text></TouchableOpacity>}
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
@@ -135,7 +192,47 @@ export default function HabitsScreen() {
           ))}
         </View>
 
-        {/* Consistency Analysis */}
+        {/* Habit List Section (Checklist placed on top for immediate 1-tap access) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <Text style={[styles.sectionLabel, { color: c.textSecondary, marginBottom: 0 }]}>
+            {t('habits.habit_list').toUpperCase()}
+          </Text>
+          {habits.length > 0 && (
+            <Text style={{ fontSize: 11, fontWeight: '700', color: todayCompleted === habits.length ? c.green : c.purple }}>
+              {todayCompleted}/{habits.length} {translateCopy("selesai")}
+            </Text>
+          )}
+        </View>
+
+        {habits.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialIcons name="add-task" size={48} color={c.textMuted} />
+            <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('habits.empty_list')}</Text>
+          </View>
+        ) : habits.map(h => (
+          <MomentumHabitCard
+            key={h.id}
+            habit={h}
+            isDone={h.completedDates?.includes(today)}
+            colors={c}
+            onToggle={handleToggle}
+            onDelete={id => {
+              Alert.alert(t('habits.delete_title'), t('habits.delete_confirm'), [
+                { text: t('tasks.cancel'), style: 'cancel' },
+                { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteHabit(id).catch(saveFailed) },
+              ]);
+            }}
+            onComplete={handleToggle} // Momentum complete
+          />
+        ))}
+
+        {/* Consistency Analysis (Placed below habit checklist) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 12 }}>
+          <Text style={[styles.sectionLabel, { color: c.textSecondary, marginBottom: 0 }]}>
+            {t('habits.consistency_analysis').toUpperCase()}
+          </Text>
+        </View>
+
         <Card style={{ padding: 20, marginBottom: 24 }}>
           <View style={styles.cardHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -202,30 +299,6 @@ export default function HabitsScreen() {
             })}
           </View>
         </Card>
-
-        {/* Habit List Section */}
-        <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>{t('habits.habit_list').toUpperCase()}</Text>
-        {habits.length === 0 ? (
-          <View style={styles.emptyState}>
-            <MaterialIcons name="add-task" size={48} color={c.textMuted} />
-            <Text style={[styles.emptyText, { color: c.textMuted }]}>{t('habits.empty_list')}</Text>
-          </View>
-        ) : habits.map(h => (
-          <MomentumHabitCard
-            key={h.id}
-            habit={h}
-            isDone={h.completedDates?.includes(today)}
-            colors={c}
-            onToggle={toggleHabit}
-            onDelete={id => {
-              Alert.alert(t('habits.delete_title'), t('habits.delete_confirm'), [
-                { text: t('tasks.cancel'), style: 'cancel' },
-                { text: t('tasks.delete_btn'), style: 'destructive', onPress: () => deleteHabit(id) },
-              ]);
-            }}
-            onComplete={id => toggleHabit(id)} // Momentum complete
-          />
-        ))}
       </ScrollView>
 
       <FloatingActionButton onPress={() => setShowModal(true)} />
@@ -237,44 +310,59 @@ export default function HabitsScreen() {
       />
 
       {/* Add Modal */}
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('habits.new_habit')}</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
+      <Modal visible={showModal} animationType="slide" transparent onRequestClose={() => setShowModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowModal(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgSecondary, paddingBottom: Math.max(layout.insets.bottom, 20) + 16 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('habits.new_habit')}</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}><MaterialIcons name="close" size={24} color={c.textSecondary} /></TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
+                <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('habits.icon_label')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiGrid}>
+                  {HABIT_ICONS.map(iconName => (
+                    <TouchableOpacity
+                      key={iconName}
+                      style={[styles.emojiSelect, { backgroundColor: c.bgInput }, selectedIcon === iconName && { backgroundColor: c.purple + '20', borderColor: c.purple, borderWidth: 1 }]}
+                      onPress={() => { setSelectedIcon(iconName); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    >
+                      <MaterialIcons name={iconName as any} size={24} color={selectedIcon === iconName ? c.purple : c.textSecondary} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <Input
+                  label={t('habits.name_label')}
+                  value={newHabitName}
+                  onChangeText={setNewHabitName}
+                  placeholder={t('habits.name_placeholder')}
+                  autoFocus
+                  containerStyle={{ marginTop: 24 }}
+                />
+
+                <Button
+                  label={t('habits.start_btn')}
+                  loading={saving} onPress={handleAddHabit}
+                  variant="primary"
+                  style={{ height: 60, marginTop: 12 }}
+                />
+              </ScrollView>
             </View>
-
-            <Text style={[styles.inputLabel, { color: c.textSecondary }]}>{t('habits.icon_label')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiGrid}>
-              {HABIT_ICONS.map(iconName => (
-                <TouchableOpacity
-                  key={iconName}
-                  style={[styles.emojiSelect, { backgroundColor: c.bgInput }, selectedIcon === iconName && { backgroundColor: c.purple + '20', borderColor: c.purple, borderWidth: 1 }]}
-                  onPress={() => { setSelectedIcon(iconName); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                >
-                  <MaterialIcons name={iconName as any} size={24} color={selectedIcon === iconName ? c.purple : c.textSecondary} />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Input
-              label={t('habits.name_label')}
-              value={newHabitName}
-              onChangeText={setNewHabitName}
-              placeholder={t('habits.name_placeholder')}
-              autoFocus
-              containerStyle={{ marginTop: 24 }}
-            />
-
-            <Button
-              label={t('habits.start_btn')}
-              onPress={handleAddHabit}
-              variant="primary"
-              style={{ height: 60, marginTop: 12 }}
-            />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Level Up Modal */}
@@ -306,7 +394,7 @@ export default function HabitsScreen() {
               <MicroTimer
                 title={microModeHabit.name}
                 onComplete={() => {
-                  toggleHabit(microModeHabit.id);
+                  handleToggle(microModeHabit.id);
                   setMicroModeHabit(null);
                 }}
                 onCancel={() => setMicroModeHabit(null)}

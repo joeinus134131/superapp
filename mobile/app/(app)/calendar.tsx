@@ -2,7 +2,8 @@ import { HeaderText } from '../../components/HeaderText';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, Alert, ScrollView, RefreshControl
+  Modal, Alert, ScrollView, RefreshControl,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
@@ -233,15 +234,27 @@ export default function CalendarScreen() {
 
       {/* Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { paddingBottom: Math.max(layout.insets.bottom, 20) + 20, backgroundColor: c.bgSecondary }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editId ? t('calendar.edit_event') : t('calendar.new_event')}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color={c.textPrimary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setModalVisible(false);
+              }}
+            />
+            <View style={[styles.modalSheet, { paddingBottom: Math.max(layout.insets.bottom, 20) + 16, backgroundColor: c.bgSecondary }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editId ? t('calendar.edit_event') : t('calendar.new_event')}</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <MaterialIcons name="close" size={24} color={c.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
               <Input
                 label={t('calendar.title_label')}
                 value={form.title}
@@ -315,6 +328,7 @@ export default function CalendarScreen() {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -25,11 +25,11 @@ const buildPnpmMap = () => {
     const entries = fs.readdirSync(pnpmStore);
     for (const entry of entries) {
       // entry looks like: "some-pkg@1.2.3_hash" or "@scope+pkg@1.2.3_hash"
-      // Convert @scope+pkg -> @scope/pkg
-      const pkgName = entry
-        .replace(/\+/g, '/') // @scope+pkg -> @scope/pkg
-        .replace(/@[^@/][^/]*$/, '') // strip @version suffix (last @... segment)
-        .replace(/^@\//, '@'); // fix accidental leading @/
+      const baseEntry = entry.split('_')[0];
+      const atIdx = baseEntry.lastIndexOf('@');
+      const pkgName = (atIdx > 0 ? baseEntry.substring(0, atIdx) : baseEntry)
+        .replace(/\+/g, '/')
+        .replace(/^@\//, '@');
 
       // Actual path to the package inside the store
       const resolvedPath = path.join(pnpmStore, entry, 'node_modules');
@@ -69,12 +69,17 @@ const buildPnpmMap = () => {
 
 const pnpmMap = buildPnpmMap();
 
-// Helper: resolve a package — local node_modules first, then pnpm store map
 const resolve = (pkg) => {
   const local = path.join(projectRoot, 'node_modules', pkg);
-  if (fs.existsSync(local)) return local;
+  if (fs.existsSync(local)) {
+    try { return fs.realpathSync(local); } catch { return local; }
+  }
   if (pnpmMap[pkg]) return pnpmMap[pkg];
-  return path.join(workspaceRoot, 'node_modules', pkg);
+  const ws = path.join(workspaceRoot, 'node_modules', pkg);
+  if (fs.existsSync(ws)) {
+    try { return fs.realpathSync(ws); } catch { return ws; }
+  }
+  return ws;
 };
 
 // Static overrides for packages that MUST come from a specific location
@@ -104,9 +109,10 @@ config.resolver.extraNodeModules = new Proxy(
     '@react-navigation/core': resolve('@react-navigation/core'),
     '@react-navigation/elements': resolve('@react-navigation/elements'),
     '@react-navigation/routers': resolve('@react-navigation/routers'),
+    'expo-web-browser': resolve('expo-web-browser'),
   },
   {
-    // Fallback: for ANY package not explicitly listed above, try pnpm store map
+    // Fallback: for ANY package not explicitly listed above, try pnpm store map or local node_modules
     get(target, name) {
       if (typeof name !== 'string') return undefined;
       if (name in target) return target[name];
@@ -118,8 +124,8 @@ config.resolver.extraNodeModules = new Proxy(
         pkgName = `${parts[0]}/${parts[1]}`;
       }
 
-      const baseDir = target[pkgName] || pnpmMap[pkgName];
-      if (baseDir) {
+      const baseDir = target[pkgName] || resolve(pkgName);
+      if (baseDir && fs.existsSync(baseDir)) {
         // Return the resolved path for the subpath
         const suffix = name.substring(pkgName.length);
         return path.join(baseDir, suffix);

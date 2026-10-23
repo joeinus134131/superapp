@@ -49,3 +49,18 @@ test('deletion does not reclaim a stale unscoped legacy module', async () => {
   await EncryptedStorage.removeItem('superapp_journal');
   expect(await EncryptedStorage.getItem('superapp_journal')).toBeNull();
 });
+
+test('cloud downloads and conflict backups can skip scheduling another sync', async () => {
+  const { scheduleDatabaseSync } = require('../lib/databaseSync'); scheduleDatabaseSync.mockClear();
+  await EncryptedStorage.setItem('superapp_transactions', [{ id: 'remote' }], { skipSync: true, owner: 'one' });
+  await EncryptedStorage.setItem('whenya_sync_conflict_backups_v1', [{ local: 'private', cloud: 'private2' }], { skipSync: true, owner: 'one' });
+  expect(scheduleDatabaseSync).not.toHaveBeenCalled();
+  const raw = await AsyncStorage.getItem('one_whenya_sync_conflict_backups_v1'); expect(raw).not.toContain('private');
+});
+
+test('expected owner guards encrypted reads and writes after account switching', async () => {
+  await AsyncStorage.setItem('superapp_current_user', 'two');
+  await expect(EncryptedStorage.setItem('superapp_transactions', [1], { owner: 'one' })).rejects.toThrow('Akun berubah');
+  await expect(EncryptedStorage.getItem('superapp_transactions', { owner: 'one' })).rejects.toThrow('Akun berubah');
+  expect(await AsyncStorage.getItem('two_superapp_transactions')).toBeNull();
+});

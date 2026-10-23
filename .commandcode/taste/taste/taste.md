@@ -1,7 +1,10 @@
 # Taste
-- Writes in Indonesian and expects replies in Indonesian. Confidence: 0.85
-- Gives terse, high-level instructions (e.g. "continue the previous implementation") and expects the agent to infer scope and proceed. Confidence: 0.5
+- Writes in Indonesian, in a casual/colloquial register (e.g. "gak", "cekdong"), and expects replies in Indonesian. Confidence: 0.9
+- Gives terse, high-level instructions (e.g. "continue the previous implementation", "coba cek dong") and expects the agent to infer scope and proceed. Confidence: 0.55
 - Works in a plan-driven way: expects implementation to follow and stay aligned with existing plan documents ("sesuaikan dengan plan yg ada nya"). Confidence: 0.6
 - Expects long tasks to be resumable across interruptions (e.g. hitting model/context limits) by continuing previously started work. Confidence: 0.5
 - Asks for deep, comprehensive project audits/evaluations from multiple perspectives (security, architecture, data, quality, CI) — explicitly wants "review secara penuh" (full reviews) of sub-projects; thorough depth, not surface-level summaries. Confidence: 0.8
-- Expects analysis/evaluation deliverables to be saved as durable reference documents in the project's `docs/` folder, organized into per-sub-project folders (e.g. `docs/mobile/` for the mobile app) and written in markdown, so they can guide later improvement work. Confidence: 0.85
+- Expects analysis/evaluation deliverables to be saved as durable reference documents in the project's `docs/` folder, organized into per-sub-project folders (e.g. `docs/mobile/` for the mobile app) and written in markdown, so they can guide later improvement work. Confidence: 0.9
+- Treats those review/analysis docs as living documents: after verification, expects them to be updated — marking confirmed items as done, adding newly uncovered findings (dated, with code evidence), and refreshing validation evidence such as test counts — so the doc stays the single source of truth. Confidence: 0.6
+- Before implementing recommendations from a review/analysis document, expects the agent to verify each claim against the actual codebase (reading code, re-running tests and typechecks) and clearly report what is already implemented vs. what is actually missing — evidence-based validation before acting on recommendations. Confidence: 0.65
+- Tracks the project's path to a production release and asks for quantified production-readiness assessments (e.g. "udah berapa persen untuk production ready?") rather than qualitative status summaries. Confidence: 0.6

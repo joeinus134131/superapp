@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { supabase } from '@superapp/shared'
+import { mobileAuthClient as supabase } from '../lib/mobileAuthClient'
 
 const databaseClient: any = supabase
 

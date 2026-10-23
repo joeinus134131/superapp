@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Switch, Modal, TextInput
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Switch, Modal, TextInput, DeviceEventEmitter,
+  KeyboardAvoidingView, Platform, Keyboard
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { WhenyaHeader } from '../../components/WhenyaHeader';
 import { useTheme } from '../../context/themeContext';
 import { useColors } from '../../lib/theme';
@@ -15,6 +16,8 @@ import { useSecurity } from '../../context/securityContext';
 import { useSettings } from '../../context/settingsContext';
 import { useMobileLayout } from '../../lib/layout';
 import * as Haptics from 'expo-haptics';
+import { sendTestNotification } from '../../lib/notifications';
+import { statusAlert } from '../../lib/statusAlert';
 
 export default function MoreScreen() {
   const { tx: translateCopy } = useLanguage();
@@ -40,13 +43,24 @@ export default function MoreScreen() {
     if (profileData) setProfile(profileData);
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
   useEffect(() => {
     loadData();
+    const sub = DeviceEventEmitter.addListener('whenya:profile-updated', (newProf) => {
+      if (newProf) setProfile(newProf);
+    });
+    return () => sub.remove();
   }, [user, loadData]);
 
   const level = getCurrentLevel(xp);
   const nextLevel = getXPProgress(xp);
   const displayName = profile.displayName || user?.name || user?.email?.split('@')[0] || 'Explorer';
+  const avatarUri = profile.avatarUri || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   const handleLogout = () => {
     Alert.alert(t('sidebar.menu_logout'), t('login.subtitle'), [
@@ -72,20 +86,45 @@ export default function MoreScreen() {
       translateCopy("Ini akan menghapus SEMUA data lokal termasuk tasks, habits, jurnal, dll. Data tidak bisa dipulihkan!"),
       [
         { text: translateCopy("Batal"), style: 'cancel' },
-        { text: translateCopy("Hapus"), style: 'destructive', onPress: async () => { await clearAll(); Alert.alert(translateCopy("Data dihapus")); loadData(); } },
+        {
+          text: translateCopy("Hapus"),
+          style: 'destructive',
+          onPress: async () => {
+            await clearAll();
+            statusAlert.warning(
+              translateCopy("Data Direset"),
+              translateCopy("Semua data lokal telah dibersihkan.")
+            );
+            loadData();
+          }
+        },
       ]
     );
   };
 
   const handleSavePin = async () => {
     if (newPin.length !== 4) {
-      Alert.alert(translateCopy("Format Salah"), translateCopy("PIN harus terdiri dari 4 digit angka."));
+      statusAlert.warning(
+        translateCopy("Format Salah"),
+        translateCopy("PIN harus terdiri dari 4 digit angka.")
+      );
       return;
     }
     await setPIN(newPin);
     setShowPinModal(false);
     setNewPin('');
-    Alert.alert(translateCopy("✅ Berhasil"), translateCopy("Kunci PIN telah diaktifkan."));
+    statusAlert.success(
+      translateCopy("Kunci PIN Aktif"),
+      translateCopy("PIN keamanan Anda telah berhasil diaktifkan.")
+    );
+  };
+
+  const handleTestNotification = async () => {
+    await sendTestNotification(3);
+    statusAlert.success(
+      translateCopy("Notifikasi Terkirim"),
+      translateCopy("Banner notifikasi akan muncul di layar dalam 3 detik.")
+    );
   };
 
   const s = styles(c, isDark);
@@ -107,9 +146,9 @@ export default function MoreScreen() {
           onPress={() => router.push('/(app)/profile')}
           activeOpacity={0.9}
         >
-          <View style={[s.avatar, { backgroundColor: c.bgInput }]}>
-            {profile.avatarUri ? (
-              <Image source={{ uri: profile.avatarUri }} style={s.avatarImg} />
+          <View style={[s.avatar, { backgroundColor: c.bgInput, overflow: 'hidden' }]}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={s.avatarImg} />
             ) : (
               <Text style={[s.avatarText, { color: level.color }]}>
                 {displayName.slice(0, 1).toUpperCase()}
@@ -233,7 +272,17 @@ export default function MoreScreen() {
               if (hasPIN) {
                 Alert.alert(t('security.pin_lock'), translateCopy("Pilih tindakan untuk kunci PIN Anda:"), [
                   { text: translateCopy("Ganti PIN"), onPress: () => setShowPinModal(true) },
-                  { text: translateCopy("Hapus PIN"), style: 'destructive', onPress: clearPIN },
+                  {
+                    text: translateCopy("Hapus PIN"),
+                    style: 'destructive',
+                    onPress: async () => {
+                      await clearPIN();
+                      statusAlert.info(
+                        translateCopy("PIN Dinonaktifkan"),
+                        translateCopy("Kunci keamanan PIN telah dinonaktifkan.")
+                      );
+                    }
+                  },
                   { text: translateCopy("Batal"), style: 'cancel' }
                 ]);
               } else {
@@ -295,6 +344,49 @@ export default function MoreScreen() {
           </View>
         </View>
 
+        {/* Section: Notifikasi & Pengingat */}
+        <Text style={s.groupTitle}>{translateCopy("Notifikasi & Pengingat")}</Text>
+        <View style={s.groupCard}>
+          <View style={s.menuItem}>
+            <View style={[s.menuIcon, { backgroundColor: c.yellow + '18' }]}>
+              <MaterialIcons name="notifications-active" size={20} color={c.yellow} />
+            </View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.menuLabel}>{translateCopy("Pengingat Harian Kebiasaan")}</Text>
+              <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 2 }}>{translateCopy("Evaluasi malam hari (20:00)")}</Text>
+            </View>
+            <Switch
+              value={Boolean(settings.dailyNotification)}
+              onValueChange={(v) => updateSetting('dailyNotification', v)}
+              trackColor={{ false: c.border, true: c.yellow + '80' }}
+              thumbColor={settings.dailyNotification ? c.yellow : '#f4f3f4'}
+            />
+          </View>
+          <View style={s.menuItemDivider} />
+
+          <View style={s.menuItem}>
+            <View style={[s.menuIcon, { backgroundColor: c.green + '18' }]}>
+              <MaterialIcons name="alarm" size={20} color={c.green} />
+            </View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.menuLabel}>{translateCopy("Pengingat Tenggat Tugas")}</Text>
+              <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 2 }}>{translateCopy("Otomatis saat tugas memiliki jam deadline")}</Text>
+            </View>
+            <MaterialIcons name="check-circle" size={20} color={c.green} />
+          </View>
+          <View style={s.menuItemDivider} />
+
+          <MenuItem
+            icon="notifications"
+            color={c.purple}
+            label={translateCopy("Kirim Notifikasi Uji Coba (3 dtk)")}
+            onPress={handleTestNotification}
+            showArrow
+            c={c}
+            isLast
+          />
+        </View>
+
         {/* Section: Data & Akun */}
         <Text style={s.groupTitle}>{translateCopy("Data & Akun")}</Text>
         <View style={s.groupCard}>
@@ -307,32 +399,46 @@ export default function MoreScreen() {
       </ScrollView>
 
       {/* PIN Modal */}
-      <Modal visible={showPinModal} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
-          <View style={[s.modalContent, { backgroundColor: c.bgCard }]}>
-            <Text style={[s.modalTitle, { color: c.textPrimary }]}>{translateCopy("Setup PIN Baru")}</Text>
-            <Text style={{ color: c.textSecondary, marginBottom: 20 }}>{translateCopy("Masukkan 4 digit angka untuk mengunci aplikasi.")}</Text>
-            <TextInput
-              style={[s.pinInput, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
-              value={newPin}
-              onChangeText={setNewPin}
-              placeholder="0000"
-              placeholderTextColor={c.textMuted}
-              keyboardType="number-pad"
-              maxLength={4}
-              secureTextEntry
-              autoFocus
+      <Modal visible={showPinModal} animationType="slide" transparent onRequestClose={() => { setShowPinModal(false); setNewPin(''); }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={s.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowPinModal(false);
+                setNewPin('');
+              }}
             />
-            <View style={s.modalActions}>
-              <TouchableOpacity style={[s.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => { setShowPinModal(false); setNewPin(''); }}>
-                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: c.purple }]} onPress={handleSavePin}>
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{translateCopy("Simpan PIN")}</Text>
-              </TouchableOpacity>
+            <View style={[s.modalContent, { backgroundColor: c.bgCard }]}>
+              <Text style={[s.modalTitle, { color: c.textPrimary }]}>{translateCopy("Setup PIN Baru")}</Text>
+              <Text style={{ color: c.textSecondary, marginBottom: 20 }}>{translateCopy("Masukkan 4 digit angka untuk mengunci aplikasi.")}</Text>
+              <TextInput
+                style={[s.pinInput, { backgroundColor: c.bgInput, color: c.textPrimary, borderColor: c.border }]}
+                value={newPin}
+                onChangeText={setNewPin}
+                placeholder="0000"
+                placeholderTextColor={c.textMuted}
+                keyboardType="number-pad"
+                maxLength={4}
+                secureTextEntry
+                autoFocus
+              />
+              <View style={s.modalActions}>
+                <TouchableOpacity style={[s.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => { setShowPinModal(false); setNewPin(''); }}>
+                  <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: c.purple }]} onPress={handleSavePin}>
+                  <Text style={{ color: '#fff', fontWeight: '800' }}>{translateCopy("Simpan PIN")}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -152,3 +152,36 @@ test('missing cloud records are repopulated even when local data matches an olde
   expect(await a.sync()).toEqual({ uploaded: 1, downloaded: 0 });
   expect(remote.items.get('superapp_tasks').payload).toEqual([1]);
 });
+
+test('reviewed mixed module choices are backed up before any writes', async () => {
+  const remote = server(); const a = client(remote, { active_superapp_tasks: [1], active_superapp_habits: [10] }); const b = client(remote);
+  await a.sync(); await b.sync();
+  a.values.set('active_superapp_tasks', [2]); a.values.set('active_superapp_habits', [20]); await a.sync();
+  b.values.set('active_superapp_tasks', [3]); b.values.set('active_superapp_habits', [30]);
+  let conflicts; try { await b.sync(); } catch (error) { conflicts = error.conflicts; }
+  const backup = jest.fn(async ({ owner, conflicts }) => {
+    expect(owner).toBe('active'); expect(conflicts).toHaveLength(2);
+    expect(remote.items.get('superapp_tasks').payload).toEqual([2]); expect(b.values.get('active_superapp_habits')).toEqual([30]);
+  });
+  const sync = createDatabaseSync({ ...b.options, beforeResolve: backup });
+  await sync({ resolutions: Object.fromEntries(conflicts.map(item => [item.key, { ...item, choice: item.key === 'superapp_tasks' ? 'local' : 'cloud' }])) });
+  expect(backup).toHaveBeenCalledTimes(1); expect(remote.items.get('superapp_tasks').payload).toEqual([3]); expect(b.values.get('active_superapp_habits')).toEqual([20]);
+});
+
+test('failed backup aborts resolution without replacing either version', async () => {
+  const remote = server(); const a = client(remote, { active_superapp_tasks: [1] }); const b = client(remote);
+  await a.sync(); await b.sync(); a.values.set('active_superapp_tasks', [2]); b.values.set('active_superapp_tasks', [3]); await a.sync();
+  let item; try { await b.sync(); } catch (error) { item = error.conflicts[0]; }
+  const sync = createDatabaseSync({ ...b.options, beforeResolve: async () => { throw new Error('backup unavailable'); } });
+  await expect(sync({ resolutions: { superapp_tasks: { ...item, choice: 'cloud' } } })).rejects.toThrow('backup unavailable');
+  expect(b.values.get('active_superapp_tasks')).toEqual([3]); expect(remote.items.get('superapp_tasks').payload).toEqual([2]);
+});
+
+test('stale choices never trigger a backup or replace a newer local edit', async () => {
+  const remote = server(); const a = client(remote, { active_superapp_tasks: [1] }); const b = client(remote);
+  await a.sync(); await b.sync(); a.values.set('active_superapp_tasks', [2]); b.values.set('active_superapp_tasks', [3]); await a.sync();
+  let item; try { await b.sync(); } catch (error) { item = error.conflicts[0]; }
+  b.values.set('active_superapp_tasks', [4]); const backup = jest.fn();
+  await expect(createDatabaseSync({ ...b.options, beforeResolve: backup })({ resolutions: { superapp_tasks: { ...item, choice: 'cloud' } } })).rejects.toMatchObject({ code: 'SYNC_CONFLICT' });
+  expect(backup).not.toHaveBeenCalled(); expect(b.values.get('active_superapp_tasks')).toEqual([4]);
+});

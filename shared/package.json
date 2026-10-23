@@ -28,7 +28,8 @@
     "./insights": "./lib/insights.js",
     "./brand-visuals": "./lib/brandVisuals.js",
     "./database-sync": "./lib/databaseSync.js",
-    "./tasks": "./lib/tasks.js"
+    "./tasks": "./lib/tasks.js",
+    "./goals": "./lib/goals.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

@@ -9,6 +9,7 @@ import { CONFIG } from '../lib/config';
 import { useColors } from '../lib/theme';
 import * as Haptics from 'expo-haptics';
 import { useLanguage } from "../context/languageContext";
+import { statusAlert } from '../lib/statusAlert';
 
 
 interface QuickCaptureModalProps {
@@ -81,23 +82,9 @@ export function QuickCaptureModal({ visible, onClose, isDark }: QuickCaptureModa
         date: new Date().toISOString()
       });
       await EncryptedStorage.setItem(STORAGE_KEYS.TRANSACTIONS, txs);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      Alert.alert(
-        translateCopy("✅ Transaksi Dicatat"),
-        translateCopy("{0} tercatat di Keuangan.", [data.description || translateCopy("Pengeluaran")]),
-        [
-          {
-            text: translateCopy("Batalkan (Undo)"),
-            style: 'destructive',
-            onPress: async () => {
-              const current = await EncryptedStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || [];
-              await EncryptedStorage.setItem(STORAGE_KEYS.TRANSACTIONS, current.filter((t: any) => t.id !== txId));
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          },
-          { text: translateCopy("Selesai") }
-        ]
+      statusAlert.success(
+        translateCopy("Transaksi Dicatat"),
+        translateCopy("{0} tercatat di Keuangan.", [data.description || translateCopy("Pengeluaran")])
       );
     } else if (module === 'task') {
       const taskId = 't_' + Date.now();
@@ -112,23 +99,9 @@ export function QuickCaptureModal({ visible, onClose, isDark }: QuickCaptureModa
         createdAt: new Date().toISOString()
       });
       await setData(STORAGE_KEYS.TASKS, tasks);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      Alert.alert(
-        translateCopy("✅ Tugas Ditambahkan"),
-        translateCopy("\"{0}\" telah masuk ke daftar tugas.", [data.title || query]),
-        [
-          {
-            text: translateCopy("Batalkan (Undo)"),
-            style: 'destructive',
-            onPress: async () => {
-              const current = await getData(STORAGE_KEYS.TASKS) || [];
-              await setData(STORAGE_KEYS.TASKS, current.filter((t: any) => t.id !== taskId));
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          },
-          { text: translateCopy("Selesai") }
-        ]
+      statusAlert.success(
+        translateCopy("Tugas Ditambahkan"),
+        translateCopy("\"{0}\" telah masuk ke daftar tugas.", [data.title || query])
       );
     } else if (module === 'journal') {
       const journalId = 'j_' + Date.now();
@@ -144,26 +117,12 @@ export function QuickCaptureModal({ visible, onClose, isDark }: QuickCaptureModa
         createdAt: new Date().toISOString()
       });
       await EncryptedStorage.setItem(STORAGE_KEYS.JOURNAL, journals);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      Alert.alert(
-        translateCopy("✅ Jurnal Disimpan"),
-        translateCopy("Refleksimu telah tersimpan dengan aman di perangkat."),
-        [
-          {
-            text: translateCopy("Batalkan (Undo)"),
-            style: 'destructive',
-            onPress: async () => {
-              const current = await EncryptedStorage.getItem(STORAGE_KEYS.JOURNAL) || [];
-              await EncryptedStorage.setItem(STORAGE_KEYS.JOURNAL, current.filter((j: any) => j.id !== journalId));
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          },
-          { text: translateCopy("Selesai") }
-        ]
+      statusAlert.success(
+        translateCopy("Jurnal Disimpan"),
+        translateCopy("Refleksimu telah tersimpan dengan aman.")
       );
     } else {
-      Alert.alert('Info', translateCopy("Modul {0} belum didukung.", [module]));
+      statusAlert.info('Info', translateCopy("Modul {0} belum didukung.", [module]));
     }
   };
 
@@ -200,7 +159,7 @@ export function QuickCaptureModal({ visible, onClose, isDark }: QuickCaptureModa
 
               {/* AI Smart Input Bar */}
               <View style={[styles.smartInputBox, { backgroundColor: c.bgInput, borderColor: c.border }]}>
-                <Text style={{ fontSize: 20, marginRight: 10 }}>✨</Text>
+                <MaterialIcons name="auto-awesome" size={20} color={c.purple} style={{ marginRight: 10 }} />
                 <TextInput
                   ref={inputRef}
                   style={[styles.input, { color: c.textPrimary }]}

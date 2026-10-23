@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -175,11 +175,24 @@ export default function SquadDetailScreen() {
       </ScrollView>
 
       {/* Create Challenge Modal */}
-      <Modal visible={showCreate} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          <View style={[styles.modalContent, { backgroundColor: c.bgCard, borderColor: c.border, borderWidth: 1 }]}>
-            <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{translateCopy("Buat Challenge")}</Text>
+      <Modal visible={showCreate} animationType="slide" transparent onRequestClose={() => setShowCreate(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowCreate(false);
+              }}
+            />
+            <View style={[styles.modalContent, { backgroundColor: c.bgCard, borderColor: c.border, borderWidth: 1, maxHeight: '90%' }]}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{translateCopy("Buat Challenge")}</Text>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: c.textMuted }]}>{translateCopy("JUDUL TANTANGAN")}</Text>
@@ -228,16 +241,18 @@ export default function SquadDetailScreen() {
               />
             </View>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => setShowCreate(false)}>
-                <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: c.purple }]} onPress={handleCreateChallenge}>
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{translateCopy("Buat")}</Text>
-              </TouchableOpacity>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]} onPress={() => setShowCreate(false)}>
+                    <Text style={{ color: c.textSecondary, fontWeight: '700' }}>{translateCopy("Batal")}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, { backgroundColor: c.purple }]} onPress={handleCreateChallenge}>
+                    <Text style={{ color: '#fff', fontWeight: '800' }}>{translateCopy("Buat")}</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -42,7 +42,7 @@ export const darkColors: ThemeColors = {
 
   textPrimary: '#ffffff',
   textSecondary: '#a0a0a0',
-  textMuted: '#505050',
+  textMuted: '#93A59A',
 
   border: 'rgba(255, 255, 255, 0.1)',
   borderLight: 'rgba(255, 255, 255, 0.05)',

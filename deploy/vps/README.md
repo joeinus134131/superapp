@@ -125,7 +125,9 @@ docker compose up -d
 ```
 
 `NEXT_PUBLIC_*` values are baked into Next.js during image build. A web image is
-specific to its configured domain/Supabase project/public payment configuration.
+specific to its Supabase project/public payment configuration. The web API uses
+`/api/v1` on the current browser origin; the configured domain still controls
+HTTPS routing and API CORS.
 Changing those values on the VPS does not rewrite the browser bundle: rebuild and
 publish the web image. Keep matching build configuration with each release.
 No database URL, JWT secret or payment server key is a web build argument.
@@ -225,3 +227,22 @@ If a backup already exists, give the next backup a distinct name. Check
 Always include both Compose files for subsequent up/build/update operations;
 running the base file alone would try to start the bundled proxy again.
 The existing Caddy deployment must retain this external network when recreated.
+
+## Backup import restored locally but cloud sync says Failed to fetch
+
+This means the restore wrote to browser storage but a network request did not
+complete. Keep the browser storage and original JSON backup. Inspect the failing
+request URL in browser developer tools. An incorrect API hostname embedded at web
+build time cannot be fixed by changing runtime env alone.
+
+The VPS web build now uses `/api/v1` on the current domain. For existing-Caddy
+installations, update the source, confirm the correct `APP_DOMAIN` in `.env`, then:
+
+```sh
+docker compose -f compose.yaml -f compose.existing-proxy.yaml build web
+docker compose -f compose.yaml -f compose.existing-proxy.yaml up -d api web
+```
+
+Reload the browser to load the new bundle, sign in to the same account if needed,
+and use **Sync Now** to upload the restored local data. Do not reimport the backup
+or clear browser storage just to retry a failed network upload.

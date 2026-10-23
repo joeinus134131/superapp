@@ -1,3 +1,4 @@
+import { Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export const MOBILE_SPACING = {
@@ -9,15 +10,17 @@ export const MOBILE_SPACING = {
 
 export function useMobileLayout() {
   const insets = useSafeAreaInsets()
+  const tabBarPaddingBottom = Math.max(insets.bottom, Platform.OS === 'android' ? 8 : 12)
+  const tabBarHeight = 60 + tabBarPaddingBottom
 
   return {
     insets,
     screenPadding: MOBILE_SPACING.screen,
     topPadding: Math.max(insets.top + 10, 24),
-    bottomPadding: Math.max(insets.bottom + 96, 112),
+    bottomPadding: tabBarHeight + 32,
     contentBottomPadding: Math.max(insets.bottom + 32, 40),
-    tabBarHeight: 72 + insets.bottom,
-    tabBarPaddingBottom: Math.max(insets.bottom + 8, 20),
+    tabBarHeight,
+    tabBarPaddingBottom,
   }
 }
 

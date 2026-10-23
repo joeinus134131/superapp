@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
   EVENTS: 'superapp_events',
   REMINDERS: 'superapp_reminders',
   NOTIFICATION_HISTORY: 'superapp_notification_history',
+  SETTINGS: 'superapp_settings',
 };
 
 function getCurrentUserId() {

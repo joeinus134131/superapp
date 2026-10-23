@@ -51,7 +51,7 @@ jobs:
       - name: Build standalone web image
         run: >-
           docker build -f web/Dockerfile -t whenya-web:test
-          --build-arg NEXT_PUBLIC_API_URL=https://app.example.com/api/v1
+          --build-arg NEXT_PUBLIC_API_URL=/api/v1
           --build-arg NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co
           --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=test-public-key .
       - name: Validate Caddy routing

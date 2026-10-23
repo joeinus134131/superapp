@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../context/themeContext'
 import { useColors } from '../../lib/theme'
 import { BrandLogo } from '../../components/BrandLogo'
-import { MaterialIcons, Ionicons } from '@expo/vector-icons'
+import { MaterialIcons } from '@expo/vector-icons'
 import { useLanguage } from '../../context/languageContext'
 
 
@@ -18,10 +18,10 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null)
+  const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
   const [error, setError] = useState('')
   const router = useRouter()
-  const { login, loginWithOAuth, connection, refreshConnection } = useAuth()
+  const { login, loginWithOAuth, connection, refreshConnection, isOnboarded } = useAuth()
   const { isDark } = useTheme()
   const c = useColors(isDark)
   const { t, language, setLanguage } = useLanguage()
@@ -32,7 +32,7 @@ export default function LoginScreen() {
   const muted = isDark ? '#A8B8AA' : '#7C847B'
   const border = isDark ? '#34493A' : '#E1E5DA'
 
-  const handleOAuth = async (provider: 'google' | 'apple') => {
+  const handleOAuth = async (provider: 'google') => {
     setOauthLoading(provider)
     setError('')
     try {
@@ -60,7 +60,7 @@ export default function LoginScreen() {
     try {
       const result = await login(email, password)
       if (result?.success) {
-        router.replace('/(app)')
+        router.replace(isOnboarded ? '/(app)' : '/onboarding')
       } else {
         setError(result?.error || translateCopy("Login failed"))
       }
@@ -139,14 +139,14 @@ export default function LoginScreen() {
           <View style={styles.dividerRow}><View style={[styles.dividerLine, { backgroundColor: border }]} /><Text style={[styles.dividerText, { color: muted }]}>{translateCopy("atau masuk dengan")}</Text><View style={[styles.dividerLine, { backgroundColor: border }]} /></View>
 
           <View style={styles.oauthStack}>
-            {(['google', 'apple'] as const).map(provider => <TouchableOpacity
+            {(['google'] as const).map(provider => <TouchableOpacity
               key={provider} onPress={() => handleOAuth(provider)} disabled={busy} activeOpacity={0.75}
-              accessibilityRole="button" accessibilityLabel={provider === 'google' ? translateCopy("Masuk dengan Google") : translateCopy("Masuk dengan Apple")}
+              accessibilityRole="button" accessibilityLabel={translateCopy("Masuk dengan Google")}
               accessibilityState={{ disabled: busy, busy: oauthLoading === provider }}
               style={[styles.oauthBtn, { borderColor: border, opacity: busy ? 0.6 : 1 }]}>
               {oauthLoading === provider ? <ActivityIndicator size="small" color={ink} /> : <>
-                <View style={styles.oauthIcon}>{provider === 'google' ? <GoogleMark /> : <Ionicons name="logo-apple" size={21} color={ink} />}</View>
-                <Text style={[styles.oauthBtnText, { color: ink }]}>{provider === 'google' ? translateCopy("Masuk dengan Google") : translateCopy("Masuk dengan Apple")}</Text>
+                <View style={styles.oauthIcon}>{<GoogleMark />}</View>
+                <Text style={[styles.oauthBtnText, { color: ink }]}>{translateCopy("Masuk dengan Google")}</Text>
               </>}
             </TouchableOpacity>)}
           </View>

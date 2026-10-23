@@ -79,7 +79,9 @@
             "backgroundColor": "#101D17"
           }
         }
-      ]
+      ],
+      "expo-web-browser",
+      "expo-dev-client"
     ],
     "extra": {},
     "locales": {

@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   EVENTS: 'superapp_events',
   REMINDERS: 'superapp_reminders',
   NOTIFICATION_HISTORY: 'superapp_notification_history',
+  SETTINGS: 'superapp_settings',
   AUTH_USER: 'superapp_current_user',
   AUTH_USERS_LIST: 'superapp_users',
   SESSION_TOKEN: 'superapp_session_token'

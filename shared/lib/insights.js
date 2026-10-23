@@ -1,21 +1,18 @@
 import { ensureArray } from './helpers';
+import { getGoalSnapshot, isLinkedGoal, migrateGoal, normalizeGoalCategory as normalizeCategory } from './goals';
 
-export function normalizeGoalCategory(category) {
-  if (!category) return 'personal';
-  const clean = String(category).trim().toLowerCase().replace(/^cat_/, '');
-
-  if (['personal', 'pribadi'].includes(clean)) return 'personal';
-  if (['career', 'karir', 'kerja', 'pekerjaan', 'work', 'bisnis', 'business'].includes(clean)) return 'career';
-  if (['finance', 'keuangan', 'finansial'].includes(clean)) return 'finance';
-  if (['health', 'kesehatan', 'kebugaran', 'fitness'].includes(clean)) return 'health';
-  if (['education', 'edukasi', 'pendidikan', 'belajar', 'study'].includes(clean)) return 'education';
-  if (['relationship', 'hubungan', 'keluarga', 'family', 'sosial', 'social'].includes(clean)) return 'relationship';
-  if (['other', 'lainnya', 'lain'].includes(clean)) return 'other';
-
-  return clean;
-}
+export const normalizeGoalCategory = normalizeCategory;
 
 export function normalizeGoal(goal) {
+  if (!goal || typeof goal !== 'object') return goal;
+  if (goal.schemaVersion === 2 || (goal.type && goal.type !== 'milestone')) {
+    const migrated = migrateGoal(goal);
+    if (!migrated) return goal;
+    if (!isLinkedGoal(migrated) && migrated.status !== 'completed') {
+      migrated.progress = getGoalSnapshot(migrated).percent;
+    }
+    return migrated;
+  }
   const milestones = goal.milestones || (goal.journey || []).map(step => ({ id: step.id, text: step.text, done: !!step.completed }));
   const progress = milestones.length ? Math.round(milestones.filter(step => step.done).length / milestones.length * 100) : goal.completed ? 100 : Number(goal.progress) || 0;
   const category = goal.category ? normalizeGoalCategory(goal.category) : goal.category;
